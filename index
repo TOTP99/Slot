@@ -1,0 +1,1133 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>🎰 Royal Lucky 777</title>
+
+<style>
+:root{
+  --gold:#ffd45a;
+  --gold2:#ff9d00;
+  --red:#9d1018;
+  --red2:#e52b32;
+  --dark:#090b12;
+  --panel:#151a25;
+  --green:#39e58c;
+}
+
+*{box-sizing:border-box}
+
+html,body{
+  margin:0;
+  min-height:100%;
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+
+body{
+  background:
+    radial-gradient(circle at 50% 0,#3a1820 0,#130d15 38%,#06070b 100%);
+  color:#fff;
+  display:flex;
+  justify-content:center;
+  padding:18px;
+}
+
+button{font:inherit}
+
+.app{
+  width:min(920px,100%);
+}
+
+.top{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  margin-bottom:14px;
+}
+
+.brand{
+  font-weight:900;
+  font-size:clamp(24px,5vw,38px);
+  letter-spacing:.04em;
+  text-shadow:0 3px 0 #000;
+}
+
+.badge{
+  border:1px solid #ffffff20;
+  background:#ffffff0b;
+  border-radius:999px;
+  padding:7px 12px;
+  color:#ffd86a;
+  font-size:12px;
+}
+
+.machine{
+  position:relative;
+  border:3px solid #9b620d;
+  border-radius:28px;
+  background:
+    linear-gradient(
+      #c58a16,
+      #5c2c08 8%,
+      #180d09 18%,
+      #0b0d13 100%
+    );
+  box-shadow:
+    0 20px 70px #000b,
+    0 0 0 5px #2d1706,
+    0 0 40px #ffae0030;
+  overflow:hidden;
+}
+
+.marquee{
+  margin:12px;
+  border:2px solid #ffe78a;
+  border-radius:18px;
+  background:
+    linear-gradient(
+      #ffdd56,
+      #ff8f00 55%,
+      #b33c00
+    );
+  padding:13px 10px;
+  text-align:center;
+  color:#401100;
+  font-size:clamp(18px,4vw,31px);
+  font-weight:1000;
+  letter-spacing:.12em;
+  text-shadow:0 1px #fff8;
+  box-shadow:
+    inset 0 3px 0 #fff8,
+    inset 0 -6px 0 #6d1700,
+    0 0 20px #ffba0040;
+}
+
+.marquee small{
+  display:block;
+  font-size:11px;
+  letter-spacing:.25em;
+  margin-top:2px;
+}
+
+.screen{
+  margin:16px;
+  padding:clamp(10px,3vw,20px);
+  border-radius:20px;
+  background:linear-gradient(#343b4b,#12151d);
+  border:2px solid #596174;
+  box-shadow:
+    inset 0 0 0 4px #090b10,
+    inset 0 0 30px #000;
+}
+
+.reels{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:clamp(7px,2vw,14px);
+  position:relative;
+}
+
+.reels:before,
+.reels:after{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  height:5px;
+  z-index:4;
+  pointer-events:none;
+}
+
+.reels:before{
+  top:33.33%;
+  background:#ff3040;
+  box-shadow:0 0 10px #ff3040;
+}
+
+.reels:after{
+  top:66.66%;
+  background:#ff3040;
+  box-shadow:0 0 10px #ff3040;
+}
+
+.reel{
+  height:clamp(180px,42vw,310px);
+  background:
+    linear-gradient(
+      90deg,
+      #b8bec9,
+      #fff 12%,
+      #f8f9fb 50%,
+      #c4cad3 88%,
+      #8c929d
+    );
+  border:2px solid #707784;
+  border-radius:13px;
+  overflow:hidden;
+  box-shadow:
+    inset 0 0 20px #0004,
+    0 4px 10px #0008;
+  position:relative;
+}
+
+.reel:after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    linear-gradient(
+      #fff9,
+      transparent 25%,
+      transparent 72%,
+      #0002
+    );
+  pointer-events:none;
+}
+
+.strip{
+  position:absolute;
+  left:0;
+  right:0;
+  top:0;
+  display:flex;
+  flex-direction:column;
+  transition:
+    transform .15s cubic-bezier(.2,.8,.2,1);
+}
+
+.cell{
+  height:clamp(60px,14vw,103px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:clamp(40px,10vw,70px);
+  line-height:1;
+  user-select:none;
+  filter:drop-shadow(0 3px 1px #0004);
+}
+
+.controls{
+  padding:4px 18px 20px;
+}
+
+.stats{
+  display:grid;
+  grid-template-columns:1fr auto 1fr;
+  gap:10px;
+  align-items:center;
+}
+
+.stat{
+  background:#0b0e15;
+  border:1px solid #343a49;
+  border-radius:12px;
+  padding:9px 12px;
+  text-align:center;
+  box-shadow:inset 0 0 12px #000;
+}
+
+.stat span{
+  display:block;
+  color:#8e98aa;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+}
+
+.stat b{
+  font-size:22px;
+  color:#fff;
+}
+
+.betrow{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:8px;
+  margin:14px 0;
+}
+
+.smallbtn{
+  border:1px solid #ffffff25;
+  background:#202635;
+  color:#fff;
+  border-radius:9px;
+  padding:7px 12px;
+  cursor:pointer;
+}
+
+.smallbtn:hover{
+  background:#2d3548;
+}
+
+.spin{
+  border:3px solid #ffe58b;
+  border-radius:999px;
+  background:
+    radial-gradient(
+      circle at 35% 25%,
+      #ff6b61,
+      #d71928 45%,
+      #78070d
+    );
+  color:#fff;
+  padding:17px 38px;
+  font-size:22px;
+  font-weight:1000;
+  letter-spacing:.08em;
+  box-shadow:
+    0 8px 0 #4b070b,
+    0 12px 28px #0008,
+    0 0 25px #ff2b3240;
+  cursor:pointer;
+  min-width:190px;
+}
+
+.spin:active{
+  transform:translateY(6px);
+  box-shadow:
+    0 2px 0 #4b070b,
+    0 5px 15px #0008;
+}
+
+.spin:disabled{
+  filter:grayscale(1);
+  opacity:.55;
+  cursor:not-allowed;
+}
+
+.message{
+  text-align:center;
+  min-height:28px;
+  color:#ffd96b;
+  font-weight:800;
+  font-size:15px;
+  margin:8px 0;
+}
+
+.paytable{
+  display:grid;
+  grid-template-columns:repeat(6,1fr);
+  gap:5px;
+  margin-top:10px;
+}
+
+.pay{
+  background:#0c0f16;
+  border:1px solid #252b37;
+  border-radius:8px;
+  padding:7px 2px;
+  text-align:center;
+  font-size:12px;
+}
+
+.pay strong{
+  display:block;
+  font-size:20px;
+}
+
+.pay em{
+  color:#ffd65b;
+  font-style:normal;
+}
+
+.jackpot{
+  margin:14px 0 0;
+  text-align:center;
+  color:#ffcb3e;
+  font-weight:1000;
+  font-size:clamp(20px,5vw,34px);
+  text-shadow:
+    0 2px 0 #000,
+    0 0 14px #ff9d00;
+}
+
+.lever{
+  position:absolute;
+  right:-3px;
+  top:40%;
+  width:34px;
+  height:145px;
+  background:#1a1d26;
+  border:2px solid #555b68;
+  border-radius:17px 0 0 17px;
+  box-shadow:-5px 8px 15px #0008;
+  display:flex;
+  justify-content:center;
+  cursor:pointer;
+}
+
+.lever .rod{
+  width:8px;
+  height:85px;
+  background:linear-gradient(90deg,#aaa,#fff,#777);
+  border-radius:8px;
+  margin-top:8px;
+}
+
+.lever .ball{
+  position:absolute;
+  top:0;
+  width:30px;
+  height:30px;
+  border-radius:50%;
+  background:
+    radial-gradient(
+      circle at 35% 25%,
+      #ff746c,
+      #d10d19 55%,
+      #710008
+    );
+  border:2px solid #ffcc8a;
+  transition:.15s;
+}
+
+.lever:active .ball{
+  top:65px;
+}
+
+.win{
+  animation:win .65s ease-in-out 3;
+}
+
+@keyframes win{
+  50%{
+    transform:scale(1.025);
+    filter:brightness(1.5);
+  }
+}
+
+.shake{
+  animation:shake .35s;
+}
+
+@keyframes shake{
+  25%{transform:translateX(-5px)}
+  50%{transform:translateX(5px)}
+  75%{transform:translateX(-3px)}
+}
+
+.footer{
+  text-align:center;
+  color:#687181;
+  font-size:11px;
+  margin:12px;
+}
+
+@media(max-width:600px){
+
+  body{
+    padding:9px;
+  }
+
+  .machine{
+    border-radius:20px;
+  }
+
+  .marquee{
+    margin:8px;
+  }
+
+  .screen{
+    margin:10px;
+  }
+
+  .controls{
+    padding:4px 10px 15px;
+  }
+
+  .stats{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .stats .stat:nth-child(2){
+    display:none;
+  }
+
+  .spin{
+    min-width:165px;
+    padding:15px 28px;
+  }
+
+  .lever{
+    display:none;
+  }
+
+  .paytable{
+    grid-template-columns:repeat(3,1fr);
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+  <div class="top">
+    <div class="brand">🎰 ROYAL LUCKY 777</div>
+    <div class="badge">OFFLINE • SINGLE FILE</div>
+  </div>
+
+  <div class="machine" id="machine">
+
+    <div class="marquee">
+      ★ JACKPOT ★
+      <small>LUCK • GLORY • 777</small>
+    </div>
+
+    <div class="screen">
+      <div class="reels" id="reels"></div>
+    </div>
+
+    <div class="controls">
+
+      <div class="message" id="message">
+        按 SPIN 开始游戏
+      </div>
+
+      <div class="stats">
+
+        <div class="stat">
+          <span>Credits</span>
+          <b id="credits">1000</b>
+        </div>
+
+        <button class="spin" id="spin">
+          SPIN
+        </button>
+
+        <div class="stat">
+          <span>Bet / Spin</span>
+          <b id="bet">10</b>
+        </div>
+
+      </div>
+
+      <div class="betrow">
+        <button class="smallbtn" id="minus">
+          − Bet
+        </button>
+
+        <button class="smallbtn" id="max">
+          MAX BET
+        </button>
+
+        <button class="smallbtn" id="plus">
+          + Bet
+        </button>
+      </div>
+
+      <div class="paytable">
+
+        <div class="pay">
+          <strong>🍒</strong>
+          <em>×20</em>
+        </div>
+
+        <div class="pay">
+          <strong>🍋</strong>
+          <em>×25</em>
+        </div>
+
+        <div class="pay">
+          <strong>🍉</strong>
+          <em>×35</em>
+        </div>
+
+        <div class="pay">
+          <strong>🔔</strong>
+          <em>×50</em>
+        </div>
+
+        <div class="pay">
+          <strong>⭐</strong>
+          <em>×80</em>
+        </div>
+
+        <div class="pay">
+          <strong>7️⃣</strong>
+          <em>×200</em>
+        </div>
+
+      </div>
+
+      <div class="jackpot" id="jackpot">
+        JACKPOT 10,000
+      </div>
+
+    </div>
+
+    <div class="lever" id="lever">
+      <div class="rod"></div>
+      <div class="ball"></div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    纯 HTML / CSS / JavaScript · 无 CDN · 无图片 · 无后端 ·
+    断网可玩 · 进度自动保存在浏览器
+  </div>
+
+</div>
+
+<script>
+
+(() => {
+
+  const SYMBOLS = [
+    {s:"🍒",m:20},
+    {s:"🍋",m:25},
+    {s:"🍉",m:35},
+    {s:"🔔",m:50},
+    {s:"⭐",m:80},
+    {s:"7️⃣",m:200}
+  ];
+
+  const START = 1000;
+
+  const BETS = [
+    10,
+    20,
+    50,
+    100,
+    200
+  ];
+
+  let credits =
+    Number(
+      localStorage.getItem("royalSlotsCredits")
+      ?? START
+    );
+
+  let bet =
+    Number(
+      localStorage.getItem("royalSlotsBet")
+      ?? 10
+    );
+
+  let jackpot =
+    Number(
+      localStorage.getItem("royalSlotsJackpot")
+      ?? 10000
+    );
+
+  if(!BETS.includes(bet)){
+    bet = 10;
+  }
+
+  let spinning = false;
+
+  const $ = id =>
+    document.getElementById(id);
+
+  const sleep = ms =>
+    new Promise(resolve => setTimeout(resolve,ms));
+
+  const reelsRoot = $("reels");
+  const machine = $("machine");
+  const message = $("message");
+
+  const reelEls = [];
+  const strips = [];
+
+  const symbolAt = i =>
+    SYMBOLS[i % SYMBOLS.length].s;
+
+  const randomIndex = () =>
+    Math.floor(
+      Math.random() * SYMBOLS.length
+    );
+
+  /*
+   * 建立三个滚轮
+   */
+
+  for(let r=0;r<3;r++){
+
+    const reel =
+      document.createElement("div");
+
+    reel.className = "reel";
+
+    const strip =
+      document.createElement("div");
+
+    strip.className = "strip";
+
+    /*
+     * 重复多个图标，
+     * 让滚轮能够连续滚动。
+     */
+
+    for(let i=0;i<30;i++){
+
+      const cell =
+        document.createElement("div");
+
+      cell.className = "cell";
+
+      cell.textContent =
+        symbolAt(i);
+
+      strip.appendChild(cell);
+    }
+
+    reel.appendChild(strip);
+    reelsRoot.appendChild(reel);
+
+    reelEls.push(reel);
+    strips.push(strip);
+  }
+
+  function render(){
+
+    $("credits").textContent =
+      credits.toLocaleString();
+
+    $("bet").textContent =
+      bet.toLocaleString();
+
+    $("jackpot").textContent =
+      "JACKPOT " +
+      Math.floor(jackpot).toLocaleString();
+
+    $("spin").disabled =
+      spinning || credits < bet;
+
+    localStorage.setItem(
+      "royalSlotsCredits",
+      credits
+    );
+
+    localStorage.setItem(
+      "royalSlotsBet",
+      bet
+    );
+
+    localStorage.setItem(
+      "royalSlotsJackpot",
+      jackpot
+    );
+  }
+
+  function setMessage(text){
+    message.textContent = text;
+  }
+
+  function choose(){
+    return randomIndex();
+  }
+
+  /*
+   * 初始显示
+   */
+
+  function showInitial(){
+
+    for(let r=0;r<3;r++){
+
+      const h =
+        reelEls[r].clientHeight / 3;
+
+      const index =
+        8 + choose();
+
+      strips[r].style.transition =
+        "none";
+
+      strips[r].style.transform =
+        `translateY(-${index*h}px)`;
+    }
+  }
+
+  /*
+   * 单个滚轮动画
+   */
+
+  async function spinReel(
+    reelIndex,
+    result,
+    duration
+  ){
+
+    const strip =
+      strips[reelIndex];
+
+    const reel =
+      reelEls[reelIndex];
+
+    const h =
+      reel.clientHeight / 3;
+
+    /*
+     * 不同滚轮停在不同的位置，
+     * 形成真实的依次停止效果。
+     */
+
+    const base =
+      12 + reelIndex * 3;
+
+    const target =
+      base + result;
+
+    strip.style.transition =
+      `transform ${duration}ms cubic-bezier(.12,.72,.15,1)`;
+
+    strip.style.transform =
+      `translateY(-${target*h}px)`;
+
+    await sleep(duration + 50);
+  }
+
+  /*
+   * 简单 Web Audio 音效。
+   * 不需要任何音频文件。
+   */
+
+  function sound(type){
+
+    try{
+
+      const AudioContext =
+        window.AudioContext ||
+        window.webkitAudioContext;
+
+      if(!AudioContext){
+        return;
+      }
+
+      const ctx =
+        new AudioContext();
+
+      const oscillator =
+        ctx.createOscillator();
+
+      const gain =
+        ctx.createGain();
+
+      oscillator.type =
+        type === "win"
+        ? "triangle"
+        : "square";
+
+      oscillator.frequency.value =
+        type === "win"
+        ? 720
+        : 180;
+
+      gain.gain.setValueAtTime(
+        0.035,
+        ctx.currentTime
+      );
+
+      gain.gain.exponentialRampToValueAtTime(
+        0.0001,
+        ctx.currentTime + 0.18
+      );
+
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+
+      oscillator.start();
+
+      oscillator.stop(
+        ctx.currentTime + 0.2
+      );
+
+    }catch(e){}
+  }
+
+  /*
+   * Spin
+   */
+
+  async function spin(){
+
+    if(
+      spinning ||
+      credits < bet
+    ){
+      return;
+    }
+
+    spinning = true;
+
+    /*
+     * 扣下注
+     */
+
+    credits -= bet;
+
+    /*
+     * Jackpot 随下注略微增长
+     */
+
+    jackpot +=
+      Math.max(
+        1,
+        Math.floor(bet * 0.05)
+      );
+
+    render();
+
+    setMessage(
+      "🎰 滚轮转动中……"
+    );
+
+    sound("spin");
+
+    /*
+     * 三个最终结果
+     */
+
+    const results = [
+      choose(),
+      choose(),
+      choose()
+    ];
+
+    /*
+     * 同时启动，但依次停止
+     */
+
+    await Promise.all(
+      results.map(
+        (result,index) =>
+          spinReel(
+            index,
+            result,
+            900 + index * 320
+          )
+      )
+    );
+
+    const allSame =
+      results[0] === results[1] &&
+      results[1] === results[2];
+
+    const twoSame =
+      results[0] === results[1] ||
+      results[0] === results[2] ||
+      results[1] === results[2];
+
+    /*
+     * 三个相同
+     */
+
+    if(allSame){
+
+      const symbol =
+        SYMBOLS[results[0]];
+
+      const win =
+        bet * symbol.m;
+
+      credits += win;
+
+      let text =
+        `🎉 ${symbol.s} ${symbol.s} ${symbol.s}  ` +
+        `WIN +${win.toLocaleString()}!`;
+
+      /*
+       * 777 Jackpot
+       */
+
+      if(symbol.s === "7️⃣"){
+
+        const bonus =
+          Math.floor(jackpot);
+
+        credits += bonus;
+
+        jackpot = 10000;
+
+        text =
+          `💥 JACKPOT! 7️⃣ 7️⃣ 7️⃣  ` +
+          `+${(win + bonus).toLocaleString()} CREDITS!`;
+      }
+
+      setMessage(text);
+
+      machine.classList.remove("win");
+
+      void machine.offsetWidth;
+
+      machine.classList.add("win");
+
+      sound("win");
+
+    }
+
+    /*
+     * 两个相同
+     */
+
+    else if(twoSame){
+
+      const pair =
+        results.find(
+          (x,i) =>
+            results.indexOf(x) !== i
+        );
+
+      const consolation =
+        Math.floor(bet * 0.5);
+
+      credits += consolation;
+
+      setMessage(
+        `✨ 两个 ${SYMBOLS[pair].s}！` +
+        `返还 ${consolation} credits`
+      );
+
+    }
+
+    /*
+     * 没中奖
+     */
+
+    else{
+
+      setMessage(
+        "没有中奖，再试一次！"
+      );
+
+      machine.classList.remove(
+        "shake"
+      );
+
+      void machine.offsetWidth;
+
+      machine.classList.add(
+        "shake"
+      );
+    }
+
+    spinning = false;
+
+    render();
+
+    if(credits < bet){
+
+      setMessage(
+        "💸 Credits 不足。"
+      );
+    }
+  }
+
+  /*
+   * Spin 按钮
+   */
+
+  $("spin").onclick =
+    spin;
+
+  /*
+   * 拉杆
+   */
+
+  $("lever").onclick =
+    spin;
+
+  /*
+   * 降低下注
+   */
+
+  $("minus").onclick =
+    () => {
+
+      if(spinning){
+        return;
+      }
+
+      const index =
+        BETS.indexOf(bet);
+
+      bet =
+        BETS[
+          Math.max(0,index - 1)
+        ];
+
+      render();
+    };
+
+  /*
+   * 增加下注
+   */
+
+  $("plus").onclick =
+    () => {
+
+      if(spinning){
+        return;
+      }
+
+      const index =
+        BETS.indexOf(bet);
+
+      bet =
+        BETS[
+          Math.min(
+            BETS.length - 1,
+            index + 1
+          )
+        ];
+
+      render();
+    };
+
+  /*
+   * 最大下注
+   */
+
+  $("max").onclick =
+    () => {
+
+      if(spinning){
+        return;
+      }
+
+      bet =
+        BETS[BETS.length - 1];
+
+      render();
+    };
+
+  /*
+   * 键盘操作
+   */
+
+  document.addEventListener(
+    "keydown",
+    event => {
+
+      if(
+        event.key === "Enter" ||
+        event.key === " "
+      ){
+
+        event.preventDefault();
+
+        spin();
+      }
+    }
+  );
+
+  /*
+   * 初始化
+   */
+
+  showInitial();
+
+  render();
+
+})();
+
+</script>
+
+</body>
+</html>
