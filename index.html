@@ -1,0 +1,726 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>🎰 动物水果老虎机</title>
+
+<style>
+:root{
+  --gold:#f5c242;
+  --gold-light:#ffdf80;
+  --dark-bg:#0d0806;
+  --panel-bg:#16100c;
+  --red:#d62828;
+  --red-dark:#800e13;
+}
+
+*{box-sizing:border-box}
+
+html,body{
+  margin:0;
+  min-height:100%;
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+
+body{
+  background:radial-gradient(circle at 50% 0,#3a2012 0,#120905 40%,#050201 100%);
+  color:#fff;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  padding:14px;
+}
+
+button{font:inherit}
+
+.app{
+  width:min(960px,100%);
+}
+
+.top-bar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background:linear-gradient(135deg, #1e130d, #0d0806);
+  border:2px solid #5a381e;
+  border-radius:16px;
+  padding:12px 20px;
+  margin-bottom:14px;
+  box-shadow:0 8px 24px #000c, inset 0 1px 1px #ffffff20;
+}
+
+.top-info{
+  display:flex;
+  gap:20px;
+}
+
+.info-box{
+  background:#090503;
+  border:1px solid #3d2212;
+  border-radius:10px;
+  padding:6px 16px;
+  text-align:center;
+  min-width:110px;
+  box-shadow:inset 0 2px 6px #000;
+}
+
+.info-box span{
+  display:block;
+  color:#a68267;
+  font-size:10px;
+  letter-spacing:.15em;
+  text-transform:uppercase;
+  margin-bottom:2px;
+}
+
+.info-box b{
+  font-size:20px;
+  color:var(--gold-light);
+  text-shadow:0 0 10px rgba(255,217,107,0.3);
+}
+
+.machine{
+  position:relative;
+  border:4px solid #8c5623;
+  border-radius:28px;
+  background:linear-gradient(180deg, #9e6428 0%, #523112 12%, #1f1107 22%, #110904 100%);
+  box-shadow:0 25px 60px #000ea, inset 0 0 0 4px #2b1708, 0 0 50px rgba(255,160,0,0.15);
+  overflow:hidden;
+}
+
+.marquee-arch{
+  position:relative;
+  width:min(440px, 80%);
+  margin:16px auto 10px;
+  height:85px;
+  background:linear-gradient(180deg, #2a1708 0%, #150b04 100%);
+  border:3px solid #f5c242;
+  border-bottom:none;
+  border-top-left-radius:220px;
+  border-top-right-radius:220px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  box-shadow:inset 0 4px 12px rgba(255,217,107,0.3), 0 8px 20px rgba(0,0,0,0.8);
+  text-align:center;
+}
+
+.marquee-arch:before, .marquee-arch:after{
+  content:"◆";
+  position:absolute;
+  top:28px;
+  color:#f5c242;
+  font-size:16px;
+  text-shadow:0 0 6px #ff9d00;
+}
+.marquee-arch:before{left:35px;}
+.marquee-arch:after{right:35px;}
+
+.marquee-title{
+  font-size:clamp(22px, 4vw, 30px);
+  font-weight:900;
+  letter-spacing:.08em;
+  background:linear-gradient(180deg, #fff7d6 0%, #ffc547 50%, #d68500 100%);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 2px 2px #000);
+  margin-top:8px;
+}
+
+.marquee-sub{
+  font-size:10px;
+  letter-spacing:.3em;
+  color:#ffdf80;
+  text-transform:uppercase;
+  margin-top:2px;
+  text-shadow:0 1px 2px #000;
+}
+
+.top-bulb{
+  width:22px;
+  height:22px;
+  background:radial-gradient(circle at 30% 30%, #ff8888, #d62828 60%, #500);
+  border-radius:50%;
+  border:2px solid #ffcc8a;
+  margin:0 auto 4px;
+  box-shadow:0 0 12px #ff2b32, 0 0 25px #ff2b32;
+}
+
+.paytable-board{
+  margin:0 20px 14px;
+  background:#090503;
+  border:2px solid #5a381e;
+  border-radius:14px;
+  padding:8px 12px;
+  display:grid;
+  grid-template-columns:repeat(3, 1fr);
+  gap:8px;
+  box-shadow:inset 0 0 15px #000;
+}
+
+.pay-col{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+
+.pay-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background:#140c07;
+  border:1px solid #362112;
+  border-radius:6px;
+  padding:4px 8px;
+  font-size:11px;
+}
+
+.pay-row .symbols{
+  font-size:14px;
+  letter-spacing:1px;
+}
+
+.pay-row .payout{
+  color:#ffcc8a;
+  font-weight:bold;
+}
+
+.screen{
+  margin:0 20px 14px;
+  padding:14px;
+  border-radius:18px;
+  background:linear-gradient(180deg,#1c120c,#080503);
+  border:3px solid #4a2e18;
+  box-shadow:inset 0 0 0 3px #050302, inset 0 0 25px #000;
+  position:relative;
+}
+
+.reels{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:8px;
+  position:relative;
+}
+
+.reels:before,
+.reels:after{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  height:3px;
+  z-index:4;
+  pointer-events:none;
+}
+.reels:before{
+  top:33.33%;
+  background:#ff3040;
+  box-shadow:0 0 8px #ff3040;
+}
+.reels:after{
+  top:66.66%;
+  background:#ff3040;
+  box-shadow:0 0 8px #ff3040;
+}
+
+.reel{
+  height:clamp(150px, 35vw, 240px);
+  background:linear-gradient(90deg, #b8bec9, #fff 15%, #f8f9fb 50%, #c4cad3 85%, #8c929d);
+  border:2px solid #707784;
+  border-radius:10px;
+  overflow:hidden;
+  box-shadow:inset 0 0 15px #0005, 0 4px 10px #0008;
+  position:relative;
+}
+
+.reel:after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(#fff8, transparent 25%, transparent 75%, #0003);
+  pointer-events:none;
+}
+
+.strip{
+  position:absolute;
+  left:0;
+  right:0;
+  top:0;
+  display:flex;
+  flex-direction:column;
+  transition:transform .15s cubic-bezier(.2,.8,.2,1);
+}
+
+.cell{
+  height:clamp(50px, 11.6vw, 80px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:clamp(30px, 7vw, 52px);
+  line-height:1;
+  user-select:none;
+  filter:drop-shadow(0 2px 2px rgba(0,0,0,0.3));
+}
+
+.controls{
+  padding:0 20px 20px;
+}
+
+.message{
+  text-align:center;
+  min-height:26px;
+  color:#ffdf80;
+  font-weight:800;
+  font-size:14px;
+  margin-bottom:10px;
+  text-shadow:0 1px 2px #000;
+}
+
+.action-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+}
+
+.bet-panel{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  background:#090503;
+  border:1px solid #3d2212;
+  border-radius:12px;
+  padding:8px 12px;
+  min-width:140px;
+  text-align:center;
+}
+
+.bet-panel span{
+  font-size:10px;
+  color:#a68267;
+  letter-spacing:.1em;
+}
+
+.bet-controls{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:8px;
+}
+
+.smallbtn{
+  border:1px solid #5a381e;
+  background:#201108;
+  color:#ffcc8a;
+  border-radius:6px;
+  width:28px;
+  height:28px;
+  font-weight:bold;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.smallbtn:hover{background:#3a2012;}
+
+.bet-display{
+  font-size:18px;
+  font-weight:bold;
+  color:#fff;
+  min-width:40px;
+}
+
+.spin-btn{
+  flex:1;
+  border:4px solid #ffe58b;
+  border-radius:24px;
+  background:radial-gradient(circle at 35% 25%, #ff5252, #c7151e 50%, #68050a 100%);
+  color:#fff;
+  padding:16px 20px;
+  font-size:24px;
+  font-weight:1000;
+  letter-spacing:.12em;
+  box-shadow:0 6px 0 #420306, 0 10px 25px rgba(0,0,0,0.7), inset 0 2px 6px rgba(255,255,255,0.4);
+  cursor:pointer;
+  text-align:center;
+  text-shadow:0 2px 2px rgba(0,0,0,0.5);
+  transition:transform 0.05s;
+}
+
+.spin-btn:active{
+  transform:translateY(4px);
+  box-shadow:0 2px 0 #420306, 0 4px 12px rgba(0,0,0,0.7), inset 0 1px 3px rgba(0,0,0,0.4);
+}
+
+.spin-btn:disabled{
+  filter:grayscale(1);
+  opacity:.5;
+  cursor:not-allowed;
+}
+
+.lever{
+  position:absolute;
+  right:-24px;
+  top:38%;
+  width:32px;
+  height:150px;
+  background:#1a0f08;
+  border:2px solid #633e20;
+  border-radius:16px 0 0 16px;
+  box-shadow:-5px 8px 20px #000c;
+  display:flex;
+  justify-content:center;
+  cursor:pointer;
+  z-index:10;
+}
+
+.lever .rod{
+  width:8px;
+  height:95px;
+  background:linear-gradient(90deg,#ccc,#fff,#888);
+  border-radius:6px;
+  margin-top:10px;
+}
+
+.lever .ball{
+  position:absolute;
+  top:-2px;
+  width:30px;
+  height:30px;
+  border-radius:50%;
+  background:radial-gradient(circle at 35% 25%, #ff746c, #d10d19 60%, #710008);
+  border:2px solid #ffcc8a;
+  box-shadow:0 0 10px #ff2b32;
+  transition:.15s;
+}
+
+.lever:active .ball{
+  top:75px;
+}
+
+.good-luck-bar{
+  margin-top:14px;
+  background:#090503;
+  border:2px solid #5a381e;
+  border-radius:10px;
+  padding:8px;
+  text-align:center;
+  color:#ffcc8a;
+  font-weight:900;
+  font-size:16px;
+  letter-spacing:.2em;
+  box-shadow:inset 0 0 10px #000;
+  display:flex;
+  justify-content:center;
+  gap:20px;
+  align-items:center;
+}
+.good-luck-bar span{color:#ffcc8a;}
+
+@keyframes win-anim{
+  50%{transform:scale(1.02); filter:brightness(1.3);}
+}
+.win{animation:win-anim .5s ease-in-out 3;}
+
+@keyframes shake-anim{
+  25%{transform:translateX(-4px)}
+  50%{transform:translateX(4px)}
+  75%{transform:translateX(-2px)}
+}
+.shake{animation:shake-anim .3s;}
+
+@media(max-width:768px){
+  body{padding:6px;}
+  .lever{display:none;}
+  .reels{grid-template-columns:repeat(3,1fr);}
+  .top-info{gap:10px;}
+  .info-box{min-width:85px; padding:4px 8px;}
+  .info-box b{font-size:16px;}
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+  <div class="top-bar">
+    <div class="top-info">
+      <div class="info-box">
+        <span>Balance</span>
+        <b id="credits">1,000</b>
+      </div>
+      <div class="info-box">
+        <span>Win</span>
+        <b id="win-display">0.00</b>
+      </div>
+    </div>
+    <div class="top-info">
+      <div class="info-box">
+        <span>Jackpot</span>
+        <b id="jackpot">5,000.00</b>
+      </div>
+    </div>
+  </div>
+
+  <div class="machine" id="machine">
+    <div style="padding-top:12px;"><div class="top-bulb"></div></div>
+
+    <div class="marquee-arch">
+      <div class="marquee-title">动物水果乐园</div>
+      <div class="marquee-sub">LUCK • GLORY • 🍁</div>
+    </div>
+
+    <div class="paytable-board">
+      <div class="pay-col">
+        <div class="pay-row"><span class="symbols">🐼🐼🐼</span><span class="payout">20</span></div>
+        <div class="pay-row"><span class="symbols">🐶🐶🐶</span><span class="payout">25</span></div>
+      </div>
+      <div class="pay-col">
+        <div class="pay-row"><span class="symbols">🐰🐰🐰</span><span class="payout">35</span></div>
+        <div class="pay-row"><span class="symbols">🌺🌺🌺</span><span class="payout">50</span></div>
+      </div>
+      <div class="pay-col">
+        <div class="pay-row"><span class="symbols">🌸🌸🌸</span><span class="payout">80</span></div>
+        <div class="pay-row"><span class="symbols">🍁🍁🍁</span><span class="payout">200</span></div>
+      </div>
+    </div>
+
+    <div class="screen">
+      <div class="reels" id="reels"></div>
+    </div>
+
+    <div class="controls">
+      <div class="message" id="message">点击 SPIN 开始游戏</div>
+
+      <div class="action-row">
+        <div class="bet-panel">
+          <span>Total Bet</span>
+          <div class="bet-controls">
+            <button class="smallbtn" id="minus">-</button>
+            <div class="bet-display" id="bet">10</div>
+            <button class="smallbtn" id="plus">+</button>
+          </div>
+        </div>
+
+        <button class="spin-btn" id="spin">PUSH TO SPIN</button>
+
+        <div class="bet-panel" style="justify-content:center; align-items:center;">
+          <span>MAX BET</span>
+          <button class="smallbtn" id="max" style="width:100%; height:28px; margin-top:2px;">MAX</button>
+        </div>
+      </div>
+
+      <div class="good-luck-bar">
+        <span>★</span> GOOD LUCK! <span>★</span>
+      </div>
+    </div>
+
+    <div class="lever" id="lever">
+      <div class="rod"></div>
+      <div class="ball"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // 将猫头像替换为 🍁 枫叶
+  const SYMBOLS = [
+    {s:"🐼", m:20},
+    {s:"🐶", m:25},
+    {s:"🐰", m:35},
+    {s:"🌺", m:50},
+    {s:"🌸", m:80},
+    {s:"🍁", m:200}
+  ];
+
+  const START = 1000;
+  const BETS = [10, 20, 50, 100, 200];
+
+  let credits = Number(localStorage.getItem("tigerSlotsCredits") ?? START);
+  let bet = Number(localStorage.getItem("tigerSlotsBet") ?? 10);
+  let jackpot = Number(localStorage.getItem("tigerSlotsJackpot") ?? 5000);
+
+  if(!BETS.includes(bet)) bet = 10;
+  let spinning = false;
+
+  const $ = id => document.getElementById(id);
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  const reelsRoot = $("reels");
+  const machine = $("machine");
+  const message = $("message");
+
+  const reelEls = [];
+  const strips = [];
+
+  const symbolAt = i => SYMBOLS[i % SYMBOLS.length].s;
+  const randomIndex = () => Math.floor(Math.random() * SYMBOLS.length);
+
+  for(let r = 0; r < 5; r++){
+    const reel = document.createElement("div");
+    reel.className = "reel";
+
+    const strip = document.createElement("div");
+    strip.className = "strip";
+
+    for(let i = 0; i < 35; i++){
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      cell.textContent = symbolAt(i);
+      strip.appendChild(cell);
+    }
+
+    reel.appendChild(strip);
+    reelsRoot.appendChild(reel);
+
+    reelEls.push(reel);
+    strips.push(strip);
+  }
+
+  function render(){
+    $("credits").textContent = credits.toLocaleString();
+    $("bet").textContent = bet.toLocaleString();
+    $("jackpot").textContent = jackpot.toLocaleString("en-US", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    $("spin").disabled = spinning || credits < bet;
+
+    localStorage.setItem("tigerSlotsCredits", credits);
+    localStorage.setItem("tigerSlotsBet", bet);
+    localStorage.setItem("tigerSlotsJackpot", jackpot);
+  }
+
+  function setMessage(text){
+    message.textContent = text;
+  }
+
+  function showInitial(){
+    for(let r = 0; r < 5; r++){
+      const h = reelEls[r].clientHeight / 3;
+      const index = 10 + randomIndex();
+      strips[r].style.transition = "none";
+      strips[r].style.transform = `translateY(-${index * h}px)`;
+    }
+  }
+
+  async function spinReel(reelIndex, result, duration){
+    const strip = strips[reelIndex];
+    const reel = reelEls[reelIndex];
+    const h = reel.clientHeight / 3;
+    const base = 15 + reelIndex * 3;
+    const target = base + result;
+
+    strip.style.transition = `transform ${duration}ms cubic-bezier(.12,.72,.15,1)`;
+    strip.style.transform = `translateY(-${target * h}px)`;
+    await sleep(duration + 40);
+  }
+
+  function sound(type){
+    try{
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if(!AudioContext) return;
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type === "win" ? "triangle" : "square";
+      osc.frequency.value = type === "win" ? 680 : 160;
+      gain.gain.setValueAtTime(0.03, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.15);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.18);
+    }catch(e){}
+  }
+
+  async function spin(){
+    if(spinning || credits < bet) return;
+    spinning = true;
+
+    credits -= bet;
+    jackpot += Math.max(1, Math.floor(bet * 0.05));
+    render();
+
+    $("win-display").textContent = "0.00";
+    setMessage("🎰 滚轮高速旋转中……");
+    sound("spin");
+
+    const results = [randomIndex(), randomIndex(), randomIndex(), randomIndex(), randomIndex()];
+
+    await Promise.all(
+      results.map((res, idx) => spinReel(idx, res, 800 + idx * 200))
+    );
+
+    const allSameFirstThree = results[0] === results[1] && results[1] === results[2];
+    const isJackpot = allSameFirstThree && SYMBOLS[results[0]].s === "🍁";
+
+    if(allSameFirstThree){
+      const symbol = SYMBOLS[results[0]];
+      const win = bet * symbol.m;
+      credits += win;
+      $("win-display").textContent = win.toLocaleString();
+
+      let text = `🎉 恭喜获得 ${symbol.s} ${symbol.s} ${symbol.s}！奖金 +${win.toLocaleString()}`;
+
+      if(isJackpot){
+        const bonus = Math.floor(jackpot);
+        credits += bonus;
+        jackpot = 5000;
+        text = `💥 终极大奖! 枫叶 🍁 连线! +${(win + bonus).toLocaleString()}！`;
+      }
+
+      setMessage(text);
+      machine.classList.remove("win");
+      void machine.offsetWidth;
+      machine.classList.add("win");
+      sound("win");
+    } else {
+      setMessage("没有中奖，再试一次！");
+      machine.classList.remove("shake");
+      void machine.offsetWidth;
+      machine.classList.add("shake");
+    }
+
+    spinning = false;
+    render();
+
+    if(credits < bet){
+      setMessage("💸 Credits 不足，请调整下注。");
+    }
+  }
+
+  $("spin").onclick = spin;
+  $("lever").onclick = spin;
+
+  $("minus").onclick = () => {
+    if(spinning) return;
+    let idx = BETS.indexOf(bet);
+    bet = BETS[Math.max(0, idx - 1)];
+    render();
+  };
+
+  $("plus").onclick = () => {
+    if(spinning) return;
+    let idx = BETS.indexOf(bet);
+    bet = BETS[Math.min(BETS.length - 1, idx + 1)];
+    render();
+  };
+
+  $("max").onclick = () => {
+    if(spinning) return;
+    bet = BETS[BETS.length - 1];
+    render();
+  };
+
+  document.addEventListener("keydown", e => {
+    e.key === "Enter" && spin();
+  });
+
+  showInitial();
+  render();
+})();
+</script>
+
+</body>
+</html>
