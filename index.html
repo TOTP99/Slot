@@ -335,12 +335,42 @@
           if (!this.enabled) return;
 
           if (!this.ctx) {
-            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) return;
+            this.ctx = new AC();
           }
 
           if (this.ctx.state === "suspended") {
-            this.ctx.resume();
+            // 必须等待/使用用户手势恢复，避免首个音效经常被浏览器吞掉
+            const resumeResult = this.ctx.resume();
+            if (resumeResult && typeof resumeResult.catch === "function") {
+              resumeResult.catch(() => {});
+            }
           }
+        }
+
+        warmup() {
+          if (!this.enabled) return;
+          this.init();
+          if (!this.ctx) return;
+
+          try {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(0.00001, this.ctx.currentTime);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + 0.015);
+          } catch (e) {}
+        }
+
+        quarterBell() {
+          // 清脆的双音铃声；即使音效开关刚恢复，也先确保 AudioContext 已唤醒
+          if (!this.enabled) return;
+          this.init();
+          this.beep(1046, 0.16, "sine", 0.075);
+          setTimeout(() => this.beep(1318, 0.22, "sine", 0.07), 150);
         }
 
         beep(freq = 440, duration = 0.1, type = "sine", volume = 0.05) {
@@ -531,6 +561,7 @@
         }
 
         create() {
+          window.__slotGameScene = this;
           this.createBackground();
           this.createHeader();
           this.loadGameState(); // 读取本机浏览器存档：余额 / 下注 / 奖池
@@ -670,6 +701,26 @@
             .setOrigin(0.5);
         }
 
+        updateLiveClock() {
+          if (!this.clockText) return;
+          const now = new Date();
+          const hh = String(now.getHours()).padStart(2, "0");
+          const mm = String(now.getMinutes()).padStart(2, "0");
+          const ss = String(now.getSeconds()).padStart(2, "0");
+          this.clockText.setText(`${hh}:${mm}:${ss}`);
+
+          // 每个整 15 分钟响一次：00 / 15 / 30 / 45
+          const quarterKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}-${now.getHours()}-${Math.floor(now.getMinutes() / 15)}`;
+          if (
+            now.getSeconds() === 0 &&
+            now.getMilliseconds() < 1000 &&
+            this.lastQuarterKey !== quarterKey
+          ) {
+            this.lastQuarterKey = quarterKey;
+            this.sfx.quarterBell();
+          }
+        }
+
         createPaytableButton() {
           const x = LAYOUT.paytableX;
           const y = LAYOUT.paytableY;
@@ -680,7 +731,29 @@
             useHandCursor: true,
           });
 
-          this.add
+          // 赔率方框外边上方：实时 HH:MM:SS 滚动时钟
+        this.clockPanel = this.createPanel(x, y - 166, w, 40, 0x120006, 0.94);
+        this.clockText = this.add
+          .text(x, y - 166, "--:--:--", {
+            fontSize: "22px",
+            fontStyle: "bold",
+            color: "#ffd700",
+            stroke: "#000000",
+            strokeThickness: 4,
+            shadow: {
+              offsetX: 0,
+              offsetY: 0,
+              color: "#ffb000",
+              blur: 8,
+              fill: true,
+            },
+          })
+          .setOrigin(0.5);
+
+        this.updateLiveClock();
+        this.clockTimer = setInterval(() => this.updateLiveClock(), 250);
+
+        this.add
             .text(x, y - 60, "赔率", {
               fontSize: "26px",
               fontStyle: "bold",
@@ -1158,9 +1231,11 @@
             })
             .setOrigin(0.5);
 
-          this.leverHit.on("pointerdown", () => {
-            this.sfx.click();
-            this.handleSpinInput();
+          // 拉杆：按住即可直接拉下，不再需要“点一下握住、再点一下拉动”
+          this.leverHit.on("pointerdown", (pointer) => {
+            this.sfx.init();
+            this.sfx.warmup();
+            this.handleLeverPress(pointer);
           });
 
           this.leverHit.on("pointerover", () => {
@@ -2190,6 +2265,20 @@
           this.updateAutoOptionButtons();
         }
 
+        handleLeverPress(pointer) {
+          if (this.inputLocked) return;
+
+          // 正在转：按住拉杆直接急停
+          if (this.isSpinning) {
+            this.handleSpinInput();
+            return;
+          }
+
+          if (this.leverState === "up" || this.leverState === "gripped") {
+            this.pullLever(true);
+          }
+        }
+
         handleSpinInput() {
           if (this.inputLocked) return;
 
@@ -2714,20 +2803,30 @@
         scene: SlotGame,
       };
 
-      new Phaser.Game(config);
+      const slotGame = new Phaser.Game(config);
+      window.__slotGame = slotGame;
 
       // 首点解锁音频（iOS / 部分 Android 需用户手势）
       function unlockAudioOnce() {
         try {
-          const AC = window.AudioContext || window.webkitAudioContext;
-          if (!AC) return;
-          const ctx = new AC();
-          if (ctx.state === "suspended") ctx.resume();
-          setTimeout(function () {
-            try {
-              ctx.close();
-            } catch (e) {}
-          }, 300);
+          // 优先唤醒游戏实际使用的 SoundFX，而不是另开一个马上关闭的 AudioContext
+          const gameScene =
+            window.__slotGameScene ||
+            (window.__slotGame && window.__slotGame.scene && window.__slotGame.scene.getScenes()[0]);
+          if (gameScene && gameScene.sfx) {
+            gameScene.sfx.enabled = true;
+            gameScene.sfx.init();
+            gameScene.sfx.warmup();
+          } else {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (AC) {
+              const ctx = new AC();
+              if (ctx.state === "suspended") {
+                const r = ctx.resume();
+                if (r && typeof r.catch === "function") r.catch(() => {});
+              }
+            }
+          }
         } catch (e) {}
         document.removeEventListener("touchstart", unlockAudioOnce, true);
         document.removeEventListener("mousedown", unlockAudioOnce, true);
@@ -2743,6 +2842,14 @@
         canvas.style.width = "100%";
         canvas.style.height = "100%";
       }
+
+      window.addEventListener("beforeunload", function () {
+        try {
+          if (window.__slotGameScene && window.__slotGameScene.clockTimer) {
+            clearInterval(window.__slotGameScene.clockTimer);
+          }
+        } catch (e) {}
+      });
 
       window.addEventListener("resize", function () {
         setTimeout(fitGameCanvas, 50);
