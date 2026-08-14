@@ -324,6 +324,16 @@
         }
       }
 
+      // ---------- 背景音乐歌单清单 ----------
+      // 最简单、最可靠的加歌方式：以后想加新歌，把 mp3 文件放进和 index.html
+      // 同一个目录，然后在下面数组里加一行文件名即可（按你想要的播放顺序排列）。
+      // 这个方法不依赖服务器是否支持"目录列表"，任何托管方式都适用。
+      const BG_MUSIC_FILES = [
+        "经幡.mp3",
+        "Rosie.mp3",
+        // "第三首歌.mp3",
+      ];
+
       // ---------- 音效（Web Audio） ----------
       class SoundFX {
         constructor() {
@@ -549,11 +559,12 @@
           this._ready = this._loadPlaylist();
         }
 
-        // 尝试读取当前目录的服务器文件列表（Apache/nginx/Python 等常见 autoindex 页面），
-        // 抓取所有 .mp3 链接；若能从同一行文本中解析出修改时间，则按时间从早到晚排序。
-        // 若所在环境不支持目录列表（例如部分静态托管），则退回只播放已知的「经幡.mp3」。
+        // 播放列表以 BG_MUSIC_FILES 手动清单为可靠基础（任何托管环境都保证生效）；
+        // 同时尝试读取服务器目录列表（Apache/nginx/Python 等 autoindex 页面）作为补充，
+        // 把清单里没有写的、但目录里存在的 mp3 自动追加进来（若解析得到修改时间则按时间排序）。
+        // 若所在环境不支持目录列表，自动补充这步会静默失败，不影响手动清单正常播放。
         async _loadPlaylist() {
-          let files = ["经幡.mp3"];
+          const files = BG_MUSIC_FILES.slice();
           try {
             const res = await fetch("./", { cache: "no-store" });
             if (res.ok) {
@@ -583,11 +594,13 @@
                 if (items.every((it) => it.mtime !== null)) {
                   items.sort((a, b) => a.mtime - b.mtime); // 按上传时间从早到晚
                 }
-                files = items.map((it) => it.href);
+                items.forEach((it) => {
+                  if (!files.includes(it.href)) files.push(it.href);
+                });
               }
             }
           } catch (e) {
-            // 目录列表不可用，保留兜底的单曲播放列表
+            // 目录列表不可用，保留手动清单作为播放列表
           }
           this.playlist = files;
         }
@@ -2252,22 +2265,41 @@
           children.push(volumeFill);
 
           const volumeHandle = this.add
-            .circle(trackX0 + trackW * initialRatio, volumeRowY, 8, 0xffe9a6)
-            .setStrokeStyle(2, UI.gold)
-            .setInteractive({ useHandCursor: true, draggable: true });
+            .circle(trackX0 + trackW * initialRatio, volumeRowY, 9, 0xffe9a6)
+            .setStrokeStyle(2, UI.gold);
           children.push(volumeHandle);
-          this.input.setDraggable(volumeHandle);
 
-          volumeHandle.on("pointerdown", (pointer, lx, ly, event) => {
-            event.stopPropagation();
-          });
+          // 更大的透明可点击区域（比可见滑轨高很多），方便手指精准拖动 / 直接点按跳转音量
+          const volumeHitZone = this.add
+            .rectangle(trackX0 + trackW / 2, volumeRowY, trackW + 30, 36, 0x000000, 0.001)
+            .setOrigin(0.5)
+            .setInteractive({ useHandCursor: true });
+          children.push(volumeHitZone);
 
-          volumeHandle.on("drag", (pointer, dragX) => {
-            const clampedX = Phaser.Math.Clamp(dragX, trackX0, trackX1);
-            volumeHandle.x = clampedX;
+          const setVolumeFromPointerX = (pointerX) => {
+            const clampedX = Phaser.Math.Clamp(pointerX, trackX0, trackX1);
             const ratio = (clampedX - trackX0) / trackW;
+            volumeHandle.x = clampedX;
             volumeFill.width = Math.max(1, trackW * ratio);
             bgMusic.setVolume(ratio);
+          };
+
+          let draggingVolume = false;
+
+          volumeHitZone.on("pointerdown", (pointer, lx, ly, event) => {
+            event.stopPropagation();
+            draggingVolume = true;
+            setVolumeFromPointerX(pointer.x);
+          });
+
+          this.input.on("pointermove", (pointer) => {
+            if (draggingVolume) {
+              setVolumeFromPointerX(pointer.x);
+            }
+          });
+
+          this.input.on("pointerup", () => {
+            draggingVolume = false;
           });
 
           // ---------- 关闭按钮 ----------
