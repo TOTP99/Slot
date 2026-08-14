@@ -525,31 +525,99 @@
         }
       }
 
-      // ---------- 背景音乐（独立于音效，走 HTML5 Audio，循环播放） ----------
+      // ---------- 背景音乐（独立于音效，走 HTML5 Audio） ----------
+      // 播放列表模式：自动扫描 index.html 同目录下所有 mp3 文件，
+      // 尝试按服务器返回的修改/上传时间排序，一首放完自动接下一首，
+      // 放完最后一首后循环回到第一首，不依赖具体文件名。
       class BGMusic {
         constructor() {
-          this.audio = new Audio("经幡.mp3");
-          this.audio.loop = true;
-          this.audio.volume = 0.35;
+          this.playlist = [];
+          this.currentIndex = 0;
+
+          this.audio = new Audio();
+          this.audio.loop = false; // 由 ended 事件控制切歌，实现列表循环
           this.audio.preload = "auto";
 
-          const saved = localStorage.getItem("bgMusicEnabled");
-          this.enabled = saved === null ? true : saved === "true"; // 默认开启
+          const savedVolume = parseFloat(localStorage.getItem("bgMusicVolume"));
+          this.audio.volume = isNaN(savedVolume) ? 0.35 : savedVolume;
 
-          this._unlocked = false; // 是否已通过用户手势成功播放过一次
+          const savedEnabled = localStorage.getItem("bgMusicEnabled");
+          this.enabled = savedEnabled === null ? true : savedEnabled === "true"; // 默认开启
+
+          this.audio.addEventListener("ended", () => this._advance());
+
+          this._ready = this._loadPlaylist();
+        }
+
+        // 尝试读取当前目录的服务器文件列表（Apache/nginx/Python 等常见 autoindex 页面），
+        // 抓取所有 .mp3 链接；若能从同一行文本中解析出修改时间，则按时间从早到晚排序。
+        // 若所在环境不支持目录列表（例如部分静态托管），则退回只播放已知的「经幡.mp3」。
+        async _loadPlaylist() {
+          let files = ["经幡.mp3"];
+          try {
+            const res = await fetch("./", { cache: "no-store" });
+            if (res.ok) {
+              const text = await res.text();
+              const doc = new DOMParser().parseFromString(text, "text/html");
+              const anchors = Array.from(
+                doc.querySelectorAll('a[href$=".mp3" i]'),
+              );
+              if (anchors.length) {
+                const items = anchors.map((a) => {
+                  const href = a.getAttribute("href");
+                  const rowText = a.parentElement
+                    ? a.parentElement.textContent
+                    : "";
+                  const dateMatch = rowText.match(
+                    /(\d{2,4}[-\/]\w{2,3}[-\/]\d{2,4}\s+\d{2}:\d{2})/,
+                  );
+                  let mtime = null;
+                  if (dateMatch) {
+                    const parsed = Date.parse(
+                      dateMatch[1].replace(/-/g, " "),
+                    );
+                    if (!isNaN(parsed)) mtime = parsed;
+                  }
+                  return { href, mtime };
+                });
+                if (items.every((it) => it.mtime !== null)) {
+                  items.sort((a, b) => a.mtime - b.mtime); // 按上传时间从早到晚
+                }
+                files = items.map((it) => it.href);
+              }
+            }
+          } catch (e) {
+            // 目录列表不可用，保留兜底的单曲播放列表
+          }
+          this.playlist = files;
+        }
+
+        _loadTrack(index) {
+          if (!this.playlist.length) return;
+          this.currentIndex =
+            ((index % this.playlist.length) + this.playlist.length) %
+            this.playlist.length;
+          this.audio.src = this.playlist[this.currentIndex];
+        }
+
+        _advance() {
+          if (!this.playlist.length) return;
+          this._loadTrack(this.currentIndex + 1); // 放完自动接下一首，到末尾后循环回开头
+          if (this.enabled) {
+            const p = this.audio.play();
+            if (p && typeof p.catch === "function") p.catch(() => {});
+          }
         }
 
         // 需在用户手势（点击/触摸/按键）中调用，否则浏览器会拦截自动播放
-        tryPlay() {
+        async tryPlay() {
           if (!this.enabled) return;
-          const p = this.audio.play();
-          if (p && typeof p.then === "function") {
-            p.then(() => {
-              this._unlocked = true;
-            }).catch(() => {});
-          } else {
-            this._unlocked = true;
+          await this._ready;
+          if (!this.audio.src) {
+            this._loadTrack(this.currentIndex);
           }
+          const p = this.audio.play();
+          if (p && typeof p.catch === "function") p.catch(() => {});
         }
 
         pause() {
@@ -564,6 +632,12 @@
           } else {
             this.pause();
           }
+        }
+
+        setVolume(v) {
+          v = Math.max(0, Math.min(1, v));
+          this.audio.volume = v;
+          localStorage.setItem("bgMusicVolume", String(v));
         }
       }
 
@@ -693,22 +767,26 @@
         }
 
         createHeader() {
-          this.add
-            .text(480, LAYOUT.titleY, "万锦🎰老虎机", {
-              fontSize: "42px",
+          const titleObj = this.add
+            .text(480, LAYOUT.titleY, "万锦🎤卡拉OK🎰老虎一体机", {
+              fontSize: "30px",
               fontStyle: "bold",
               color: "#ffd700",
-              stroke: "#7a001e",
-              strokeThickness: 8,
-              shadow: {
-                offsetX: 0,
-                offsetY: 0,
-                color: "#ffb000",
-                blur: 12,
-                fill: true,
-              },
             })
             .setOrigin(0.5);
+
+          // 金色渐变填充（横向：亮金 -> 标准金 -> 暗金）
+          const gradCtx = titleObj.context;
+          const gradient = gradCtx.createLinearGradient(
+            0,
+            0,
+            titleObj.width,
+            0,
+          );
+          gradient.addColorStop(0, "#fff3b0");
+          gradient.addColorStop(0.5, "#ffd700");
+          gradient.addColorStop(1, "#b8860b");
+          titleObj.setColor(gradient);
 
           this.add
             .text(480, LAYOUT.subtitleY, "TP制作🐈⭐️", {
@@ -1882,7 +1960,7 @@
           const cx = GAME_WIDTH / 2;
           const cy = GAME_HEIGHT / 2;
           const panelW = 380;
-          const panelH = 514;
+          const panelH = 534;
           const top = cy - panelH / 2;
 
           this.settingsModalGroup = this.add
@@ -2139,6 +2217,58 @@
           });
 
           this.updateMusicOptionButtons();
+
+          // ---------- 音量：可拖动滑动条 ----------
+          const volumeRowY = musicRowY + 40;
+          const volumeLabel = this.add
+            .text(rowLabelX, volumeRowY, "音量", {
+              fontSize: "16px",
+              fontStyle: "bold",
+              color: "#ffd700",
+            })
+            .setOrigin(0, 0.5);
+          children.push(volumeLabel);
+
+          const trackX0 = cx - 10;
+          const trackX1 = cx + 150;
+          const trackW = trackX1 - trackX0;
+          const initialRatio = Phaser.Math.Clamp(bgMusic.audio.volume, 0, 1);
+
+          const volumeTrack = this.add
+            .rectangle(trackX0 + trackW / 2, volumeRowY, trackW, 4, UI.goldDim, 0.7)
+            .setOrigin(0.5);
+          children.push(volumeTrack);
+
+          const volumeFill = this.add
+            .rectangle(
+              trackX0,
+              volumeRowY,
+              Math.max(1, trackW * initialRatio),
+              4,
+              UI.gold,
+              1,
+            )
+            .setOrigin(0, 0.5);
+          children.push(volumeFill);
+
+          const volumeHandle = this.add
+            .circle(trackX0 + trackW * initialRatio, volumeRowY, 8, 0xffe9a6)
+            .setStrokeStyle(2, UI.gold)
+            .setInteractive({ useHandCursor: true, draggable: true });
+          children.push(volumeHandle);
+          this.input.setDraggable(volumeHandle);
+
+          volumeHandle.on("pointerdown", (pointer, lx, ly, event) => {
+            event.stopPropagation();
+          });
+
+          volumeHandle.on("drag", (pointer, dragX) => {
+            const clampedX = Phaser.Math.Clamp(dragX, trackX0, trackX1);
+            volumeHandle.x = clampedX;
+            const ratio = (clampedX - trackX0) / trackW;
+            volumeFill.width = Math.max(1, trackW * ratio);
+            bgMusic.setVolume(ratio);
+          });
 
           // ---------- 关闭按钮 ----------
           const closeBtn = this.add
