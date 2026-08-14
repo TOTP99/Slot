@@ -732,7 +732,7 @@
           });
 
           // 赔率方框外边上方：实时 HH:MM:SS 滚动时钟
-        this.clockPanel = this.createPanel(x, y - 166, w, 40, 0x120006, 0.94);
+        this.clockPanel = this.add.rectangle(x, y - 166, w, 40, 0x120006, 0).setOrigin(0.5);
         this.clockText = this.add
           .text(x, y - 166, "--:--:--", {
             fontSize: "22px",
