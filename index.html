@@ -1,0 +1,2262 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#070006" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>万锦🎰老虎机 - TP制作</title>
+    <style>
+      * {
+        -webkit-box-sizing: border-box;
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        background: #070006;
+        overflow: hidden;
+        touch-action: none;
+        -ms-touch-action: none;
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+      }
+
+      body {
+        display: -webkit-flex;
+        display: flex;
+        -webkit-justify-content: center;
+        justify-content: center;
+        -webkit-align-items: center;
+        align-items: center;
+      }
+
+      #game-wrapper {
+        width: 100vw;
+        height: 100vh;
+        height: 100dvh;
+        display: -webkit-flex;
+        display: flex;
+        -webkit-justify-content: center;
+        justify-content: center;
+        -webkit-align-items: center;
+        align-items: center;
+        background: #070006;
+        overflow: hidden;
+      }
+
+      #game {
+        width: min(100vw, calc(100vh * 16 / 9));
+        width: min(100vw, calc(100dvh * 16 / 9));
+        height: min(100vh, calc(100vw * 9 / 16));
+        height: min(100dvh, calc(100vw * 9 / 16));
+        aspect-ratio: 16 / 9;
+        display: -webkit-flex;
+        display: flex;
+        -webkit-justify-content: center;
+        justify-content: center;
+        -webkit-align-items: center;
+        align-items: center;
+      }
+
+      #game canvas {
+        width: 100% !important;
+        height: 100% !important;
+        display: block;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+
+      /* 竖屏遮罩 + 旋转过渡 */
+      #rotate-tip {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 9999;
+        display: -webkit-flex;
+        display: flex;
+        -webkit-align-items: center;
+        align-items: center;
+        -webkit-justify-content: center;
+        justify-content: center;
+        -webkit-flex-direction: column;
+        flex-direction: column;
+        gap: 16px;
+        padding: 24px;
+        background: rgba(7, 0, 6, 0.94);
+        color: #ffd700;
+        font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+          "Noto Sans SC", Arial, sans-serif;
+        font-size: 18px;
+        font-weight: bold;
+        text-align: center;
+        line-height: 1.6;
+        letter-spacing: 1px;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        -webkit-transition: opacity 0.45s ease, visibility 0.45s ease;
+        transition: opacity 0.45s ease, visibility 0.45s ease;
+        -webkit-backdrop-filter: blur(0px);
+        backdrop-filter: blur(0px);
+      }
+
+      #rotate-tip.show {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        -webkit-backdrop-filter: blur(6px);
+        backdrop-filter: blur(6px);
+      }
+
+      #rotate-tip .phone {
+        width: 52px;
+        height: 88px;
+        border: 3px solid #ffd700;
+        border-radius: 10px;
+        position: relative;
+        box-shadow: 0 0 18px rgba(255, 215, 0, 0.35);
+        -webkit-animation: phone-rotate 2s ease-in-out infinite;
+        animation: phone-rotate 2s ease-in-out infinite;
+      }
+
+      #rotate-tip .phone::after {
+        content: "";
+        position: absolute;
+        top: 8px;
+        left: 50%;
+        -webkit-transform: translateX(-50%);
+        transform: translateX(-50%);
+        width: 14px;
+        height: 3px;
+        background: #ffd700;
+        border-radius: 2px;
+      }
+
+      #rotate-tip .icon {
+        font-size: 28px;
+        line-height: 1;
+      }
+
+      #rotate-tip .tip-text {
+        opacity: 0.95;
+      }
+
+      @-webkit-keyframes phone-rotate {
+        0%,
+        25% {
+          -webkit-transform: rotate(0deg);
+          transform: rotate(0deg);
+        }
+        50%,
+        75% {
+          -webkit-transform: rotate(90deg);
+          transform: rotate(90deg);
+        }
+        100% {
+          -webkit-transform: rotate(0deg);
+          transform: rotate(0deg);
+        }
+      }
+
+      @keyframes phone-rotate {
+        0%,
+        25% {
+          -webkit-transform: rotate(0deg);
+          transform: rotate(0deg);
+        }
+        50%,
+        75% {
+          -webkit-transform: rotate(90deg);
+          transform: rotate(90deg);
+        }
+        100% {
+          -webkit-transform: rotate(0deg);
+          transform: rotate(0deg);
+        }
+      }
+
+      #game {
+        -webkit-transition: opacity 0.4s ease, -webkit-filter 0.4s ease;
+        transition: opacity 0.4s ease, filter 0.4s ease;
+      }
+
+      #game.dimmed {
+        opacity: 0.15;
+        -webkit-filter: blur(3px);
+        filter: blur(3px);
+        pointer-events: none;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="rotate-tip">
+      <div class="phone"></div>
+      <div class="icon">⚠️</div>
+      <div class="tip-text">请转为横屏获得更佳体验</div>
+    </div>
+    <div id="game-wrapper">
+      <div id="game"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+    <script>
+      /**
+       * 万锦老虎机 - 单文件版
+       * 操作：拉杆/SPIN 两段式开转（握住 → 拉下），空格急停
+       */
+
+      // ---------- 常量 ----------
+      const GAME_WIDTH = 960;
+      const GAME_HEIGHT = 540;
+
+      const SYMBOLS = [
+        { key: "seven", label: "7️⃣", color: "#ff2d2d", multiplier: 50 },
+        { key: "maple", label: "🍁", color: "#ff6b35", multiplier: 20 },
+        { key: "lotus", label: "🪷", color: "#e8a0bf", multiplier: 15 },
+        { key: "cat", label: "🐈", color: "#f5c542", multiplier: 10 },
+        { key: "blossom", label: "🌸", color: "#ff8fab", multiplier: 8 },
+        { key: "hibiscus", label: "🌺", color: "#ff4d6d", multiplier: 6 },
+        { key: "mushroom", label: "🍄", color: "#c77dff", multiplier: 4 },
+      ];
+
+      // ---------- 布局坐标 ----------
+      const LAYOUT = {
+        titleY: 28,
+        subtitleY: 61,
+        jackpotY: 94,
+
+        paytableX: 112,
+        paytableY: 280,
+        paytableW: 170,
+        paytableH: 248,
+
+        machineX: 470,
+        machineY: 270,
+        machineOuterW: 560,
+        machineOuterH: 255,
+        machineInnerW: 520,
+        machineInnerH: 208,
+        reelFrameW: 150,
+        reelFrameH: 170,
+        reelXs: [350, 470, 590],
+        reelY: 270,
+
+        messageX: 470,
+        messageY: 402,
+        messageW: 405,
+        messageH: 40,
+
+        balanceX: 130,
+        balanceY: 456,
+        balanceW: 200,
+        balanceH: 50,
+
+        betX: 355,
+        betY: 456,
+        betW: 190,
+        betH: 50,
+
+        lastWinX: 580,
+        lastWinY: 456,
+        lastWinW: 200,
+        lastWinH: 50,
+
+        // 底栏同一行：NORMAL / FAST / AUTO / SOUND（均匀排布）
+        controlY: 512,
+        controlXs: [280, 420, 580, 740],
+        controlBtnW: 110,
+        controlBtnH: 34,
+
+        rightPanelX: 855,
+      };
+
+      // ---------- UI 配色（高级金边主题） ----------
+      const UI = {
+        bg: 0x070006,
+        panel: 0x140008,
+        panelDeep: 0x0c0006,
+        gold: 0xffd700,
+        goldDim: 0xb8860b,
+        goldBright: 0xffe566,
+        cream: "#ffe9a6",
+        creamHex: 0xffe9a6,
+        textDark: "#1a0a00",
+        danger: 0x8b0015,
+        activeFill: 0xc9a84c,
+      };
+
+      // ---------- 文本适配 ----------
+      function fitTextToBox(
+        textObject,
+        value,
+        maxWidth,
+        baseFontSize = 20,
+        minFontSize = 12,
+      ) {
+        if (!textObject) return;
+
+        textObject.setText(value);
+        textObject.setFontSize(baseFontSize);
+
+        let size = baseFontSize;
+
+        while (textObject.width > maxWidth && size > minFontSize) {
+          size -= 1;
+          textObject.setFontSize(size);
+        }
+      }
+
+      // ---------- 音效（Web Audio） ----------
+      class SoundFX {
+        constructor() {
+          this.ctx = null;
+          this.enabled = true;
+        }
+
+        init() {
+          if (!this.enabled) return;
+
+          if (!this.ctx) {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+          }
+
+          if (this.ctx.state === "suspended") {
+            this.ctx.resume();
+          }
+        }
+
+        beep(freq = 440, duration = 0.1, type = "sine", volume = 0.05) {
+          if (!this.enabled) return;
+
+          this.init();
+          if (!this.ctx) return;
+
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+          gain.gain.setValueAtTime(volume, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(
+            0.001,
+            this.ctx.currentTime + duration,
+          );
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start();
+          osc.stop(this.ctx.currentTime + duration);
+        }
+
+        click() {
+          this.beep(720, 0.045, "square", 0.035);
+        }
+
+        // 按键按下：更有“机械键”感的短促音
+        buttonPress() {
+          this.beep(380, 0.04, "square", 0.06);
+          setTimeout(() => this.beep(620, 0.05, "triangle", 0.045), 35);
+          setTimeout(() => this.beep(240, 0.06, "sawtooth", 0.03), 70);
+        }
+
+        // 短噪声（金属摩擦/撞击底噪）
+        noise(duration = 0.08, volume = 0.04) {
+          if (!this.enabled) return;
+          this.init();
+          if (!this.ctx) return;
+
+          const sampleRate = this.ctx.sampleRate;
+          const length = Math.floor(sampleRate * duration);
+          const buffer = this.ctx.createBuffer(1, length, sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < length; i++) {
+            data[i] = (Math.random() * 2 - 1) * (1 - i / length);
+          }
+
+          const src = this.ctx.createBufferSource();
+          const gain = this.ctx.createGain();
+          const filter = this.ctx.createBiquadFilter();
+
+          src.buffer = buffer;
+          filter.type = "bandpass";
+          filter.frequency.value = 1200;
+          filter.Q.value = 0.8;
+
+          gain.gain.setValueAtTime(volume, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(
+            0.001,
+            this.ctx.currentTime + duration,
+          );
+
+          src.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+          src.start();
+        }
+
+        // 握住拉杆：抓握 + 金属轻碰
+        leverGrip() {
+          this.noise(0.05, 0.035);
+          this.beep(180, 0.06, "triangle", 0.05);
+          setTimeout(() => this.beep(320, 0.04, "square", 0.03), 40);
+          setTimeout(() => this.beep(90, 0.08, "sine", 0.04), 70);
+        }
+
+        // 拉下拉杆：齿轮拉动 + 重重到位撞击
+        leverPull() {
+          // 拉动过程：低频摩擦 + 下滑音调
+          this.noise(0.18, 0.045);
+          this.beep(220, 0.12, "sawtooth", 0.05);
+          setTimeout(() => this.beep(160, 0.1, "sawtooth", 0.045), 60);
+          setTimeout(() => this.beep(110, 0.1, "square", 0.04), 120);
+
+          // 到位重击
+          setTimeout(() => {
+            this.noise(0.1, 0.06);
+            this.beep(70, 0.14, "triangle", 0.08);
+            this.beep(140, 0.08, "square", 0.05);
+          }, 260);
+
+          setTimeout(() => this.beep(55, 0.12, "sine", 0.045), 320);
+        }
+
+        // 拉杆回位：弹簧回弹 + 轻金属咔哒
+        leverReset() {
+          this.beep(140, 0.06, "triangle", 0.035);
+          setTimeout(() => this.beep(210, 0.05, "triangle", 0.03), 50);
+          setTimeout(() => {
+            this.noise(0.04, 0.025);
+            this.beep(380, 0.04, "square", 0.028);
+          }, 120);
+          setTimeout(() => this.beep(280, 0.05, "sine", 0.02), 180);
+        }
+
+        spinTick() {
+          this.beep(120, 0.025, "sawtooth", 0.018);
+        }
+
+        reelStop() {
+          this.beep(220, 0.06, "triangle", 0.05);
+          setTimeout(() => this.beep(420, 0.06, "triangle", 0.035), 55);
+        }
+
+        smallWin() {
+          this.beep(520, 0.09, "sine", 0.06);
+          setTimeout(() => this.beep(720, 0.09, "sine", 0.06), 110);
+          setTimeout(() => this.beep(920, 0.12, "sine", 0.07), 220);
+        }
+
+        bigWin() {
+          [392, 523, 659, 784, 1046, 1318].forEach((note, i) => {
+            setTimeout(() => this.beep(note, 0.18, "triangle", 0.08), i * 115);
+          });
+        }
+
+        jackpot() {
+          [523, 659, 784, 1046, 1318, 1568, 2093].forEach((note, i) => {
+            setTimeout(() => this.beep(note, 0.22, "triangle", 0.09), i * 120);
+          });
+        }
+
+        lose() {
+          this.beep(180, 0.08, "sawtooth", 0.025);
+        }
+      }
+
+      // ---------- 主场景 ----------
+      class SlotGame extends Phaser.Scene {
+        constructor() {
+          super("SlotGame");
+
+          this.balance = 1000;
+          this.bet = 50;
+          this.minBet = 10;
+          this.maxBet = 500;
+          this.betStep = 10;
+
+          this.baseJackpotValue = 25000;
+          this.jackpotValue = 25840;
+          this.lastWin = 0;
+
+          this.isSpinning = false;
+          this.stopRequested = false;
+          this.inputLocked = false;
+          this.leverState = "up"; // up | gripped | down
+          this.mode = "NORMAL"; // NORMAL | FAST
+
+          this.autoPlay = false;
+          this.autoPlayRounds = 0;
+          this.maxAutoPlayRounds = 10;
+
+          this.reels = [];
+          this.stoppedReelsCount = 0;
+          this.sfx = new SoundFX();
+
+          this.speedSettings = {
+            NORMAL: { duration: 1700, interval: 40, step: 18 },
+            FAST: { duration: 1000, interval: 22, step: 20 },
+          };
+        }
+
+        create() {
+          this.createBackground();
+          this.createHeader();
+          this.createPaytable();
+          this.createMachine();
+          this.createReels();
+          this.createBottomPanels();
+          this.createLastWinPanel();
+          this.createRightControls();
+          this.createBottomControls(); // NORMAL / FAST / AUTO / SOUND 同一行
+          this.createKeyboardControls();
+          this.createAmbientAnimations();
+          this.updateDisplay();
+        }
+
+        formatMoney(value) {
+          return Number(value).toFixed(2);
+        }
+
+        setMessage(value, baseFontSize = 20) {
+          fitTextToBox(
+            this.messageText,
+            value,
+            LAYOUT.messageW - 28,
+            baseFontSize,
+            12,
+          );
+        }
+
+        createPanel(x, y, width, height, fill = UI.panel, alpha = 0.96) {
+          // 外层暗金描边 + 内层面板，形成双线金边高级感
+          this.add
+            .rectangle(x, y, width + 4, height + 4, UI.goldDim, 0.55)
+            .setStrokeStyle(1, UI.gold);
+          return this.add
+            .rectangle(x, y, width, height, fill, alpha)
+            .setStrokeStyle(2, UI.gold);
+        }
+
+        // 统一底栏按钮样式
+        createControlButton(x, y, w, h, label) {
+          const bg = this.add
+            .rectangle(x, y, w, h, UI.panelDeep, 0.96)
+            .setStrokeStyle(2, UI.gold)
+            .setInteractive({ useHandCursor: true });
+          const txt = this.add
+            .text(x, y, label, {
+              fontSize: "12px",
+              fontStyle: "bold",
+              color: UI.cream,
+            })
+            .setOrigin(0.5);
+          return { bg, txt };
+        }
+
+        setControlActive(bg, txt, active) {
+          if (active) {
+            bg.setFillStyle(UI.activeFill);
+            txt.setColor(UI.textDark);
+          } else {
+            bg.setFillStyle(UI.panelDeep);
+            txt.setColor(UI.cream);
+          }
+        }
+
+        createBackground() {
+          // 背景装饰已全部移除，仅保留 Phaser 纯色底
+        }
+
+        createHeader() {
+          this.add
+            .text(480, LAYOUT.titleY, "万锦🎰老虎机", {
+              fontSize: "42px",
+              fontStyle: "bold",
+              color: "#ffd700",
+              stroke: "#7a001e",
+              strokeThickness: 8,
+              shadow: {
+                offsetX: 0,
+                offsetY: 0,
+                color: "#ffb000",
+                blur: 12,
+                fill: true,
+              },
+            })
+            .setOrigin(0.5);
+
+          this.add
+            .text(480, LAYOUT.subtitleY, "TP制作", {
+              fontSize: "17px",
+              fontStyle: "bold",
+              color: "#ffe9a6",
+              stroke: "#000000",
+              strokeThickness: 4,
+            })
+            .setOrigin(0.5);
+
+          this.jackpotPanel = this.createPanel(
+            480,
+            LAYOUT.jackpotY,
+            350,
+            38,
+            0x170006,
+            0.96,
+          );
+
+          this.jackpotText = this.add
+            .text(
+              480,
+              LAYOUT.jackpotY,
+              `💎 JACKPOT ${this.formatMoney(this.jackpotValue)}`,
+              {
+                fontSize: "21px",
+                fontStyle: "bold",
+                color: "#ffd700",
+                stroke: "#000000",
+                strokeThickness: 4,
+              },
+            )
+            .setOrigin(0.5);
+        }
+
+        createPaytable() {
+          this.createPanel(
+            LAYOUT.paytableX,
+            LAYOUT.paytableY,
+            LAYOUT.paytableW,
+            LAYOUT.paytableH,
+            0x120006,
+            0.94,
+          );
+
+          this.add
+            .text(LAYOUT.paytableX, 182, "三连赔率", {
+              fontSize: "18px",
+              fontStyle: "bold",
+              color: "#ffd700",
+            })
+            .setOrigin(0.5);
+
+          SYMBOLS.forEach((symbol, index) => {
+            const y = 212 + index * 26;
+
+            this.add
+              .text(54, y, `${symbol.label}${symbol.label}${symbol.label}`, {
+                fontSize: "17px",
+                fontStyle: "bold",
+                color: symbol.color,
+                stroke: "#000000",
+                strokeThickness: 3,
+              })
+              .setOrigin(0, 0.5);
+
+            this.add
+              .text(164, y, `${symbol.multiplier}x`, {
+                fontSize: "16px",
+                fontStyle: "bold",
+                color: "#ffe9a6",
+              })
+              .setOrigin(1, 0.5);
+          });
+
+          this.add
+            .text(LAYOUT.paytableX, 498, "任意一对 = 2倍投注", {
+              fontSize: "12px",
+              fontStyle: "bold",
+              color: UI.cream,
+            })
+            .setOrigin(0.5);
+        }
+
+        createMachine() {
+          // 外层柔光
+          this.machineGlow = this.add.rectangle(
+            LAYOUT.machineX,
+            LAYOUT.machineY,
+            LAYOUT.machineOuterW + 14,
+            LAYOUT.machineOuterH + 10,
+            UI.gold,
+            0.1,
+          );
+
+          // 厚重金边机壳
+          this.add
+            .rectangle(
+              LAYOUT.machineX,
+              LAYOUT.machineY,
+              LAYOUT.machineOuterW + 6,
+              LAYOUT.machineOuterH + 6,
+              UI.goldDim,
+              0.7,
+            )
+            .setStrokeStyle(2, UI.gold);
+
+          this.add
+            .rectangle(
+              LAYOUT.machineX,
+              LAYOUT.machineY,
+              LAYOUT.machineOuterW,
+              LAYOUT.machineOuterH,
+              0x1a0208,
+            )
+            .setStrokeStyle(6, UI.gold);
+
+          this.add
+            .rectangle(
+              LAYOUT.machineX,
+              LAYOUT.machineY,
+              LAYOUT.machineInnerW,
+              LAYOUT.machineInnerH,
+              UI.panelDeep,
+            )
+            .setStrokeStyle(3, UI.goldBright);
+
+          this.add
+            .rectangle(LAYOUT.machineX, LAYOUT.machineY, 452, 170, 0x12000a)
+            .setStrokeStyle(3, 0x8b1540);
+
+          this.paylineTop = this.add.rectangle(
+            LAYOUT.machineX,
+            LAYOUT.machineY - 43,
+            452,
+            3,
+            0xffd700,
+            0.35,
+          );
+
+          this.paylineMiddle = this.add.rectangle(
+            LAYOUT.machineX,
+            LAYOUT.machineY,
+            452,
+            4,
+            0xffd700,
+            0.95,
+          );
+
+          this.paylineBottom = this.add.rectangle(
+            LAYOUT.machineX,
+            LAYOUT.machineY + 43,
+            452,
+            3,
+            0xffd700,
+            0.35,
+          );
+
+          this.add
+            .text(226, LAYOUT.machineY, "三线", {
+              fontSize: "14px",
+              fontStyle: "bold",
+              color: UI.cream,
+              stroke: "#000000",
+              strokeThickness: 4,
+            })
+            .setOrigin(0.5);
+
+          this.add
+            .text(714, LAYOUT.machineY, "三线", {
+              fontSize: "14px",
+              fontStyle: "bold",
+              color: UI.cream,
+              stroke: "#000000",
+              strokeThickness: 4,
+            })
+            .setOrigin(0.5);
+
+          this.messageBox = this.createPanel(
+            LAYOUT.messageX,
+            LAYOUT.messageY,
+            LAYOUT.messageW,
+            LAYOUT.messageH,
+            0x180006,
+            0.96,
+          );
+
+          this.messageText = this.add
+            .text(LAYOUT.messageX, LAYOUT.messageY, "点击拉杆或 SPIN 开始", {
+              fontSize: "20px",
+              fontStyle: "bold",
+              color: "#ffe9a6",
+              stroke: "#000000",
+              strokeThickness: 4,
+              align: "center",
+            })
+            .setOrigin(0.5);
+        }
+
+        createReels() {
+          LAYOUT.reelXs.forEach((x, reelIndex) => {
+            const frame = this.add
+              .rectangle(
+                x,
+                LAYOUT.reelY,
+                LAYOUT.reelFrameW,
+                LAYOUT.reelFrameH,
+                0xffffff,
+                0.05,
+              )
+              .setStrokeStyle(4, 0xffd700);
+
+            const maskShape = this.add.graphics();
+            maskShape.fillStyle(0xffffff);
+            maskShape.fillRect(
+              x - LAYOUT.reelFrameW / 2 + 5,
+              LAYOUT.reelY - LAYOUT.reelFrameH / 2 + 4,
+              LAYOUT.reelFrameW - 10,
+              LAYOUT.reelFrameH - 8,
+            );
+
+            const mask = maskShape.createGeometryMask();
+            maskShape.setVisible(false);
+
+            const container = this.add.container(x, LAYOUT.reelY);
+            container.setMask(mask);
+
+            const items = [];
+
+            for (let i = -2; i <= 2; i++) {
+              const symbol = Phaser.Utils.Array.GetRandom(SYMBOLS);
+
+              const bg = this.add.circle(0, i * 64, 30, 0x000000, 0.18);
+
+              const txt = this.add
+                .text(0, i * 64, symbol.label, {
+                  fontSize: symbol.label.length > 1 ? "42px" : "52px",
+                  fontStyle: "bold",
+                  color: symbol.color,
+                  stroke: "#000000",
+                  strokeThickness: 5,
+                })
+                .setOrigin(0.5);
+
+              container.add([bg, txt]);
+              items.push({ bg, txt, symbol });
+            }
+
+            this.reels.push({
+              frame,
+              container,
+              items,
+              value: SYMBOLS[reelIndex],
+              intervalEvent: null,
+              stopped: true,
+              forceStopScheduled: false,
+            });
+          });
+        }
+
+        createBottomPanels() {
+          this.balancePanel = this.createPanel(
+            LAYOUT.balanceX,
+            LAYOUT.balanceY,
+            LAYOUT.balanceW,
+            LAYOUT.balanceH,
+            UI.panel,
+            0.96,
+          );
+
+          this.add
+            .text(LAYOUT.balanceX, LAYOUT.balanceY - 12, "余额", {
+              fontSize: "13px",
+              fontStyle: "bold",
+              color: UI.cream,
+            })
+            .setOrigin(0.5);
+
+          this.balanceValue = this.add
+            .text(
+              LAYOUT.balanceX,
+              LAYOUT.balanceY + 11,
+              this.formatMoney(this.balance),
+              {
+                fontSize: "20px",
+                fontStyle: "bold",
+                color: "#ffffff",
+              },
+            )
+            .setOrigin(0.5);
+
+          this.betPanel = this.createPanel(
+            LAYOUT.betX,
+            LAYOUT.betY,
+            LAYOUT.betW,
+            LAYOUT.betH,
+            UI.panel,
+            0.96,
+          );
+
+          this.add
+            .text(LAYOUT.betX, LAYOUT.betY - 12, "投注", {
+              fontSize: "13px",
+              fontStyle: "bold",
+              color: UI.cream,
+            })
+            .setOrigin(0.5);
+
+          this.betMinus = this.add
+            .circle(LAYOUT.betX - 58, LAYOUT.betY + 10, 13, UI.danger)
+            .setStrokeStyle(2, UI.gold)
+            .setInteractive({ useHandCursor: true });
+
+          this.betMinusText = this.add
+            .text(LAYOUT.betX - 58, LAYOUT.betY + 10, "-", {
+              fontSize: "19px",
+              fontStyle: "bold",
+              color: "#ffd700",
+            })
+            .setOrigin(0.5);
+
+          this.betPlus = this.add
+            .circle(LAYOUT.betX + 58, LAYOUT.betY + 10, 13, UI.danger)
+            .setStrokeStyle(2, UI.gold)
+            .setInteractive({ useHandCursor: true });
+
+          this.betPlusText = this.add
+            .text(LAYOUT.betX + 58, LAYOUT.betY + 9, "+", {
+              fontSize: "18px",
+              fontStyle: "bold",
+              color: "#ffd700",
+            })
+            .setOrigin(0.5);
+
+          this.betValue = this.add
+            .text(LAYOUT.betX, LAYOUT.betY + 10, this.formatMoney(this.bet), {
+              fontSize: "19px",
+              fontStyle: "bold",
+              color: "#ffffff",
+            })
+            .setOrigin(0.5);
+
+          this.betMinus.on("pointerdown", () => this.changeBet(-this.betStep));
+          this.betPlus.on("pointerdown", () => this.changeBet(this.betStep));
+        }
+
+        createLastWinPanel() {
+          this.lastWinPanel = this.createPanel(
+            LAYOUT.lastWinX,
+            LAYOUT.lastWinY,
+            LAYOUT.lastWinW,
+            LAYOUT.lastWinH,
+            UI.panel,
+            0.96,
+          );
+
+          this.add
+            .text(LAYOUT.lastWinX, LAYOUT.lastWinY - 14, "上次获胜", {
+              fontSize: "13px",
+              fontStyle: "bold",
+              color: UI.cream,
+            })
+            .setOrigin(0.5);
+
+          this.lastWinValue = this.add
+            .text(
+              LAYOUT.lastWinX,
+              LAYOUT.lastWinY + 13,
+              this.formatMoney(this.lastWin),
+              {
+                fontSize: "21px",
+                fontStyle: "bold",
+                color: "#ffffff",
+              },
+            )
+            .setOrigin(0.5);
+        }
+
+        createRightControls() {
+          const lx = LAYOUT.rightPanelX;
+          const pivotY = 400;
+
+          this.rightControlPanel = this.createPanel(lx, 338, 150, 180, UI.panel, 0.96);
+
+          // 拉杆底座 / 金属槽
+          this.add
+            .rectangle(lx, 360, 32, 114, 0x2a2a2a)
+            .setStrokeStyle(3, 0xc0c0c0);
+
+          this.add
+            .rectangle(lx - 6, 360, 6, 108, 0x555555)
+            .setAlpha(0.7);
+
+          this.add
+            .rectangle(lx, 360, 12, 102, 0x111111)
+            .setStrokeStyle(1, 0x666666);
+
+          // 槽口高光边
+          this.add
+            .rectangle(lx + 8, 360, 3, 100, 0xe8e8e8)
+            .setAlpha(0.35);
+
+          // 底部固定轴（金属环）
+          this.add.circle(lx, pivotY, 18, 0x3a3a3a).setStrokeStyle(2, 0xaaaaaa);
+          this.add.circle(lx, pivotY, 14, 0x1a1a1a).setStrokeStyle(3, 0xffd700);
+          this.add.circle(lx, pivotY, 8, 0x888888);
+          this.add.circle(lx - 2, pivotY - 2, 3, 0xffffff, 0.55); // 轴心高光
+
+          // 拉杆容器（绕底部轴旋转）
+          this.leverContainer = this.add.container(lx, pivotY);
+
+          // 杆身：深金属底
+          const armShadow = this.add
+            .rectangle(1, -48, 14, 98, 0x1a1a1a)
+            .setOrigin(0.5);
+
+          // 杆身：主金属
+          const arm = this.add
+            .rectangle(0, -48, 12, 96, 0x6a6a6a)
+            .setStrokeStyle(2, 0xd4af37)
+            .setOrigin(0.5);
+
+          // 杆身中轴高光条（金属光泽）
+          const armShine = this.add
+            .rectangle(-2, -48, 3, 90, 0xf0f0f0)
+            .setOrigin(0.5)
+            .setAlpha(0.55);
+
+          // 杆身侧面暗部
+          const armEdge = this.add
+            .rectangle(4, -48, 2, 92, 0x222222)
+            .setOrigin(0.5)
+            .setAlpha(0.6);
+
+          // 手柄球：外圈金边金属
+          this.leverHandle = this.add
+            .circle(0, -100, 24, 0xb8860b)
+            .setStrokeStyle(3, 0xffe566);
+
+          // 手柄球：主色（深红金属）
+          const handleBody = this.add.circle(0, -100, 18, 0x8b0000);
+
+          // 手柄球：内圈
+          this.leverHandleInner = this.add.circle(0, -100, 10, 0xce0023);
+
+          // 手柄高光（光泽点）
+          const handleHighlight = this.add
+            .circle(-6, -107, 6, 0xffffff, 0.7);
+
+          const handleHighlight2 = this.add
+            .circle(5, -94, 3, 0xffe8a0, 0.4);
+
+          this.leverContainer.add([
+            armShadow,
+            arm,
+            armShine,
+            armEdge,
+            this.leverHandle,
+            handleBody,
+            this.leverHandleInner,
+            handleHighlight,
+            handleHighlight2,
+          ]);
+          this.leverContainer.setAngle(-18); // 略微倾斜的“待拉”姿态
+
+          // 手柄缓慢呼吸光泽
+          this.tweens.add({
+            targets: handleHighlight,
+            alpha: 0.35,
+            duration: 900,
+            yoyo: true,
+            repeat: -1,
+            ease: "Sine.easeInOut",
+          });
+          this.tweens.add({
+            targets: armShine,
+            alpha: 0.3,
+            duration: 1200,
+            yoyo: true,
+            repeat: -1,
+            ease: "Sine.easeInOut",
+          });
+
+          // 手（默认隐藏，从侧上方飞入抓住手柄）
+          // 手柄世界坐标约 (lx-30, 305)，手要贴在球上
+          this.handRestX = lx + 55;
+          this.handRestY = 250;
+          this.handGripX = lx - 8;
+          this.handGripY = 308;
+
+          this.leverHand = this.add
+            .text(this.handRestX, this.handRestY, "✋", {
+              fontSize: "40px",
+            })
+            .setOrigin(0.35, 0.35)
+            .setAlpha(0)
+            .setDepth(20)
+            .setAngle(-25);
+
+          // 拉杆可点击热区
+          this.leverHit = this.add
+            .rectangle(lx, 340, 120, 150, 0x000000, 0.01)
+            .setInteractive({ useHandCursor: true });
+
+          this.spinHint = this.add
+            .text(lx, 255, "点击握住拉杆", {
+              fontSize: "11px",
+              fontStyle: "bold",
+              color: "#ffe9a6",
+              stroke: "#000000",
+              strokeThickness: 3,
+            })
+            .setOrigin(0.5);
+
+          this.leverHit.on("pointerdown", () => {
+            this.sfx.click();
+            this.handleSpinInput();
+          });
+
+          this.leverHit.on("pointerover", () => {
+            if (this.leverState === "up" && !this.isSpinning) {
+              this.leverHandle.setFillStyle(0xffe566);
+              this.leverHandle.setStrokeStyle(3, 0xffffff);
+            }
+          });
+
+          this.leverHit.on("pointerout", () => {
+            if (this.leverState !== "down") {
+              this.leverHandle.setFillStyle(0xb8860b);
+              this.leverHandle.setStrokeStyle(3, 0xffe566);
+            }
+          });
+
+          // ========== SPIN 立体金属按键（拉杆面板上方）==========
+          // 面板中心 y=338、高 180 → 顶边 ≈ 248；按键放上方并留间隙
+          const spinBtnX = lx;
+          const spinBtnY = 218;
+
+          // 底层阴影（立体厚度）
+          this.spinBtnShadow = this.add
+            .rectangle(spinBtnX + 2, spinBtnY + 4, 118, 36, 0x1a1200, 0.85)
+            .setDepth(5);
+
+          // 金属外框
+          this.spinBtnRim = this.add
+            .rectangle(spinBtnX, spinBtnY, 118, 36, 0x8a7040)
+            .setStrokeStyle(2, 0xffe566)
+            .setDepth(6);
+
+          // 主金属面
+          this.spinBtnBg = this.add
+            .rectangle(spinBtnX, spinBtnY - 1, 108, 28, 0xc9a84c)
+            .setStrokeStyle(1, 0xfff2a8)
+            .setInteractive({ useHandCursor: true })
+            .setDepth(7);
+
+          // 顶部高光条
+          this.spinBtnShine = this.add
+            .rectangle(spinBtnX, spinBtnY - 10, 96, 6, 0xfff8dc, 0.55)
+            .setDepth(8);
+
+          // 底部暗边
+          this.spinBtnShade = this.add
+            .rectangle(spinBtnX, spinBtnY + 10, 100, 5, 0x5c4010, 0.45)
+            .setDepth(8);
+
+          // 黄色光晕
+          this.spinGlow = this.add
+            .circle(spinBtnX, spinBtnY, 48, 0xffd700, 0)
+            .setDepth(4);
+
+          this.spinBtnText = this.add
+            .text(spinBtnX, spinBtnY - 1, "SPIN", {
+              fontSize: "18px",
+              fontStyle: "bold",
+              color: "#2a1a00",
+              stroke: "#ffe9a6",
+              strokeThickness: 3,
+            })
+            .setOrigin(0.5)
+            .setDepth(9);
+
+          const spinVisuals = [
+            this.spinBtnShadow,
+            this.spinBtnRim,
+            this.spinBtnBg,
+            this.spinBtnShine,
+            this.spinBtnShade,
+            this.spinBtnText,
+          ];
+
+          const flashSpinGlow = () => {
+            this.spinGlow.setAlpha(0.8);
+            this.spinGlow.setScale(0.6);
+            this.tweens.add({
+              targets: this.spinGlow,
+              alpha: 0,
+              scale: 1.55,
+              duration: 400,
+              ease: "Cubic.easeOut",
+            });
+            // 按下沉、松开弹回
+            this.tweens.add({
+              targets: spinVisuals,
+              y: "+=3",
+              duration: 70,
+              yoyo: true,
+            });
+          };
+
+          this.spinBtnBg.on("pointerdown", () => {
+            this.sfx.buttonPress();
+            flashSpinGlow();
+            this.handleSpinInput();
+          });
+
+          this.spinBtnBg.on("pointerover", () => {
+            this.spinBtnBg.setFillStyle(0xe0c060);
+            this.spinBtnRim.setStrokeStyle(2, 0xfff6b0);
+          });
+
+          this.spinBtnBg.on("pointerout", () => {
+            this.spinBtnBg.setFillStyle(0xc9a84c);
+            this.spinBtnRim.setStrokeStyle(2, 0xffe566);
+          });
+        }
+
+        gripLever() {
+          if (this.leverState !== "up") return;
+
+          this.leverState = "gripped";
+          this.spinHint.setText("再点一次拉动！");
+          this.sfx.leverGrip();
+
+          // 清掉旧动画，避免叠化
+          this.tweens.killTweensOf(this.leverHand);
+
+          const midX = (this.handRestX + this.handGripX) / 2 + 8;
+          const midY = (this.handRestY + this.handGripY) / 2 - 18;
+
+          this.leverHand.setText("✋");
+          this.leverHand.setAlpha(0);
+          this.leverHand.setPosition(this.handRestX, this.handRestY);
+          this.leverHand.setScale(0.85);
+          this.leverHand.setAngle(-40);
+
+          // 1) 淡入出现
+          this.tweens.add({
+            targets: this.leverHand,
+            alpha: 1,
+            scale: 1.08,
+            duration: 120,
+            ease: "Sine.easeOut",
+          });
+
+          // 2) 弧线接近手柄（先抬后落）
+          this.tweens.add({
+            targets: this.leverHand,
+            x: midX,
+            y: midY,
+            angle: -22,
+            duration: 160,
+            delay: 40,
+            ease: "Sine.easeOut",
+            onComplete: () => {
+              // 3) 落到手柄上
+              this.tweens.add({
+                targets: this.leverHand,
+                x: this.handGripX,
+                y: this.handGripY,
+                angle: -6,
+                scale: 1.02,
+                duration: 180,
+                ease: "Cubic.easeInOut",
+                onComplete: () => {
+                  // 4) 握紧：换拳头 + 微收
+                  this.leverHand.setText("✊");
+                  this.tweens.add({
+                    targets: this.leverHand,
+                    scale: 0.9,
+                    angle: -2,
+                    duration: 90,
+                    ease: "Back.easeIn",
+                    onComplete: () => {
+                      // 5) 稳住并轻微回弹，更有“抓住”感
+                      this.tweens.add({
+                        targets: this.leverHand,
+                        scale: 0.96,
+                        duration: 140,
+                        ease: "Sine.easeOut",
+                      });
+                    },
+                  });
+
+                  this.tweens.add({
+                    targets: this.leverHandle,
+                    scale: 1.1,
+                    duration: 90,
+                    yoyo: true,
+                    ease: "Sine.easeOut",
+                  });
+                },
+              });
+            },
+          });
+
+          this.setMessage("握住拉杆，再点击一次重重拉下");
+        }
+
+        pullLever(thenStart = true) {
+          if (this.leverState === "down") return;
+
+          this.leverState = "down";
+          this.spinHint.setText("SPACE 急停");
+          this.sfx.leverPull();
+
+          this.tweens.killTweensOf(this.leverHand);
+          this.tweens.killTweensOf(this.leverContainer);
+
+          this.leverHand.setText("✊");
+
+          // 预备：微微上抬蓄力
+          this.tweens.add({
+            targets: this.leverHand,
+            y: this.handGripY - 6,
+            scale: 0.94,
+            duration: 70,
+            ease: "Sine.easeOut",
+            onComplete: () => {
+              // 与拉杆同步甩下（略有跟随延迟感）
+              this.tweens.add({
+                targets: this.leverHand,
+                x: this.handGripX + 14,
+                y: this.handGripY + 72,
+                angle: 32,
+                scale: 0.88,
+                duration: 300,
+                ease: "Cubic.easeIn",
+                onComplete: () => {
+                  // 撞击后手微震回弹
+                  this.tweens.add({
+                    targets: this.leverHand,
+                    y: this.handGripY + 68,
+                    scale: 0.92,
+                    duration: 100,
+                    ease: "Sine.easeOut",
+                  });
+                },
+              });
+            },
+          });
+
+          // 拉杆：先轻抬再重压
+          this.tweens.add({
+            targets: this.leverContainer,
+            angle: -22,
+            duration: 70,
+            ease: "Sine.easeOut",
+            onComplete: () => {
+              this.tweens.add({
+                targets: this.leverContainer,
+                angle: 55,
+                duration: 300,
+                ease: "Cubic.easeIn",
+                onComplete: () => {
+                  this.cameras.main.shake(120, 0.008);
+
+                  this.tweens.add({
+                    targets: this.leverContainer,
+                    angle: 48,
+                    duration: 100,
+                    yoyo: true,
+                    ease: "Sine.easeOut",
+                  });
+
+                  if (thenStart) {
+                    this.startSpin();
+                  }
+                },
+              });
+            },
+          });
+        }
+
+        resetLever() {
+          this.leverState = "up";
+          this.spinHint.setText("点击握住拉杆");
+          this.sfx.leverReset();
+
+          this.tweens.killTweensOf(this.leverHand);
+          this.tweens.killTweensOf(this.leverContainer);
+
+          // 松手：张开 → 滑开淡出
+          this.leverHand.setText("✋");
+
+          this.tweens.add({
+            targets: this.leverHand,
+            scale: 1.05,
+            angle: 8,
+            duration: 100,
+            ease: "Sine.easeOut",
+            onComplete: () => {
+              this.tweens.add({
+                targets: this.leverHand,
+                alpha: 0,
+                x: this.handRestX,
+                y: this.handRestY - 10,
+                angle: -30,
+                scale: 0.9,
+                duration: 320,
+                ease: "Cubic.easeInOut",
+                onComplete: () => {
+                  if (this.leverHand) {
+                    this.leverHand.setText("✋");
+                    this.leverHand.setScale(1);
+                  }
+                },
+              });
+            },
+          });
+
+          this.tweens.add({
+            targets: this.leverContainer,
+            angle: -18,
+            duration: 420,
+            ease: "Back.easeOut",
+          });
+
+          this.leverHandle.setFillStyle(0xb8860b);
+          this.leverHandle.setStrokeStyle(3, 0xffe566);
+        }
+
+        // NORMAL / FAST / AUTO / SOUND — 统一金边底栏
+        createBottomControls() {
+          const y = LAYOUT.controlY;
+          const w = LAYOUT.controlBtnW;
+          const h = LAYOUT.controlBtnH;
+          const [xNormal, xFast, xAuto, xSound] = LAYOUT.controlXs;
+
+          this.speedButtons = [];
+
+          const bindSpeed = (x, label) => {
+            const { bg, txt } = this.createControlButton(x, y, w, h, label);
+            bg.on("pointerdown", () => {
+              if (this.isSpinning) return;
+              this.sfx.click();
+              this.mode = label;
+              this.updateSpeedButtons();
+              this.setMessage(`速度：${label}`);
+            });
+            bg.on("pointerover", () => {
+              if (this.mode !== label && !this.isSpinning) {
+                bg.setFillStyle(0x2a1508);
+              }
+            });
+            bg.on("pointerout", () => {
+              this.setControlActive(bg, txt, this.mode === label);
+            });
+            this.speedButtons.push({ label, btn: bg, txt });
+          };
+
+          bindSpeed(xNormal, "NORMAL");
+          bindSpeed(xFast, "FAST");
+          this.updateSpeedButtons();
+
+          // AUTO
+          const auto = this.createControlButton(xAuto, y, w, h, "AUTO: OFF");
+          this.autoButton = auto.bg;
+          this.autoText = auto.txt;
+          this.autoButton.on("pointerdown", () => {
+            this.sfx.click();
+            this.toggleAutoPlay();
+          });
+
+          // SOUND
+          const sound = this.createControlButton(xSound, y, w, h, "SOUND: ON");
+          this.soundButton = sound.bg;
+          this.soundText = sound.txt;
+          this.soundButton.on("pointerdown", () => {
+            const on = !this.sfx.enabled;
+            this.sfx.enabled = on;
+            if (on) {
+              this.setControlActive(this.soundButton, this.soundText, false);
+              this.soundText.setText("SOUND: ON");
+              this.sfx.click();
+            } else {
+              this.setControlActive(this.soundButton, this.soundText, true);
+              this.soundText.setText("SOUND: OFF");
+            }
+          });
+        }
+
+        updateSpeedButtons() {
+          this.speedButtons.forEach(({ label, btn, txt }) => {
+            this.setControlActive(btn, txt, label === this.mode);
+          });
+        }
+
+        createKeyboardControls() {
+          this.input.keyboard.on("keydown-SPACE", () => {
+            this.sfx.click();
+            this.handleSpinInput();
+          });
+        }
+
+        createAmbientAnimations() {
+          this.tweens.add({
+            targets: this.machineGlow,
+            alpha: 0.22,
+            duration: 1300,
+            yoyo: true,
+            repeat: -1,
+          });
+
+          [this.paylineTop, this.paylineMiddle, this.paylineBottom].forEach(
+            (line, index) => {
+              this.tweens.add({
+                targets: line,
+                alpha: index === 1 ? 1 : 0.55,
+                duration: 900,
+                yoyo: true,
+                repeat: -1,
+              });
+            },
+          );
+
+          this.tweens.add({
+            targets: this.jackpotText,
+            scale: 1.04,
+            duration: 1000,
+            yoyo: true,
+            repeat: -1,
+          });
+        }
+
+        updateDisplay() {
+          fitTextToBox(
+            this.balanceValue,
+            this.formatMoney(this.balance),
+            LAYOUT.balanceW - 35,
+            21,
+            13,
+          );
+
+          fitTextToBox(
+            this.betValue,
+            this.formatMoney(this.bet),
+            LAYOUT.betW - 95,
+            20,
+            12,
+          );
+
+          fitTextToBox(
+            this.lastWinValue,
+            this.formatMoney(this.lastWin),
+            LAYOUT.lastWinW - 35,
+            21,
+            13,
+          );
+
+          fitTextToBox(
+            this.jackpotText,
+            `💎 JACKPOT ${this.formatMoney(this.jackpotValue)}`,
+            320,
+            21,
+            14,
+          );
+        }
+
+        changeBet(amount) {
+          if (this.isSpinning) return;
+
+          this.sfx.click();
+
+          this.bet = Phaser.Math.Clamp(
+            this.bet + amount,
+            this.minBet,
+            this.maxBet,
+          );
+
+          fitTextToBox(
+            this.betValue,
+            this.formatMoney(this.bet),
+            LAYOUT.betW - 95,
+            20,
+            12,
+          );
+
+          this.tweens.add({
+            targets: this.betValue,
+            scale: 1.18,
+            duration: 120,
+            yoyo: true,
+          });
+        }
+
+        setBetButtonsEnabled(enabled) {
+          if (!this.betMinus || !this.betPlus) return;
+
+          const alpha = enabled ? 1 : 0.45;
+
+          this.betMinus.disableInteractive();
+          this.betPlus.disableInteractive();
+
+          if (enabled) {
+            this.betMinus.setInteractive({ useHandCursor: true });
+            this.betPlus.setInteractive({ useHandCursor: true });
+          }
+
+          [
+            this.betMinus,
+            this.betPlus,
+            this.betMinusText,
+            this.betPlusText,
+          ].forEach((item) => item.setAlpha(alpha));
+        }
+
+        toggleAutoPlay() {
+          this.autoPlay = !this.autoPlay;
+
+          if (this.autoPlay) {
+            this.autoPlayRounds = 0;
+            this.setControlActive(this.autoButton, this.autoText, true);
+            this.autoText.setText("AUTO: ON");
+            this.setMessage("自动模式已开启");
+
+            if (!this.isSpinning) {
+              this.time.delayedCall(350, () => {
+                if (this.autoPlay && !this.isSpinning) {
+                  this.startSpin();
+                }
+              });
+            }
+          } else {
+            this.updateAutoButtonOff();
+            this.setMessage("自动模式已关闭");
+          }
+        }
+
+        updateAutoButtonOff() {
+          if (!this.autoButton || !this.autoText) return;
+          this.setControlActive(this.autoButton, this.autoText, false);
+          this.autoText.setText("AUTO: OFF");
+        }
+
+        handleSpinInput() {
+          if (this.inputLocked) return;
+
+          this.inputLocked = true;
+
+          this.time.delayedCall(220, () => {
+            this.inputLocked = false;
+          });
+
+          // 正在转：急停
+          if (this.isSpinning) {
+            if (!this.stopRequested) {
+              this.stopRequested = true;
+              this.setMessage("Stopping reels...");
+
+              this.reels.forEach((reel, index) => {
+                if (!reel.stopped && !reel.forceStopScheduled) {
+                  reel.forceStopScheduled = true;
+                  this.time.delayedCall(index * 140, () =>
+                    this.stopReel(reel, index),
+                  );
+                }
+              });
+            }
+            return;
+          }
+
+          // 未转：两段式拉杆
+          if (this.leverState === "up") {
+            this.gripLever();
+            return;
+          }
+
+          if (this.leverState === "gripped") {
+            this.pullLever(true);
+            return;
+          }
+        }
+
+        startSpin() {
+          if (this.isSpinning) return;
+
+          if (this.balance < this.bet) {
+            this.setMessage("Not enough balance!");
+            this.sfx.lose();
+            this.autoPlay = false;
+            this.updateAutoButtonOff();
+            this.resetLever();
+            return;
+          }
+
+          // 自动模式等：若拉杆未下，直接甩下
+          if (this.leverState !== "down") {
+            this.leverState = "down";
+            this.spinHint.setText("SPACE 急停");
+            this.sfx.leverPull();
+            this.leverHand.setText("✊");
+            this.leverHand.setAlpha(1);
+            this.leverHand.setPosition(this.handGripX, this.handGripY);
+            this.tweens.add({
+              targets: this.leverContainer,
+              angle: 48,
+              duration: 200,
+              ease: "Cubic.easeIn",
+            });
+            this.tweens.add({
+              targets: this.leverHand,
+              y: this.handGripY + 70,
+              x: this.handGripX + 12,
+              angle: 28,
+              scale: 0.9,
+              duration: 200,
+            });
+          }
+
+          this.reels.forEach((reel) => {
+            if (reel.intervalEvent) {
+              reel.intervalEvent.remove(false);
+              reel.intervalEvent = null;
+            }
+
+            reel.stopped = true;
+            reel.forceStopScheduled = false;
+            reel.container.y = LAYOUT.reelY;
+          });
+
+          this.isSpinning = true;
+          this.stopRequested = false;
+          this.stoppedReelsCount = 0;
+          this.setBetButtonsEnabled(false);
+
+          this.animateBalanceDecrease(this.bet);
+
+          this.jackpotValue += Math.max(1, Math.round(this.bet * 0.05));
+          this.updateDisplay();
+
+          if (this.autoPlay) {
+            this.autoPlayRounds++;
+            this.setMessage(
+              `AUTO SPIN ${this.autoPlayRounds}/${this.maxAutoPlayRounds}`,
+              18,
+            );
+          } else {
+            this.setMessage(`${this.mode} 转动中 • 空格急停`, 17);
+          }
+
+          this.reels.forEach((reel, index) => {
+            this.startReelSpin(reel, index);
+          });
+
+          this.cameras.main.shake(90, 0.002);
+        }
+
+        animateBalanceDecrease(amount) {
+          const startBalance = this.balance;
+          const endBalance = this.balance - amount;
+
+          this.balance = endBalance;
+
+          this.tweens.addCounter({
+            from: startBalance,
+            to: endBalance,
+            duration: 320,
+            ease: "Cubic.easeOut",
+            onUpdate: (tween) => {
+              fitTextToBox(
+                this.balanceValue,
+                this.formatMoney(tween.getValue()),
+                LAYOUT.balanceW - 35,
+                21,
+                13,
+              );
+            },
+            onComplete: () => this.updateDisplay(),
+          });
+
+          this.tweens.add({
+            targets: this.balanceValue,
+            scale: 1.1,
+            duration: 140,
+            yoyo: true,
+          });
+        }
+
+        startReelSpin(reel, index) {
+          const settings = this.speedSettings[this.mode];
+
+          if (reel.intervalEvent) {
+            reel.intervalEvent.remove(false);
+            reel.intervalEvent = null;
+          }
+
+          reel.stopped = false;
+          reel.forceStopScheduled = false;
+
+          reel.frame.setStrokeStyle(4, 0xff0066);
+
+          reel.intervalEvent = this.time.addEvent({
+            delay: settings.interval,
+            loop: true,
+            callback: () => {
+              this.sfx.spinTick();
+
+              reel.items.forEach((item) => {
+                item.txt.y += settings.step;
+                item.bg.y += settings.step;
+
+                if (item.txt.y > 128) {
+                  const symbol = Phaser.Utils.Array.GetRandom(SYMBOLS);
+
+                  item.symbol = symbol;
+                  item.txt.y = -128;
+                  item.bg.y = -128;
+                  item.txt.setText(symbol.label);
+                  item.txt.setColor(symbol.color);
+                  item.txt.setFontSize(symbol.label.length > 1 ? 42 : 52);
+                }
+              });
+            },
+          });
+
+          const stopDelay = settings.duration + index * 320;
+
+          this.time.delayedCall(stopDelay, () => {
+            this.waitForStopThenStopReel(reel, index);
+          });
+        }
+
+        waitForStopThenStopReel(reel, index) {
+          if (reel.stopped) return;
+
+          this.stopReel(reel, index);
+        }
+
+        stopReel(reel, index) {
+          if (reel.stopped) return;
+
+          reel.stopped = true;
+
+          if (reel.intervalEvent) {
+            reel.intervalEvent.remove(false);
+            reel.intervalEvent = null;
+          }
+
+          const finalSymbol = this.getControlledResult(index);
+          reel.value = finalSymbol;
+
+          reel.items.forEach((item, i) => {
+            const randomSymbol = Phaser.Utils.Array.GetRandom(SYMBOLS);
+
+            item.symbol = randomSymbol;
+            item.txt.y = (i - 2) * 64;
+            item.bg.y = (i - 2) * 64;
+            item.txt.setText(randomSymbol.label);
+            item.txt.setColor(randomSymbol.color);
+            item.txt.setFontSize(randomSymbol.label.length > 1 ? 42 : 52);
+          });
+
+          const center = reel.items[2];
+
+          center.symbol = finalSymbol;
+          center.txt.setText(finalSymbol.label);
+          center.txt.setColor(finalSymbol.color);
+          center.txt.setFontSize(finalSymbol.label.length > 1 ? 42 : 52);
+          center.txt.y = 0;
+          center.bg.y = 0;
+
+          this.sfx.reelStop();
+
+          this.tweens.add({
+            targets: reel.container,
+            y: LAYOUT.reelY + 7,
+            duration: 120,
+            ease: "Sine.easeOut",
+            yoyo: true,
+          });
+
+          this.tweens.add({
+            targets: center.txt,
+            scale: 1.15,
+            duration: 140,
+            yoyo: true,
+          });
+
+          reel.frame.setStrokeStyle(4, 0xffd700);
+
+          this.stoppedReelsCount++;
+
+          if (this.stoppedReelsCount >= this.reels.length) {
+            this.time.delayedCall(300, () => {
+              this.isSpinning = false;
+              this.setBetButtonsEnabled(true);
+              this.resetLever();
+              this.checkWin();
+            });
+          }
+        }
+
+        getControlledResult() {
+          return Phaser.Utils.Array.GetRandom(SYMBOLS);
+        }
+
+        checkWin() {
+          const [a, b, c] = this.reels.map((reel) => {
+            const center = reel.items[2];
+            return center.symbol || reel.value;
+          });
+
+          const isThreeOfAKind = a.key === b.key && b.key === c.key;
+          const isPair = a.key === b.key || a.key === c.key || b.key === c.key;
+          const isJackpot = isThreeOfAKind && a.key === "seven";
+
+          if (isJackpot) {
+            const win = this.jackpotValue;
+
+            this.balance += win;
+            this.lastWin = win;
+            this.updateDisplay();
+
+            this.setMessage(`JACKPOT! +${this.formatMoney(win)}`, 18);
+            this.playJackpot();
+            this.scheduleAutoPlay();
+            return;
+          }
+
+          if (isThreeOfAKind) {
+            const win = this.bet * a.multiplier;
+
+            this.balance += win;
+            this.lastWin = win;
+            this.updateDisplay();
+
+            this.setMessage(
+              `${a.label}${a.label}${a.label} WIN +${this.formatMoney(win)}`,
+              18,
+            );
+            this.playBigWin();
+            this.scheduleAutoPlay();
+            return;
+          }
+
+          if (isPair) {
+            const pairSymbol = this.getPairSymbol(a, b, c);
+            const win = this.bet * 2;
+
+            this.balance += win;
+            this.lastWin = win;
+            this.updateDisplay();
+
+            this.setMessage(
+              `PAIR ${pairSymbol.label}${pairSymbol.label} +${this.formatMoney(win)}`,
+              18,
+            );
+            this.playSmallWin();
+            this.scheduleAutoPlay();
+            return;
+          }
+
+          this.updateDisplay();
+          this.setMessage("No win. Try again!");
+          this.sfx.lose();
+          this.scheduleAutoPlay();
+        }
+
+        getPairSymbol(a, b, c) {
+          if (a.key === b.key) return a;
+          if (a.key === c.key) return a;
+          if (b.key === c.key) return b;
+
+          return a;
+        }
+
+        scheduleAutoPlay() {
+          if (!this.autoPlay) return;
+
+          if (
+            this.autoPlayRounds >= this.maxAutoPlayRounds ||
+            this.balance < this.bet
+          ) {
+            this.autoPlay = false;
+            this.updateAutoButtonOff();
+            this.setMessage("Auto play finished");
+            return;
+          }
+
+          this.time.delayedCall(850, () => {
+            if (this.autoPlay && !this.isSpinning) {
+              this.startSpin();
+            }
+          });
+        }
+
+        flashLines() {
+          [this.paylineTop, this.paylineMiddle, this.paylineBottom].forEach(
+            (line) => {
+              this.tweens.add({
+                targets: line,
+                alpha: 1,
+                scaleX: 1.07,
+                duration: 120,
+                yoyo: true,
+                repeat: 6,
+              });
+            },
+          );
+        }
+
+        playSmallWin() {
+          this.sfx.smallWin();
+          this.flashLines();
+
+          this.reels.forEach((reel) => {
+            this.tweens.add({
+              targets: reel.container,
+              scale: 1.06,
+              duration: 140,
+              yoyo: true,
+              repeat: 2,
+            });
+          });
+        }
+
+        playBigWin() {
+          this.sfx.bigWin();
+          this.cameras.main.flash(350, 255, 215, 0);
+          this.cameras.main.shake(450, 0.009);
+          this.flashLines();
+
+          this.reels.forEach((reel) => {
+            reel.frame.setStrokeStyle(6, 0x00ff99);
+
+            this.tweens.add({
+              targets: reel.container,
+              scale: 1.12,
+              duration: 150,
+              yoyo: true,
+              repeat: 4,
+            });
+          });
+
+          this.showWinText("BIG WIN!", "#00ff99");
+          this.coinExplosion(45);
+
+          this.time.delayedCall(1000, () => {
+            this.reels.forEach((reel) =>
+              reel.frame.setStrokeStyle(4, 0xffd700),
+            );
+          });
+        }
+
+        playJackpot() {
+          this.sfx.jackpot();
+          this.cameras.main.flash(600, 255, 215, 0);
+          this.cameras.main.shake(800, 0.014);
+          this.flashLines();
+
+          this.tweens.add({
+            targets: this.jackpotPanel,
+            scale: 1.12,
+            duration: 180,
+            yoyo: true,
+            repeat: 7,
+          });
+
+          this.showWinText("JACKPOT!", "#ffd700");
+          this.coinExplosion(90);
+
+          this.jackpotValue =
+            this.baseJackpotValue + Phaser.Math.Between(250, 1250);
+          this.updateDisplay();
+        }
+
+        showWinText(text, color) {
+          const winText = this.add
+            .text(470, 145, text, {
+              fontSize: "60px",
+              fontStyle: "bold",
+              color,
+              stroke: "#000000",
+              strokeThickness: 9,
+              shadow: {
+                offsetX: 0,
+                offsetY: 0,
+                color,
+                blur: 16,
+                fill: true,
+              },
+            })
+            .setOrigin(0.5);
+
+          this.tweens.add({
+            targets: winText,
+            scale: 1.24,
+            alpha: 0,
+            duration: 1800,
+            ease: "Cubic.easeOut",
+            onComplete: () => winText.destroy(),
+          });
+        }
+
+        coinExplosion(amount) {
+          for (let i = 0; i < amount; i++) {
+            const coin = this.add
+              .text(
+                Phaser.Math.Between(350, 590),
+                Phaser.Math.Between(200, 310),
+                "●",
+                {
+                  fontSize: `${Phaser.Math.Between(18, 30)}px`,
+                  color: "#ffd700",
+                  stroke: "#7a3b00",
+                  strokeThickness: 3,
+                },
+              )
+              .setOrigin(0.5);
+
+            this.tweens.add({
+              targets: coin,
+              x: coin.x + Phaser.Math.Between(-300, 300),
+              y: coin.y - Phaser.Math.Between(90, 240),
+              alpha: 0,
+              scale: 1.8,
+              angle: Phaser.Math.Between(-360, 360),
+              duration: Phaser.Math.Between(800, 1400),
+              ease: "Cubic.easeOut",
+              onComplete: () => coin.destroy(),
+            });
+          }
+        }
+      }
+
+      // ---------- 启动 ----------
+      const config = {
+        type: Phaser.AUTO,
+        width: GAME_WIDTH,
+        height: GAME_HEIGHT,
+        parent: "game",
+        backgroundColor: "#070006",
+        scale: {
+          mode: Phaser.Scale.FIT,
+          autoCenter: Phaser.Scale.CENTER_BOTH,
+          width: GAME_WIDTH,
+          height: GAME_HEIGHT,
+        },
+        render: {
+          antialias: true,
+          pixelArt: false,
+          roundPixels: false,
+        },
+        scene: SlotGame,
+      };
+
+      new Phaser.Game(config);
+
+      // 首点解锁音频（iOS / 部分 Android 需用户手势）
+      function unlockAudioOnce() {
+        try {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (!AC) return;
+          const ctx = new AC();
+          if (ctx.state === "suspended") ctx.resume();
+          setTimeout(function () {
+            try {
+              ctx.close();
+            } catch (e) {}
+          }, 300);
+        } catch (e) {}
+        document.removeEventListener("touchstart", unlockAudioOnce, true);
+        document.removeEventListener("mousedown", unlockAudioOnce, true);
+        document.removeEventListener("keydown", unlockAudioOnce, true);
+      }
+      document.addEventListener("touchstart", unlockAudioOnce, true);
+      document.addEventListener("mousedown", unlockAudioOnce, true);
+      document.addEventListener("keydown", unlockAudioOnce, true);
+
+      function fitGameCanvas() {
+        var canvas = document.querySelector("#game canvas");
+        if (!canvas) return;
+        canvas.style.width = "100%";
+        canvas.style.height = "100%";
+      }
+
+      window.addEventListener("resize", function () {
+        setTimeout(fitGameCanvas, 50);
+      });
+      window.addEventListener("orientationchange", function () {
+        setTimeout(fitGameCanvas, 120);
+      });
+
+      // 横竖屏切换：平滑过渡（兼容无 matchMedia / 旧 iOS）
+      (function setupOrientationTransition() {
+        var tip = document.getElementById("rotate-tip");
+        var game = document.getElementById("game");
+        if (!tip || !game) return;
+
+        var lastPortrait = null;
+
+        function apply(portrait, animate) {
+          if (portrait === lastPortrait) return;
+          lastPortrait = portrait;
+
+          if (portrait) {
+            game.classList.add("dimmed");
+            if (animate && window.requestAnimationFrame) {
+              requestAnimationFrame(function () {
+                tip.classList.add("show");
+              });
+            } else {
+              tip.classList.add("show");
+            }
+          } else {
+            tip.classList.remove("show");
+            if (animate) {
+              setTimeout(function () {
+                game.classList.remove("dimmed");
+              }, 420);
+            } else {
+              game.classList.remove("dimmed");
+            }
+          }
+        }
+
+        function isPortrait() {
+          try {
+            if (window.matchMedia) {
+              return window.matchMedia("(orientation: portrait)").matches;
+            }
+          } catch (e) {}
+          return window.innerHeight > window.innerWidth;
+        }
+
+        function check(animate) {
+          apply(isPortrait(), animate);
+        }
+
+        check(false);
+
+        var onChange = function () {
+          check(true);
+        };
+        window.addEventListener("orientationchange", onChange);
+        window.addEventListener("resize", onChange);
+
+        try {
+          if (window.matchMedia) {
+            var mql = window.matchMedia("(orientation: portrait)");
+            if (mql.addEventListener) {
+              mql.addEventListener("change", onChange);
+            } else if (mql.addListener) {
+              mql.addListener(onChange);
+            }
+          }
+        } catch (e) {}
+      })();
+    </script>
+  </body>
+</html>
