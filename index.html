@@ -525,6 +525,50 @@
         }
       }
 
+      // ---------- 背景音乐（独立于音效，走 HTML5 Audio，循环播放） ----------
+      class BGMusic {
+        constructor() {
+          this.audio = new Audio("经幡.mp3");
+          this.audio.loop = true;
+          this.audio.volume = 0.35;
+          this.audio.preload = "auto";
+
+          const saved = localStorage.getItem("bgMusicEnabled");
+          this.enabled = saved === null ? true : saved === "true"; // 默认开启
+
+          this._unlocked = false; // 是否已通过用户手势成功播放过一次
+        }
+
+        // 需在用户手势（点击/触摸/按键）中调用，否则浏览器会拦截自动播放
+        tryPlay() {
+          if (!this.enabled) return;
+          const p = this.audio.play();
+          if (p && typeof p.then === "function") {
+            p.then(() => {
+              this._unlocked = true;
+            }).catch(() => {});
+          } else {
+            this._unlocked = true;
+          }
+        }
+
+        pause() {
+          this.audio.pause();
+        }
+
+        setEnabled(enabled) {
+          this.enabled = enabled;
+          localStorage.setItem("bgMusicEnabled", String(enabled));
+          if (enabled) {
+            this.tryPlay();
+          } else {
+            this.pause();
+          }
+        }
+      }
+
+      const bgMusic = new BGMusic();
+
       // ---------- 主场景 ----------
       class SlotGame extends Phaser.Scene {
         constructor() {
@@ -1838,7 +1882,7 @@
           const cx = GAME_WIDTH / 2;
           const cy = GAME_HEIGHT / 2;
           const panelW = 380;
-          const panelH = 470;
+          const panelH = 514;
           const top = cy - panelH / 2;
 
           this.settingsModalGroup = this.add
@@ -2061,6 +2105,41 @@
 
           this.updateSoundOptionButtons();
 
+          // ---------- 音乐：开启 / 关闭 ----------
+          const musicRowY = soundRowY + 44;
+          const musicLabel = this.add
+            .text(rowLabelX, musicRowY, "音乐", {
+              fontSize: "16px",
+              fontStyle: "bold",
+              color: "#ffd700",
+            })
+            .setOrigin(0, 0.5);
+          children.push(musicLabel);
+
+          const musicOnOpt = makeOptionButton(optAX, musicRowY, "开启");
+          const musicOffOpt = makeOptionButton(optBX, musicRowY, "关闭");
+          this.musicOnButton = musicOnOpt;
+          this.musicOffButton = musicOffOpt;
+
+          musicOnOpt.bg.on("pointerdown", (pointer, lx, ly, event) => {
+            event.stopPropagation();
+            if (!bgMusic.enabled) {
+              bgMusic.setEnabled(true);
+              this.sfx.click();
+              this.updateMusicOptionButtons();
+            }
+          });
+          musicOffOpt.bg.on("pointerdown", (pointer, lx, ly, event) => {
+            event.stopPropagation();
+            if (bgMusic.enabled) {
+              bgMusic.setEnabled(false);
+              this.sfx.click();
+              this.updateMusicOptionButtons();
+            }
+          });
+
+          this.updateMusicOptionButtons();
+
           // ---------- 关闭按钮 ----------
           const closeBtn = this.add
             .text(cx + panelW / 2 - 22, top + 20, "✕", {
@@ -2110,6 +2189,20 @@
             this.soundOffButton.bg,
             this.soundOffButton.txt,
             !this.sfx.enabled,
+          );
+        }
+
+        updateMusicOptionButtons() {
+          if (!this.musicOnButton || !this.musicOffButton) return;
+          this.setControlActive(
+            this.musicOnButton.bg,
+            this.musicOnButton.txt,
+            bgMusic.enabled,
+          );
+          this.setControlActive(
+            this.musicOffButton.bg,
+            this.musicOffButton.txt,
+            !bgMusic.enabled,
           );
         }
 
@@ -2827,6 +2920,9 @@
               }
             }
           }
+        } catch (e) {}
+        try {
+          bgMusic.tryPlay(); // 首次用户手势时启动背景音乐（若已开启）
         } catch (e) {}
         document.removeEventListener("touchstart", unlockAudioOnce, true);
         document.removeEventListener("mousedown", unlockAudioOnce, true);
