@@ -549,7 +549,8 @@
           this.audio.preload = "auto";
 
           const savedVolume = parseFloat(localStorage.getItem("bgMusicVolume"));
-          this.audio.volume = isNaN(savedVolume) ? 0.35 : savedVolume;
+          this.volume = isNaN(savedVolume) ? 0.7 : savedVolume; // 滑杆用的线性值（0-1）
+          this.audio.volume = this.volume * this.volume; // 实际播放增益：加入锥度，让滑杆全程更明显好用
 
           const savedEnabled = localStorage.getItem("bgMusicEnabled");
           this.enabled = savedEnabled === null ? true : savedEnabled === "true"; // 默认开启
@@ -649,7 +650,8 @@
 
         setVolume(v) {
           v = Math.max(0, Math.min(1, v));
-          this.audio.volume = v;
+          this.volume = v; // 滑杆位置用的线性值
+          this.audio.volume = v * v; // 实际播放增益（音频锥度，接近人耳感知的线性变化）
           localStorage.setItem("bgMusicVolume", String(v));
         }
       }
@@ -2243,9 +2245,9 @@
           children.push(volumeLabel);
 
           const trackX0 = cx - 10;
-          const trackX1 = cx + 150;
+          const trackX1 = cx + 130;
           const trackW = trackX1 - trackX0;
-          const initialRatio = Phaser.Math.Clamp(bgMusic.audio.volume, 0, 1);
+          const initialRatio = Phaser.Math.Clamp(bgMusic.volume, 0, 1);
 
           const volumeTrack = this.add
             .rectangle(trackX0 + trackW / 2, volumeRowY, trackW, 4, UI.goldDim, 0.7)
@@ -2269,6 +2271,20 @@
             .setStrokeStyle(2, UI.gold);
           children.push(volumeHandle);
 
+          const volumePercentText = this.add
+            .text(
+              trackX1 + 16,
+              volumeRowY,
+              `${Math.round(initialRatio * 100)}%`,
+              {
+                fontSize: "13px",
+                fontStyle: "bold",
+                color: UI.cream,
+              },
+            )
+            .setOrigin(0, 0.5);
+          children.push(volumePercentText);
+
           // 更大的透明可点击区域（比可见滑轨高很多），方便手指精准拖动 / 直接点按跳转音量
           const volumeHitZone = this.add
             .rectangle(trackX0 + trackW / 2, volumeRowY, trackW + 30, 36, 0x000000, 0.001)
@@ -2281,6 +2297,7 @@
             const ratio = (clampedX - trackX0) / trackW;
             volumeHandle.x = clampedX;
             volumeFill.width = Math.max(1, trackW * ratio);
+            volumePercentText.setText(`${Math.round(ratio * 100)}%`);
             bgMusic.setVolume(ratio);
           };
 
