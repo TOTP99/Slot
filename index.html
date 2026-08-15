@@ -329,7 +329,7 @@
       // 放进和 index.html 同一个目录即可，以后无需再改这里的代码。
       // 播放时按数字从小到大依次尝试；如果某个编号的文件缺失，会自动跳过找下一个，
       // 直到编号 BG_MUSIC_MAX 结束后循环回到 1。
-      const BG_MUSIC_MAX = 9; // 支持的最大编号（对应 1.mp3 ~ 9.mp3）
+      const BG_MUSIC_MAX = 18; // 支持的最大编号（对应 1.mp3 ~ 18.mp3），全部 18 首参与循环播放
 
       // ---------- 音效（Web Audio） ----------
       class SoundFX {
@@ -544,16 +544,23 @@
           this.audio = new Audio();
           this.audio.loop = false; // 由 ended/error 事件控制切歌
           this.audio.preload = "auto";
+          // 注意：iOS（Safari / 微信内置浏览器等 WKWebView）会直接忽略用 JS 设置的
+          // <audio>.volume —— 这个属性在 iOS 上形同虚设，实际音量只能靠硬件音量键。
+          // 这就是"滑杆调了但声音没明显变化"的根本原因。
+          // 解决办法：把 <audio> 接入 Web Audio API，用 GainNode 来真正控制音量，
+          // 这样安卓、iOS、桌面浏览器都能正常生效。
+          this.audio.volume = 1; // 固定为1，真正的音量由下面的 gainNode 控制
 
           const savedVolume = parseFloat(localStorage.getItem("bgMusicVolume"));
           this.volume = isNaN(savedVolume) ? 0.7 : savedVolume; // 滑杆用的线性值（0-1）
-          this.audio.volume = this.volume * this.volume; // 实际播放增益：加入锥度，让滑杆全程更明显好用
 
           const savedEnabled = localStorage.getItem("bgMusicEnabled");
           this.enabled = savedEnabled === null ? true : savedEnabled === "true"; // 默认开启
 
           const savedShuffle = localStorage.getItem("bgMusicShuffle");
           this.shuffle = savedShuffle === "true"; // 默认顺序播放（1-9），开启后随机播放
+
+          this._initAudioGraph();
 
           this.audio.addEventListener("ended", () => this._advance());
           this.audio.addEventListener("error", () => this._advance()); // 该编号文件缺失/加载失败，自动跳到下一个
@@ -562,6 +569,33 @@
           });
 
           this._loadTrack(this.currentNum);
+        }
+
+        // 把 <audio> 接入 Web Audio API：audio → gainNode → 扬声器
+        // 这样调节 gainNode.gain 才能在 iOS 上真正改变播放音量
+        _initAudioGraph() {
+          try {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) return; // 极老旧浏览器兜底，退回 element.volume
+
+            this.audioCtx = new AC();
+            this.gainNode = this.audioCtx.createGain();
+            this.gainNode.gain.value = this.volume * this.volume; // 加入锥度，让滑杆全程更明显好用
+
+            const source = this.audioCtx.createMediaElementSource(this.audio);
+            source.connect(this.gainNode).connect(this.audioCtx.destination);
+          } catch (e) {
+            this.audioCtx = null;
+            this.gainNode = null;
+          }
+        }
+
+        // 必须在用户手势（点击/触摸/按键）中调用才能真正生效，否则浏览器会保持 suspended
+        _resumeAudioGraph() {
+          if (this.audioCtx && this.audioCtx.state === "suspended") {
+            const p = this.audioCtx.resume();
+            if (p && typeof p.catch === "function") p.catch(() => {});
+          }
         }
 
         _loadTrack(num) {
@@ -603,6 +637,7 @@
         // 需在用户手势（点击/触摸/按键）中调用，否则浏览器会拦截自动播放
         async tryPlay() {
           if (!this.enabled) return;
+          this._resumeAudioGraph();
           const p = this.audio.play();
           if (p && typeof p.catch === "function") p.catch(() => {});
         }
@@ -624,7 +659,13 @@
         setVolume(v) {
           v = Math.max(0, Math.min(1, v));
           this.volume = v; // 滑杆位置用的线性值
-          this.audio.volume = v * v; // 实际播放增益（音频锥度，接近人耳感知的线性变化）
+          if (this.gainNode) {
+            // 真正生效的音量控制（兼容 iOS）
+            this.gainNode.gain.value = v * v; // 加入锥度，接近人耳感知的线性变化
+          } else {
+            // 极少数不支持 Web Audio 的环境兜底
+            this.audio.volume = v * v;
+          }
           localStorage.setItem("bgMusicVolume", String(v));
         }
       }
@@ -668,7 +709,6 @@
 
         create() {
           window.__slotGameScene = this;
-          this.createBackground();
           this.createHeader();
           this.loadGameState(); // 读取本机浏览器存档：余额 / 下注 / 奖池
           this.createPaytableButton();
@@ -748,10 +788,6 @@
             bg.setFillStyle(UI.panelDeep);
             txt.setColor(UI.cream);
           }
-        }
-
-        createBackground() {
-          // 背景装饰已全部移除，仅保留 Phaser 纯色底
         }
 
         createHeader() {
@@ -842,53 +878,136 @@
           });
 
           // 赔率方框外边上方：实时 HH:MM:SS 滚动时钟
-        this.clockPanel = this.add.rectangle(x, y - 166, w, 40, 0x120006, 0).setOrigin(0.5);
-        this.clockText = this.add
-          .text(x, y - 166, "--:--:--", {
-            fontSize: "22px",
-            fontStyle: "bold",
-            color: "#ffd700",
-            stroke: "#000000",
-            strokeThickness: 4,
-            shadow: {
-              offsetX: 0,
-              offsetY: 0,
-              color: "#ffb000",
-              blur: 8,
-              fill: true,
-            },
-          })
-          .setOrigin(0.5);
-
-        this.updateLiveClock();
-        this.clockTimer = setInterval(() => this.updateLiveClock(), 250);
-
-        this.add
-            .text(x, y - 60, "赔率", {
-              fontSize: "26px",
+          this.clockText = this.add
+            .text(x, y - 166, "--:--:--", {
+              fontSize: "22px",
               fontStyle: "bold",
               color: "#ffd700",
               stroke: "#000000",
               strokeThickness: 4,
+              shadow: {
+                offsetX: 0,
+                offsetY: 0,
+                color: "#ffb000",
+                blur: 8,
+                fill: true,
+              },
             })
             .setOrigin(0.5);
 
-          const icon = this.add
-            .text(x, y - 3, "🪎%", { fontSize: "48px" })
+          this.updateLiveClock();
+          this.clockTimer = setInterval(() => this.updateLiveClock(), 250);
+
+          const line1 = this.add
+            .text(x, y - 86, "赔率 💰", {
+              fontSize: "27px",
+              fontStyle: "bold",
+              color: "#ffd700",
+              stroke: "#000000",
+              strokeThickness: 4,
+              align: "center",
+            })
             .setOrigin(0.5);
 
+          const line2 = this.add
+            .text(x, y - 52, "设置 ⚙", {
+              fontSize: "27px",
+              fontStyle: "bold",
+              color: "#ffd700",
+              stroke: "#000000",
+              strokeThickness: 4,
+              align: "center",
+            })
+            .setOrigin(0.5);
+
+          fitTextToBox(line1, "赔率 💰", w - 20, 27, 16);
+          fitTextToBox(line2, "设置 ⚙", w - 20, 27, 16);
+
           this.tweens.add({
-            targets: icon,
-            y: y - 11,
-            duration: 1000,
+            targets: [line1, line2],
+            y: "-=6",
+            duration: 1100,
             yoyo: true,
             repeat: -1,
             ease: "Sine.easeInOut",
           });
 
+          // 分隔细线：标题与下方音乐可视化区之间
           this.add
-            .text(x, y + 60, "⚙️", { fontSize: "30px" })
+            .rectangle(x, y - 18, w - 40, 2, UI.gold, 0.35)
             .setOrigin(0.5);
+
+          // ---------- 音乐律动效果（霓虹均衡条） ----------
+          // 播放背景音乐时跳动、暂停时变暗静止，纯视觉效果，为方框增添一点情趣
+          const barBaseY = y + 44;
+          const barMaxH = 46;
+          const barColors = [0xffd700, 0xff4da6, 0x40e0ff, 0xff4da6, 0xffd700];
+          const barDxs = [-46, -23, 0, 23, 46];
+
+          this.eqGlow = this.add
+            .rectangle(x, barBaseY - barMaxH / 2, w - 30, barMaxH + 20, 0xffd700, 0.07)
+            .setOrigin(0.5);
+
+          this.eqBars = barDxs.map((dx, i) => {
+            const bar = this.add
+              .rectangle(x + dx, barBaseY, 11, barMaxH, barColors[i])
+              .setOrigin(0.5, 1)
+              .setAlpha(0.85);
+            return bar;
+          });
+
+          this.eqBarTweens = this.eqBars.map((bar, i) =>
+            this.tweens.add({
+              targets: bar,
+              scaleY: { from: 0.16, to: Phaser.Math.FloatBetween(0.55, 1) },
+              duration: Phaser.Math.Between(260, 440),
+              delay: i * 70,
+              yoyo: true,
+              repeat: -1,
+              ease: "Sine.easeInOut",
+              // 每次循环都重新随机一个跳动高度，避免均衡条看起来像固定节拍的机械循环
+              onRepeat: (tween) => {
+                if (tween.data && tween.data[0]) {
+                  tween.data[0].end = Phaser.Math.FloatBetween(0.5, 1);
+                }
+              },
+            }),
+          );
+
+          // 霓虹光晕：金 <-> 蓝紫 缓慢呼吸变色
+          this.tweens.addCounter({
+            from: 0,
+            to: 100,
+            duration: 1700,
+            yoyo: true,
+            repeat: -1,
+            onUpdate: (tween) => {
+              if (!this.eqGlow) return;
+              const c = Phaser.Display.Color.Interpolate.ColorWithColor(
+                Phaser.Display.Color.ValueToColor(0xffd700),
+                Phaser.Display.Color.ValueToColor(0x40e0ff),
+                100,
+                tween.getValue(),
+              );
+              this.eqGlow.setFillStyle(
+                Phaser.Display.Color.GetColor(c.r, c.g, c.b),
+                this.eqGlowAlpha ?? 0.07,
+              );
+            },
+          });
+
+          this.setEqVisualizerActive(bgMusic.enabled);
+
+          this.add
+            .text(x, y + h / 2 - 16, "点击进入", {
+              fontSize: "12px",
+              fontStyle: "bold",
+              color: "#ffe9a6",
+              stroke: "#000000",
+              strokeThickness: 2,
+            })
+            .setOrigin(0.5)
+            .setAlpha(0.75);
 
           panel.on("pointerover", () => panel.setStrokeStyle(3, 0xfff6b0));
           panel.on("pointerout", () => panel.setStrokeStyle(2, UI.gold));
@@ -992,7 +1111,8 @@
             })
             .setOrigin(0.5);
 
-          this.messageBox = this.createPanel(
+          // 消息提示条面板（视觉背景框，本体已渲染，无需保留实例引用）
+          this.createPanel(
             LAYOUT.messageX,
             LAYOUT.messageY,
             LAYOUT.messageW,
@@ -1075,7 +1195,7 @@
         }
 
         createBottomPanels() {
-          this.balancePanel = this.createPanel(
+          this.createPanel(
             LAYOUT.balanceX,
             LAYOUT.balanceY,
             LAYOUT.balanceW,
@@ -1105,7 +1225,7 @@
             )
             .setOrigin(0.5);
 
-          this.betPanel = this.createPanel(
+          this.createPanel(
             LAYOUT.betX,
             LAYOUT.betY,
             LAYOUT.betW,
@@ -1161,7 +1281,7 @@
         }
 
         createLastWinPanel() {
-          this.lastWinPanel = this.createPanel(
+          this.createPanel(
             LAYOUT.lastWinX,
             LAYOUT.lastWinY,
             LAYOUT.lastWinW,
@@ -1196,7 +1316,7 @@
           const lx = LAYOUT.rightPanelX;
           const pivotY = 400;
 
-          this.rightControlPanel = this.createPanel(lx, 338, 150, 180, UI.panel, 0.96);
+          this.createPanel(lx, 338, 150, 180, UI.panel, 0.96);
 
           // 拉杆底座 / 金属槽
           this.add
@@ -1406,8 +1526,11 @@
             this.spinBtnShade,
             this.spinBtnText,
           ];
+          // 记录每一层的基准 Y 坐标，供按压动画每次复位，避免连点后位置产生累积漂移
+          spinVisuals.forEach((obj) => obj.setData("baseY", obj.y));
 
           const flashSpinGlow = () => {
+            this.tweens.killTweensOf(this.spinGlow);
             this.spinGlow.setAlpha(0.8);
             this.spinGlow.setScale(0.6);
             this.tweens.add({
@@ -1417,7 +1540,10 @@
               duration: 400,
               ease: "Cubic.easeOut",
             });
-            // 按下沉、松开弹回
+
+            // 按下沉、松开弹回；先清掉未播完的位移动画并复位，防止连点时按键位置越叠越偏
+            this.tweens.killTweensOf(spinVisuals);
+            spinVisuals.forEach((obj) => obj.setY(obj.getData("baseY")));
             this.tweens.add({
               targets: spinVisuals,
               y: "+=3",
@@ -2010,10 +2136,11 @@
 
           const contentTop = hDividerY + 22;
 
-          // ---------- 左栏：三连赔率列表 ----------
+          // ---------- 左栏：三连赔率列表（整体放大约15%，看得更清楚） ----------
+          const oddsRowH = 31;
           const listStartY = contentTop;
           SYMBOLS.forEach((symbol, index) => {
-            const rowY = listStartY + index * 27;
+            const rowY = listStartY + index * oddsRowH;
 
             const symText = this.add
               .text(
@@ -2021,7 +2148,7 @@
                 rowY,
                 `${symbol.label}${symbol.label}${symbol.label}`,
                 {
-                  fontSize: "17px",
+                  fontSize: "20px",
                   fontStyle: "bold",
                   color: symbol.color,
                   stroke: "#000000",
@@ -2032,7 +2159,7 @@
 
             const multText = this.add
               .text(dividerX - 12, rowY, `${symbol.multiplier}x`, {
-                fontSize: "16px",
+                fontSize: "18px",
                 fontStyle: "bold",
                 color: "#ffe9a6",
               })
@@ -2042,17 +2169,17 @@
           });
 
           // 最下一行：任意一对 2x
-          const pairRowY = listStartY + SYMBOLS.length * 27;
+          const pairRowY = listStartY + SYMBOLS.length * oddsRowH;
           const pairSymText = this.add
             .text(contentLeft, pairRowY, "任意一对", {
-              fontSize: "16px",
+              fontSize: "18px",
               fontStyle: "bold",
               color: UI.cream,
             })
             .setOrigin(0, 0.5);
           const pairMultText = this.add
             .text(dividerX - 12, pairRowY, "2x", {
-              fontSize: "16px",
+              fontSize: "18px",
               fontStyle: "bold",
               color: "#ffe9a6",
             })
@@ -2209,6 +2336,7 @@
               bgMusic.setEnabled(true);
               this.sfx.click();
               this.updateMusicOptionButtons();
+              this.setEqVisualizerActive(true);
             }
           });
           musicOffOpt.bg.on("pointerdown", (pointer, lx, ly, event) => {
@@ -2217,99 +2345,14 @@
               bgMusic.setEnabled(false);
               this.sfx.click();
               this.updateMusicOptionButtons();
+              this.setEqVisualizerActive(false);
             }
           });
 
           this.updateMusicOptionButtons();
 
-          // ---------- 音量：可拖动滑动条 ----------
-          const volumeRowY = musicRowY + 40;
-          const volumeLabel = this.add
-            .text(rowLabelX, volumeRowY, "音量", {
-              fontSize: "15px",
-              fontStyle: "bold",
-              color: "#ffd700",
-            })
-            .setOrigin(0, 0.5);
-          children.push(volumeLabel);
-
-          const trackX0 = rowLabelX + 50;
-          const trackX1 = contentRight - 46;
-          const trackW = trackX1 - trackX0;
-          const initialRatio = Phaser.Math.Clamp(bgMusic.volume, 0, 1);
-
-          const volumeTrack = this.add
-            .rectangle(trackX0 + trackW / 2, volumeRowY, trackW, 4, UI.goldDim, 0.7)
-            .setOrigin(0.5);
-          children.push(volumeTrack);
-
-          const volumeFill = this.add
-            .rectangle(
-              trackX0,
-              volumeRowY,
-              Math.max(1, trackW * initialRatio),
-              4,
-              UI.gold,
-              1,
-            )
-            .setOrigin(0, 0.5);
-          children.push(volumeFill);
-
-          const volumeHandle = this.add
-            .circle(trackX0 + trackW * initialRatio, volumeRowY, 8, 0xffe9a6)
-            .setStrokeStyle(2, UI.gold);
-          children.push(volumeHandle);
-
-          const volumePercentText = this.add
-            .text(
-              trackX1 + 12,
-              volumeRowY,
-              `${Math.round(initialRatio * 100)}%`,
-              {
-                fontSize: "12px",
-                fontStyle: "bold",
-                color: UI.cream,
-              },
-            )
-            .setOrigin(0, 0.5);
-          children.push(volumePercentText);
-
-          // 更大的透明可点击区域（比可见滑轨高很多），方便手指精准拖动 / 直接点按跳转音量
-          const volumeHitZone = this.add
-            .rectangle(trackX0 + trackW / 2, volumeRowY, trackW + 30, 36, 0x000000, 0.001)
-            .setOrigin(0.5)
-            .setInteractive({ useHandCursor: true });
-          children.push(volumeHitZone);
-
-          const setVolumeFromPointerX = (pointerX) => {
-            const clampedX = Phaser.Math.Clamp(pointerX, trackX0, trackX1);
-            const ratio = (clampedX - trackX0) / trackW;
-            volumeHandle.x = clampedX;
-            volumeFill.width = Math.max(1, trackW * ratio);
-            volumePercentText.setText(`${Math.round(ratio * 100)}%`);
-            bgMusic.setVolume(ratio);
-          };
-
-          let draggingVolume = false;
-
-          volumeHitZone.on("pointerdown", (pointer, lx, ly, event) => {
-            event.stopPropagation();
-            draggingVolume = true;
-            setVolumeFromPointerX(pointer.x);
-          });
-
-          this.input.on("pointermove", (pointer) => {
-            if (draggingVolume) {
-              setVolumeFromPointerX(pointer.x);
-            }
-          });
-
-          this.input.on("pointerup", () => {
-            draggingVolume = false;
-          });
-
           // ---------- 播放模式：顺序播放 / 随机播放 ----------
-          const shuffleRowY = volumeRowY + 40;
+          const shuffleRowY = musicRowY + 40;
           const shuffleLabel = this.add
             .text(rowLabelX, shuffleRowY, "播放模式", {
               fontSize: "15px",
@@ -2343,9 +2386,118 @@
 
           this.updatePlayModeButtons();
 
+          // ---------- 音量：可拖动滑动条 ----------
+          // 加粗轨道 + 深色底衬 + 更亮的滑块和光晕，确保在深色背景下清晰可辨
+          const volumeRowY = shuffleRowY + 44;
+          const volumeLabel = this.add
+            .text(rowLabelX, volumeRowY, "音量", {
+              fontSize: "15px",
+              fontStyle: "bold",
+              color: "#ffd700",
+            })
+            .setOrigin(0, 0.5);
+          children.push(volumeLabel);
+
+          const trackX0 = rowLabelX + 50;
+          const trackX1 = contentRight - 46;
+          const trackW = trackX1 - trackX0;
+          const initialRatio = Phaser.Math.Clamp(bgMusic.volume, 0, 1);
+
+          // 深色底衬：清楚划出滑杆整体区域范围
+          const volumeTrackBg = this.add
+            .rectangle(trackX0 + trackW / 2, volumeRowY, trackW + 14, 18, 0x0a0602, 0.85)
+            .setStrokeStyle(1, UI.goldDim, 0.8)
+            .setOrigin(0.5);
+          children.push(volumeTrackBg);
+
+          // 轨道未填充部分：深棕色，与已填充的亮金部分形成清晰对比
+          const volumeTrack = this.add
+            .rectangle(trackX0 + trackW / 2, volumeRowY, trackW, 8, 0x3a2408, 1)
+            .setStrokeStyle(1, UI.goldDim, 0.6)
+            .setOrigin(0.5);
+          children.push(volumeTrack);
+
+          const volumeFill = this.add
+            .rectangle(
+              trackX0,
+              volumeRowY,
+              Math.max(2, trackW * initialRatio),
+              8,
+              UI.goldBright,
+              1,
+            )
+            .setOrigin(0, 0.5);
+          children.push(volumeFill);
+
+          // 滑块外发光，让手柄位置更醒目
+          const volumeHandleGlow = this.add
+            .circle(trackX0 + trackW * initialRatio, volumeRowY, 13, 0xffd700, 0.35)
+            .setOrigin(0.5);
+          children.push(volumeHandleGlow);
+
+          const volumeHandle = this.add
+            .circle(trackX0 + trackW * initialRatio, volumeRowY, 10, 0xfff6b0)
+            .setStrokeStyle(3, UI.gold);
+          children.push(volumeHandle);
+
+          const volumePercentText = this.add
+            .text(
+              trackX1 + 12,
+              volumeRowY,
+              `${Math.round(initialRatio * 100)}%`,
+              {
+                fontSize: "13px",
+                fontStyle: "bold",
+                color: "#ffffff",
+              },
+            )
+            .setOrigin(0, 0.5);
+          children.push(volumePercentText);
+
+          // 更大的透明可点击区域（比可见滑轨高很多），方便手指精准拖动 / 直接点按跳转音量
+          const volumeHitZone = this.add
+            .rectangle(trackX0 + trackW / 2, volumeRowY, trackW + 30, 36, 0x000000, 0.001)
+            .setOrigin(0.5)
+            .setInteractive({ useHandCursor: true });
+          children.push(volumeHitZone);
+
+          const setVolumeFromPointerX = (pointerX) => {
+            const clampedX = Phaser.Math.Clamp(pointerX, trackX0, trackX1);
+            const ratio = (clampedX - trackX0) / trackW;
+            volumeHandle.x = clampedX;
+            volumeHandleGlow.x = clampedX;
+            volumeFill.width = Math.max(2, trackW * ratio);
+            volumePercentText.setText(`${Math.round(ratio * 100)}%`);
+            bgMusic.setVolume(ratio);
+          };
+
+          let draggingVolume = false;
+
+          volumeHitZone.on("pointerdown", (pointer, lx, ly, event) => {
+            event.stopPropagation();
+            draggingVolume = true;
+            setVolumeFromPointerX(pointer.x);
+            this.tweens.add({
+              targets: volumeHandle,
+              scale: 1.2,
+              duration: 90,
+              yoyo: true,
+            });
+          });
+
+          this.input.on("pointermove", (pointer) => {
+            if (draggingVolume) {
+              setVolumeFromPointerX(pointer.x);
+            }
+          });
+
+          this.input.on("pointerup", () => {
+            draggingVolume = false;
+          });
+
           // ---------- 左右两栏之间的竖分隔线（按实际内容高度绘制）----------
           const vDividerTop = contentTop - 14;
-          const vDividerBottom = shuffleRowY + 24;
+          const vDividerBottom = volumeRowY + 24;
           const vDivider = this.add
             .rectangle(
               dividerX,
@@ -2422,6 +2574,30 @@
             this.musicOffButton.txt,
             !bgMusic.enabled,
           );
+        }
+
+        // 音乐开启：均衡条明亮跳动；音乐关闭：均衡条变暗并回落静止
+        setEqVisualizerActive(active) {
+          if (!this.eqBars) return;
+
+          this.eqGlowAlpha = active ? 0.07 : 0.025;
+
+          this.eqBars.forEach((bar, i) => {
+            const tween = this.eqBarTweens && this.eqBarTweens[i];
+            if (active) {
+              bar.setAlpha(0.85);
+              if (tween) tween.resume();
+            } else {
+              if (tween) tween.pause();
+              this.tweens.add({
+                targets: bar,
+                scaleY: 0.16,
+                alpha: 0.28,
+                duration: 220,
+                ease: "Sine.easeOut",
+              });
+            }
+          });
         }
 
         updatePlayModeButtons() {
@@ -2536,6 +2712,9 @@
             12,
           );
 
+          // 连续快速点击 +/- 时，先停掉上一次未播完的缩放动画，避免叠加抖动
+          this.tweens.killTweensOf(this.betValue);
+          this.betValue.setScale(1);
           this.tweens.add({
             targets: this.betValue,
             scale: 1.18,
@@ -2617,7 +2796,7 @@
           if (this.isSpinning) {
             if (!this.stopRequested) {
               this.stopRequested = true;
-              this.setMessage("Stopping reels...");
+              this.setMessage("正在急停...");
 
               this.reels.forEach((reel, index) => {
                 if (!reel.stopped && !reel.forceStopScheduled) {
@@ -2647,7 +2826,7 @@
           if (this.isSpinning) return;
 
           if (this.balance < this.bet) {
-            this.setMessage("Not enough balance!");
+            this.setMessage("余额不足，无法开始！");
             this.sfx.lose();
             this.autoPlay = false;
             this.updateAutoButtonOff();
@@ -2707,7 +2886,8 @@
               18,
             );
           } else {
-            this.setMessage(`${this.mode} 转动中 • 空格急停`, 17);
+            const modeLabel = this.mode === "FAST" ? "加速" : "正常";
+            this.setMessage(`${modeLabel} 转动中 • 空格急停`, 17);
           }
 
           this.reels.forEach((reel, index) => {
@@ -2761,15 +2941,27 @@
 
           reel.frame.setStrokeStyle(4, 0xff0066);
 
+          const stopDelay = settings.duration + index * 320;
+          const decelWindow = 260; // 停止前的减速窗口（毫秒），让转轮"滑行进站"而不是硬停
+          const spinStartTime = this.time.now;
+
           reel.intervalEvent = this.time.addEvent({
             delay: settings.interval,
             loop: true,
             callback: () => {
               this.sfx.spinTick();
 
+              // 越接近停止时刻，滚动步长越小，形成自然减速的滑行手感
+              const remaining = stopDelay - (this.time.now - spinStartTime);
+              const decelRatio =
+                remaining < decelWindow
+                  ? Math.max(0.25, remaining / decelWindow)
+                  : 1;
+              const step = settings.step * decelRatio;
+
               reel.items.forEach((item) => {
-                item.txt.y += settings.step;
-                item.bg.y += settings.step;
+                item.txt.y += step;
+                item.bg.y += step;
 
                 if (item.txt.y > 128) {
                   const symbol = Phaser.Utils.Array.GetRandom(SYMBOLS);
@@ -2785,17 +2977,10 @@
             },
           });
 
-          const stopDelay = settings.duration + index * 320;
-
           this.time.delayedCall(stopDelay, () => {
-            this.waitForStopThenStopReel(reel, index);
+            // stopReel 内部已对 reel.stopped 做了守卫，急停场景下重复调用是安全的
+            this.stopReel(reel, index);
           });
-        }
-
-        waitForStopThenStopReel(reel, index) {
-          if (reel.stopped) return;
-
-          this.stopReel(reel, index);
         }
 
         stopReel(reel, index) {
@@ -2820,6 +3005,17 @@
             item.txt.setText(randomSymbol.label);
             item.txt.setColor(randomSymbol.color);
             item.txt.setFontSize(randomSymbol.label.length > 1 ? 42 : 52);
+
+            // 非中奖行的符号淡入落位，避免"瞬间贴图切换"的生硬感
+            if (i !== 2) {
+              item.txt.setAlpha(0.35);
+              this.tweens.add({
+                targets: item.txt,
+                alpha: 1,
+                duration: 150,
+                ease: "Sine.easeOut",
+              });
+            }
           });
 
           const center = reel.items[2];
@@ -2863,7 +3059,7 @@
         }
 
         // 每个转轮停止时的最终结果：完全随机（当前未做加权/控制概率，预留 index 供未来分轮控制）
-        getControlledResult() {
+        getControlledResult(index) {
           return Phaser.Utils.Array.GetRandom(SYMBOLS);
         }
 
@@ -2924,7 +3120,7 @@
           }
 
           this.updateDisplay();
-          this.setMessage("No win. Try again!");
+          this.setMessage("未中奖，再试一次！");
           this.sfx.lose();
           this.scheduleAutoPlay();
         }
@@ -2946,7 +3142,7 @@
           ) {
             this.autoPlay = false;
             this.updateAutoButtonOff();
-            this.setMessage("Auto play finished");
+            this.setMessage("自动模式已结束");
             return;
           }
 
