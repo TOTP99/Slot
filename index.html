@@ -108,8 +108,8 @@
         pointer-events: auto;
       }
 
-      /* 竖屏外壳：紧凑科技风 + 85% 缩放 + 金细边 */
-      .ph-shell {
+      /* 竖屏：外层缩放；金框只包转盘+小转盘；标题/喇叭在框外上左；控制在框外下居中 */
+      .ph-root {
         width: 100%;
         max-width: 380px;
         max-height: 100%;
@@ -118,51 +118,95 @@
         display: flex;
         -webkit-flex-direction: column;
         flex-direction: column;
-        -webkit-align-items: stretch;
-        align-items: stretch;
+        -webkit-align-items: center;
+        align-items: center;
         overflow: hidden;
-        padding: 8px 10px 6px;
-        background:
-          radial-gradient(ellipse at 50% 20%, rgba(80, 50, 10, 0.35) 0%, transparent 55%),
-          #070006;
-        border: 1px solid #c9a227;
-        border-radius: 12px;
-        box-shadow:
-          0 0 0 1px rgba(255, 215, 0, 0.12),
-          inset 0 0 24px rgba(255, 215, 0, 0.04),
-          0 0 18px rgba(255, 215, 0, 0.1);
         -webkit-transform: scale(0.85);
         transform: scale(0.85);
         -webkit-transform-origin: center center;
         transform-origin: center center;
       }
 
-      .ph-top {
+      .ph-above {
+        width: 100%;
         display: flex;
+        -webkit-align-items: flex-end;
+        align-items: flex-end;
+        -webkit-justify-content: space-between;
         justify-content: space-between;
-        align-items: center;
-        padding: 0 2px 4px;
+        padding: 0 4px 6px;
         flex-shrink: 0;
+        box-sizing: border-box;
+      }
+      .ph-above-left {
+        display: flex;
+        -webkit-align-items: center;
+        align-items: center;
+        gap: 6px;
       }
       .ph-title {
         font-size: 13px;
         font-weight: bold;
         letter-spacing: 2px;
         color: #ffd700;
-        text-shadow: 0 0 10px rgba(255, 215, 0, 0.35);
+        text-shadow: 0 0 5px rgba(255, 215, 0, 0.18);
+      }
+      .ph-horn {
+        font-size: clamp(22px, 8vw, 34px);
+        line-height: 1;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+        transform: rotate(-16deg);
+        transform-origin: 70% 90%;
+        opacity: 0.9;
+        pointer-events: none;
+      }
+      .ph-horn.playing {
+        -webkit-animation: horn-sway 3.2s ease-in-out infinite;
+        animation: horn-sway 3.2s ease-in-out infinite;
+        filter: drop-shadow(0 2px 6px rgba(255, 215, 0, 0.12));
+      }
+      @-webkit-keyframes horn-sway {
+        0%, 100% { transform: rotate(-16deg) translateY(0); }
+        50% { transform: rotate(-12deg) translateY(-2px); }
+      }
+      @keyframes horn-sway {
+        0%, 100% { transform: rotate(-16deg) translateY(0); }
+        50% { transform: rotate(-12deg) translateY(-2px); }
       }
       .ph-clock {
         font-size: 11px;
         color: #c9a227;
         font-variant-numeric: tabular-nums;
         letter-spacing: 1px;
-        opacity: 0.9;
+        opacity: 0.85;
+        padding-bottom: 2px;
+      }
+
+      .ph-shell {
+        width: 100%;
+        box-sizing: border-box;
+        display: -webkit-flex;
+        display: flex;
+        -webkit-flex-direction: column;
+        flex-direction: column;
+        -webkit-align-items: stretch;
+        align-items: stretch;
+        overflow: hidden;
+        padding: 10px 10px 8px;
+        background:
+          radial-gradient(ellipse at 50% 25%, rgba(80, 50, 10, 0.18) 0%, transparent 55%),
+          #070006;
+        border: 1px solid #c9a227;
+        border-radius: 12px;
+        box-shadow:
+          0 0 0 1px rgba(255, 215, 0, 0.06),
+          inset 0 0 12px rgba(255, 215, 0, 0.02);
       }
 
       .ph-stage {
         position: relative;
         flex: 0 0 auto;
-        height: min(42vw, 200px);
+        height: min(42vw, 190px);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -173,8 +217,8 @@
         position: absolute;
         left: 50%;
         top: 50%;
-        width: min(70vw, 240px);
-        height: min(70vw, 240px);
+        width: min(70vw, 230px);
+        height: min(70vw, 230px);
         transform: translate(-50%, -50%);
         pointer-events: none;
         z-index: 0;
@@ -182,8 +226,8 @@
 
       .ph-vinyl-wrap {
         position: relative;
-        width: min(48vw, 168px);
-        height: min(48vw, 168px);
+        width: min(48vw, 160px);
+        height: min(48vw, 160px);
         z-index: 1;
       }
       .ph-vinyl {
@@ -201,8 +245,8 @@
         border: 2px solid #c9a227;
         box-shadow:
           0 0 0 1px #5c4010,
-          0 0 18px rgba(255, 215, 0, 0.16),
-          inset 0 0 40px rgba(0, 0, 0, 0.9);
+          0 0 10px rgba(255, 215, 0, 0.1),
+          inset 0 0 36px rgba(0, 0, 0, 0.9);
         position: relative;
         will-change: transform;
       }
@@ -213,7 +257,7 @@
         border-radius: 50%;
         background: radial-gradient(
           circle at 35% 30%,
-          rgba(255, 255, 255, 0.07) 0%,
+          rgba(255, 255, 255, 0.05) 0%,
           transparent 42%
         );
         pointer-events: none;
@@ -224,18 +268,18 @@
         position: absolute;
         inset: 18%;
         border-radius: 50%;
-        border: 1px solid rgba(255, 215, 0, 0.1);
+        border: 1px solid rgba(255, 215, 0, 0.08);
         box-shadow:
-          0 0 0 10px rgba(255, 215, 0, 0.03),
-          0 0 0 20px rgba(255, 215, 0, 0.025);
+          0 0 0 10px rgba(255, 215, 0, 0.015),
+          0 0 0 20px rgba(255, 215, 0, 0.012);
         pointer-events: none;
       }
       .ph-vinyl.playing {
         box-shadow:
           0 0 0 1px #5c4010,
-          0 0 28px rgba(255, 215, 0, 0.4),
-          0 0 48px rgba(255, 140, 66, 0.12),
-          inset 0 0 40px rgba(0, 0, 0, 0.9);
+          0 0 14px rgba(255, 215, 0, 0.2),
+          0 0 24px rgba(255, 140, 66, 0.06),
+          inset 0 0 36px rgba(0, 0, 0, 0.9);
       }
       .ph-label {
         position: absolute;
@@ -252,23 +296,23 @@
         align-items: center;
         justify-content: center;
         z-index: 2;
-        box-shadow: 0 0 12px rgba(255, 215, 0, 0.25);
+        box-shadow: 0 0 6px rgba(255, 215, 0, 0.12);
         transition: box-shadow 0.4s ease;
       }
       .ph-label.playing {
         box-shadow:
-          0 0 18px rgba(255, 215, 0, 0.5),
-          0 0 32px rgba(255, 77, 166, 0.12);
+          0 0 9px rgba(255, 215, 0, 0.25),
+          0 0 16px rgba(255, 77, 166, 0.06);
         -webkit-animation: label-pulse 2.4s ease-in-out infinite;
         animation: label-pulse 2.4s ease-in-out infinite;
       }
       @-webkit-keyframes label-pulse {
         0%, 100% { transform: translate(-50%, -50%) scale(1); }
-        50% { transform: translate(-50%, -50%) scale(1.04); }
+        50% { transform: translate(-50%, -50%) scale(1.03); }
       }
       @keyframes label-pulse {
         0%, 100% { transform: translate(-50%, -50%) scale(1); }
-        50% { transform: translate(-50%, -50%) scale(1.04); }
+        50% { transform: translate(-50%, -50%) scale(1.03); }
       }
       .ph-track-num {
         font-size: 12px;
@@ -279,34 +323,6 @@
       }
       .ph-track-sub {
         display: none;
-      }
-
-      .ph-horn {
-        position: absolute;
-        left: 0;
-        top: -4%;
-        font-size: clamp(28px, 11vw, 44px);
-        line-height: 1;
-        z-index: 3;
-        filter: drop-shadow(0 3px 10px rgba(0, 0, 0, 0.65));
-        pointer-events: none;
-        transform-origin: 70% 90%;
-        transform: rotate(-18deg);
-        transition: filter 0.4s ease;
-        opacity: 0.92;
-      }
-      .ph-horn.playing {
-        -webkit-animation: horn-sway 3.2s ease-in-out infinite;
-        animation: horn-sway 3.2s ease-in-out infinite;
-        filter: drop-shadow(0 3px 14px rgba(255, 215, 0, 0.22));
-      }
-      @-webkit-keyframes horn-sway {
-        0%, 100% { transform: rotate(-18deg) translateY(0); }
-        50% { transform: rotate(-14deg) translateY(-2px); }
-      }
-      @keyframes horn-sway {
-        0%, 100% { transform: rotate(-18deg) translateY(0); }
-        50% { transform: rotate(-14deg) translateY(-2px); }
       }
 
       .ph-arm {
@@ -329,7 +345,7 @@
         border-radius: 50%;
         background: radial-gradient(circle at 35% 30%, #ffe566, #8a7040);
         border: 1.5px solid #ffd700;
-        box-shadow: 0 0 6px rgba(255, 215, 0, 0.4);
+        box-shadow: 0 0 3px rgba(255, 215, 0, 0.2);
         z-index: 2;
       }
       .ph-arm-rod {
@@ -353,97 +369,24 @@
         border-radius: 2px;
         background: linear-gradient(180deg, #ddd, #888 60%, #444);
         border: 1px solid #ffd700;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.45);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.45);
       }
       .ph-arm.up { transform: rotate(-38deg); }
       .ph-arm.down { transform: rotate(12deg); }
       .ph-arm.down .ph-arm-head {
         box-shadow:
-          0 0 8px rgba(255, 215, 0, 0.45),
-          0 2px 5px rgba(0, 0, 0, 0.45);
-      }
-
-      .ph-controls {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
-        flex-shrink: 0;
-        margin-bottom: 8px;
-      }
-      .ph-transport {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 14px;
-      }
-      .ph-btn {
-        width: 36px;
-        height: 36px;
-        border-radius: 8px;
-        border: 1px solid rgba(201, 162, 39, 0.7);
-        background: linear-gradient(160deg, #1a1008 0%, #0a0406 100%);
-        color: #ffd700;
-        font-size: 13px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        box-shadow:
-          inset 0 1px 0 rgba(255, 215, 0, 0.12),
-          0 0 8px rgba(255, 215, 0, 0.08);
-        padding: 0;
-      }
-      .ph-btn:active {
-        transform: scale(0.94);
-        border-color: #ffd700;
-        background: #2a1808;
-      }
-      .ph-btn-main {
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
-        font-size: 16px;
-        border: 1.5px solid #ffd700;
-        background:
-          radial-gradient(circle at 40% 30%, rgba(255, 215, 0, 0.2), transparent 55%),
-          linear-gradient(160deg, #2a1c08, #0c0604);
-        box-shadow:
-          0 0 14px rgba(255, 215, 0, 0.28),
-          inset 0 0 10px rgba(255, 215, 0, 0.08);
-      }
-      .ph-modes {
-        display: flex;
-        gap: 8px;
-      }
-      .ph-chip {
-        padding: 4px 12px;
-        border-radius: 6px;
-        border: 1px solid rgba(184, 134, 11, 0.65);
-        background: #0a0406;
-        color: #c9a227;
-        font-size: 11px;
-        font-weight: bold;
-        letter-spacing: 1px;
-        cursor: pointer;
-        min-width: 52px;
-        text-align: center;
-      }
-      .ph-chip.on {
-        background: linear-gradient(180deg, rgba(201, 168, 76, 0.35), rgba(80, 50, 10, 0.5));
-        color: #ffe566;
-        border-color: #ffd700;
-        box-shadow: 0 0 10px rgba(255, 215, 0, 0.2);
+          0 0 4px rgba(255, 215, 0, 0.22),
+          0 2px 4px rgba(0, 0, 0, 0.45);
       }
 
       .ph-mini {
         flex-shrink: 0;
         padding: 8px 8px 6px;
-        border: 1px solid rgba(201, 162, 39, 0.55);
+        border: 1px solid rgba(201, 162, 39, 0.4);
         border-radius: 10px;
         background:
           linear-gradient(180deg, rgba(26, 13, 2, 0.95) 0%, rgba(8, 0, 4, 0.98) 100%);
-        box-shadow: inset 0 0 16px rgba(255, 215, 0, 0.05);
+        box-shadow: inset 0 0 8px rgba(255, 215, 0, 0.025);
       }
       .ph-mini-head {
         display: flex;
@@ -468,7 +411,7 @@
         width: 48px;
         height: 48px;
         border-radius: 8px;
-        border: 1px solid rgba(255, 215, 0, 0.55);
+        border: 1px solid rgba(255, 215, 0, 0.45);
         background: #0c0008;
         display: flex;
         flex-direction: column;
@@ -476,7 +419,7 @@
         justify-content: center;
         font-size: 22px;
         line-height: 1;
-        box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.6);
+        box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.55);
       }
       .ph-reel-sub {
         display: none;
@@ -497,8 +440,8 @@
         letter-spacing: 3px;
         cursor: pointer;
         box-shadow:
-          0 0 12px rgba(255, 215, 0, 0.25),
-          inset 0 1px 0 rgba(255, 255, 255, 0.25);
+          0 0 6px rgba(255, 215, 0, 0.12),
+          inset 0 1px 0 rgba(255, 255, 255, 0.2);
       }
       .ph-spin:active {
         transform: translateY(1px);
@@ -516,6 +459,81 @@
         min-height: 1em;
         letter-spacing: 0.5px;
         opacity: 0.85;
+      }
+
+      /* 控制键：金框外下方居中 */
+      .ph-controls {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+        margin-top: 10px;
+        width: 100%;
+      }
+      .ph-transport {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+      }
+      .ph-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        border: 1px solid rgba(201, 162, 39, 0.7);
+        background: linear-gradient(160deg, #1a1008 0%, #0a0406 100%);
+        color: #ffd700;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow:
+          inset 0 1px 0 rgba(255, 215, 0, 0.08),
+          0 0 4px rgba(255, 215, 0, 0.05);
+        padding: 0;
+      }
+      .ph-btn:active {
+        transform: scale(0.94);
+        border-color: #ffd700;
+        background: #2a1808;
+      }
+      .ph-btn-main {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        font-size: 16px;
+        border: 1.5px solid #ffd700;
+        background:
+          radial-gradient(circle at 40% 30%, rgba(255, 215, 0, 0.12), transparent 55%),
+          linear-gradient(160deg, #2a1c08, #0c0604);
+        box-shadow:
+          0 0 7px rgba(255, 215, 0, 0.14),
+          inset 0 0 6px rgba(255, 215, 0, 0.05);
+      }
+      .ph-modes {
+        display: flex;
+        gap: 8px;
+      }
+      .ph-chip {
+        padding: 4px 12px;
+        border-radius: 6px;
+        border: 1px solid rgba(184, 134, 11, 0.65);
+        background: #0a0406;
+        color: #c9a227;
+        font-size: 11px;
+        font-weight: bold;
+        letter-spacing: 1px;
+        cursor: pointer;
+        min-width: 52px;
+        text-align: center;
+      }
+      .ph-chip.on {
+        background: linear-gradient(180deg, rgba(201, 168, 76, 0.28), rgba(80, 50, 10, 0.4));
+        color: #ffe566;
+        border-color: #ffd700;
+        box-shadow: 0 0 5px rgba(255, 215, 0, 0.1);
       }
       .ph-foot {
         display: none;
@@ -535,25 +553,43 @@
 
   <body>
     <div id="rotate-tip">
-      <div class="ph-shell">
-      <div class="ph-top">
-        <div class="ph-title">万锦</div>
+      <div class="ph-root">
+      <div class="ph-above">
+        <div class="ph-above-left">
+          <div class="ph-title">万锦</div>
+          <div class="ph-horn" id="ph-horn" aria-hidden="true">📯</div>
+        </div>
         <div class="ph-clock" id="ph-clock">--:--</div>
       </div>
 
-      <div class="ph-stage">
-        <canvas class="ph-spectrum" id="ph-spectrum" width="360" height="360"></canvas>
-        <div class="ph-horn" id="ph-horn" aria-hidden="true">📯</div>
-        <div class="ph-vinyl-wrap">
-          <div class="ph-vinyl" id="ph-vinyl"></div>
-          <div class="ph-label" id="ph-label">
-            <div class="ph-track-num" id="ph-track-num">01/18</div>
+      <div class="ph-shell">
+        <div class="ph-stage">
+          <canvas class="ph-spectrum" id="ph-spectrum" width="360" height="360"></canvas>
+          <div class="ph-vinyl-wrap">
+            <div class="ph-vinyl" id="ph-vinyl"></div>
+            <div class="ph-label" id="ph-label">
+              <div class="ph-track-num" id="ph-track-num">01/18</div>
+            </div>
+            <div class="ph-arm up" id="ph-arm" aria-hidden="true">
+              <div class="ph-arm-pivot"></div>
+              <div class="ph-arm-rod"></div>
+              <div class="ph-arm-head"></div>
+            </div>
           </div>
-          <div class="ph-arm up" id="ph-arm" aria-hidden="true">
-            <div class="ph-arm-pivot"></div>
-            <div class="ph-arm-rod"></div>
-            <div class="ph-arm-head"></div>
+        </div>
+
+        <div class="ph-mini">
+          <div class="ph-mini-head">
+            <span id="ph-balance">¥0</span>
+            <span id="ph-bet">¥50</span>
           </div>
+          <div class="ph-reels">
+            <div class="ph-reel" id="ph-r0"><span>7️⃣</span></div>
+            <div class="ph-reel" id="ph-r1"><span>🌸</span></div>
+            <div class="ph-reel" id="ph-r2"><span>🍒</span></div>
+          </div>
+          <button type="button" class="ph-spin" id="ph-spin">SPIN</button>
+          <div class="ph-msg" id="ph-msg"></div>
         </div>
       </div>
 
@@ -567,20 +603,6 @@
           <button type="button" class="ph-chip on" id="ph-order">顺序</button>
           <button type="button" class="ph-chip" id="ph-shuffle">随机</button>
         </div>
-      </div>
-
-      <div class="ph-mini">
-        <div class="ph-mini-head">
-          <span id="ph-balance">¥0</span>
-          <span id="ph-bet">¥50</span>
-        </div>
-        <div class="ph-reels">
-          <div class="ph-reel" id="ph-r0"><span>7️⃣</span></div>
-          <div class="ph-reel" id="ph-r1"><span>🌸</span></div>
-          <div class="ph-reel" id="ph-r2"><span>🍒</span></div>
-        </div>
-        <button type="button" class="ph-spin" id="ph-spin">SPIN</button>
-        <div class="ph-msg" id="ph-msg"></div>
       </div>
       </div>
     </div>
@@ -3943,11 +3965,11 @@
             var y1 = cy + Math.sin(ang) * (inner + len);
 
             ctx.strokeStyle = colors[bi];
-            ctx.globalAlpha = 0.25 + blend * 0.65;
+            ctx.globalAlpha = 0.15 + blend * 0.4;
             ctx.lineWidth = 2.5 + blend * 1.5;
             ctx.lineCap = "round";
             ctx.shadowColor = colors[bi];
-            ctx.shadowBlur = 6 + blend * 10;
+            ctx.shadowBlur = 3 + blend * 5;
             ctx.beginPath();
             ctx.moveTo(x0, y0);
             ctx.lineTo(x1, y1);
