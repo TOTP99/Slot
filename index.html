@@ -544,23 +544,20 @@
           this.audio = new Audio();
           this.audio.loop = false; // 由 ended/error 事件控制切歌
           this.audio.preload = "auto";
-          // 注意：iOS（Safari / 微信内置浏览器等 WKWebView）会直接忽略用 JS 设置的
-          // <audio>.volume —— 这个属性在 iOS 上形同虚设，实际音量只能靠硬件音量键。
-          // 这就是"滑杆调了但声音没明显变化"的根本原因。
-          // 解决办法：把 <audio> 接入 Web Audio API，用 GainNode 来真正控制音量，
-          // 这样安卓、iOS、桌面浏览器都能正常生效。
-          this.audio.volume = 1; // 固定为1，真正的音量由下面的 gainNode 控制
 
           const savedVolume = parseFloat(localStorage.getItem("bgMusicVolume"));
           this.volume = isNaN(savedVolume) ? 0.7 : savedVolume; // 滑杆用的线性值（0-1）
+          this.audio.volume = this.volume * this.volume; // 实际播放音量：加入锥度，让滑杆全程更明显好用
+          // 说明：iOS 的 <audio>.volume 不受 JS 控制（系统限制，只能用硬件音量键调），
+          // 这里选择保留最简单可靠、能确保稳定出声的写法；之前尝试过接入 Web Audio
+          // GainNode 来绕开这个限制，但在部分内置浏览器/webview 里会出现"接管后却完全
+          // 无声"的兼容性问题，风险大于收益，所以改回这个方案。
 
           const savedEnabled = localStorage.getItem("bgMusicEnabled");
           this.enabled = savedEnabled === null ? true : savedEnabled === "true"; // 默认开启
 
           const savedShuffle = localStorage.getItem("bgMusicShuffle");
           this.shuffle = savedShuffle === "true"; // 默认顺序播放（1-9），开启后随机播放
-
-          this._initAudioGraph();
 
           this.audio.addEventListener("ended", () => this._advance());
           this.audio.addEventListener("error", () => this._advance()); // 该编号文件缺失/加载失败，自动跳到下一个
@@ -569,33 +566,6 @@
           });
 
           this._loadTrack(this.currentNum);
-        }
-
-        // 把 <audio> 接入 Web Audio API：audio → gainNode → 扬声器
-        // 这样调节 gainNode.gain 才能在 iOS 上真正改变播放音量
-        _initAudioGraph() {
-          try {
-            const AC = window.AudioContext || window.webkitAudioContext;
-            if (!AC) return; // 极老旧浏览器兜底，退回 element.volume
-
-            this.audioCtx = new AC();
-            this.gainNode = this.audioCtx.createGain();
-            this.gainNode.gain.value = this.volume * this.volume; // 加入锥度，让滑杆全程更明显好用
-
-            const source = this.audioCtx.createMediaElementSource(this.audio);
-            source.connect(this.gainNode).connect(this.audioCtx.destination);
-          } catch (e) {
-            this.audioCtx = null;
-            this.gainNode = null;
-          }
-        }
-
-        // 必须在用户手势（点击/触摸/按键）中调用才能真正生效，否则浏览器会保持 suspended
-        _resumeAudioGraph() {
-          if (this.audioCtx && this.audioCtx.state === "suspended") {
-            const p = this.audioCtx.resume();
-            if (p && typeof p.catch === "function") p.catch(() => {});
-          }
         }
 
         _loadTrack(num) {
@@ -637,7 +607,6 @@
         // 需在用户手势（点击/触摸/按键）中调用，否则浏览器会拦截自动播放
         async tryPlay() {
           if (!this.enabled) return;
-          this._resumeAudioGraph();
           const p = this.audio.play();
           if (p && typeof p.catch === "function") p.catch(() => {});
         }
@@ -659,13 +628,7 @@
         setVolume(v) {
           v = Math.max(0, Math.min(1, v));
           this.volume = v; // 滑杆位置用的线性值
-          if (this.gainNode) {
-            // 真正生效的音量控制（兼容 iOS）
-            this.gainNode.gain.value = v * v; // 加入锥度，接近人耳感知的线性变化
-          } else {
-            // 极少数不支持 Web Audio 的环境兜底
-            this.audio.volume = v * v;
-          }
+          this.audio.volume = v * v; // 实际播放音量（音频锥度，接近人耳感知的线性变化）
           localStorage.setItem("bgMusicVolume", String(v));
         }
       }
