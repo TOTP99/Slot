@@ -82,14 +82,12 @@
         z-index: 9999;
         display: -webkit-flex;
         display: flex;
-        -webkit-flex-direction: column;
-        flex-direction: column;
-        -webkit-align-items: stretch;
-        align-items: stretch;
-        overflow-x: hidden;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-        padding: max(12px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+        -webkit-align-items: center;
+        align-items: center;
+        -webkit-justify-content: center;
+        justify-content: center;
+        overflow: hidden;
+        padding: max(8px, env(safe-area-inset-top)) 10px max(8px, env(safe-area-inset-bottom));
         background: #070006;
         color: #ffd700;
         font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
@@ -110,43 +108,73 @@
         pointer-events: auto;
       }
 
+      /* 竖屏外壳：紧凑科技风 + 85% 缩放 + 金细边 */
+      .ph-shell {
+        width: 100%;
+        max-width: 380px;
+        max-height: 100%;
+        box-sizing: border-box;
+        display: -webkit-flex;
+        display: flex;
+        -webkit-flex-direction: column;
+        flex-direction: column;
+        -webkit-align-items: stretch;
+        align-items: stretch;
+        overflow: hidden;
+        padding: 8px 10px 6px;
+        background:
+          radial-gradient(ellipse at 50% 20%, rgba(80, 50, 10, 0.35) 0%, transparent 55%),
+          #070006;
+        border: 1px solid #c9a227;
+        border-radius: 12px;
+        box-shadow:
+          0 0 0 1px rgba(255, 215, 0, 0.12),
+          inset 0 0 24px rgba(255, 215, 0, 0.04),
+          0 0 18px rgba(255, 215, 0, 0.1);
+        -webkit-transform: scale(0.85);
+        transform: scale(0.85);
+        -webkit-transform-origin: center center;
+        transform-origin: center center;
+      }
+
       .ph-top {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 4px 4px 8px;
+        padding: 0 2px 4px;
         flex-shrink: 0;
       }
       .ph-title {
-        font-size: 18px;
+        font-size: 13px;
         font-weight: bold;
-        letter-spacing: 1px;
+        letter-spacing: 2px;
         color: #ffd700;
-        text-shadow: 0 0 12px rgba(255, 215, 0, 0.35);
+        text-shadow: 0 0 10px rgba(255, 215, 0, 0.35);
       }
       .ph-clock {
-        font-size: 13px;
-        color: #ffe9a6;
-        opacity: 0.85;
+        font-size: 11px;
+        color: #c9a227;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 1px;
+        opacity: 0.9;
       }
 
       .ph-stage {
         position: relative;
-        flex: 1 1 auto;
-        min-height: 280px;
+        flex: 0 0 auto;
+        height: min(42vw, 200px);
         display: flex;
-        flex-direction: column;
         align-items: center;
         justify-content: center;
-        margin: 4px 0 8px;
+        margin: 0 0 6px;
       }
 
       .ph-spectrum {
         position: absolute;
         left: 50%;
-        top: 42%;
-        width: min(88vw, 360px);
-        height: min(88vw, 360px);
+        top: 50%;
+        width: min(70vw, 240px);
+        height: min(70vw, 240px);
         transform: translate(-50%, -50%);
         pointer-events: none;
         z-index: 0;
@@ -154,8 +182,8 @@
 
       .ph-vinyl-wrap {
         position: relative;
-        width: min(72vw, 300px);
-        height: min(72vw, 300px);
+        width: min(48vw, 168px);
+        height: min(48vw, 168px);
         z-index: 1;
       }
       .ph-vinyl {
@@ -163,245 +191,334 @@
         height: 100%;
         border-radius: 50%;
         background:
-          radial-gradient(circle at 50% 50%, #2a1a0a 0 14%, #0a0604 15% 18%, #111 19% 100%);
-        border: 3px solid #c9a227;
+          repeating-radial-gradient(
+            circle at 50% 50%,
+            #0c0a08 0,
+            #0c0a08 2px,
+            #16120e 3px,
+            #16120e 5px
+          );
+        border: 2px solid #c9a227;
         box-shadow:
-          0 0 0 2px #5c4010,
-          0 0 28px rgba(255, 215, 0, 0.22),
-          inset 0 0 40px rgba(0, 0, 0, 0.85);
+          0 0 0 1px #5c4010,
+          0 0 18px rgba(255, 215, 0, 0.16),
+          inset 0 0 40px rgba(0, 0, 0, 0.9);
         position: relative;
-        transition: transform 0.2s linear;
+        will-change: transform;
       }
       .ph-vinyl::before {
         content: "";
         position: absolute;
-        inset: 12%;
+        inset: 0;
         border-radius: 50%;
-        border: 1px solid rgba(255, 215, 0, 0.12);
+        background: radial-gradient(
+          circle at 35% 30%,
+          rgba(255, 255, 255, 0.07) 0%,
+          transparent 42%
+        );
+        pointer-events: none;
+        z-index: 1;
+      }
+      .ph-vinyl::after {
+        content: "";
+        position: absolute;
+        inset: 18%;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 215, 0, 0.1);
         box-shadow:
-          0 0 0 14px rgba(255, 215, 0, 0.04),
-          0 0 0 28px rgba(255, 215, 0, 0.03),
-          0 0 0 42px rgba(255, 215, 0, 0.025);
+          0 0 0 10px rgba(255, 215, 0, 0.03),
+          0 0 0 20px rgba(255, 215, 0, 0.025);
         pointer-events: none;
       }
-      .ph-vinyl.spinning {
-        -webkit-animation: vinyl-spin 10s linear infinite;
-        animation: vinyl-spin 10s linear infinite;
-      }
-      @-webkit-keyframes vinyl-spin {
-        to { -webkit-transform: rotate(360deg); transform: rotate(360deg); }
-      }
-      @keyframes vinyl-spin {
-        to { transform: rotate(360deg); }
+      .ph-vinyl.playing {
+        box-shadow:
+          0 0 0 1px #5c4010,
+          0 0 28px rgba(255, 215, 0, 0.4),
+          0 0 48px rgba(255, 140, 66, 0.12),
+          inset 0 0 40px rgba(0, 0, 0, 0.9);
       }
       .ph-label {
         position: absolute;
         left: 50%;
         top: 50%;
         transform: translate(-50%, -50%);
-        width: 34%;
-        height: 34%;
+        width: 36%;
+        height: 36%;
         border-radius: 50%;
-        background: radial-gradient(circle, #3a2808 0%, #1a1006 100%);
-        border: 2px solid #ffd700;
+        background: radial-gradient(circle, #3a2808 0%, #120a04 70%);
+        border: 1.5px solid #ffd700;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         z-index: 2;
-        box-shadow: 0 0 16px rgba(255, 215, 0, 0.25);
+        box-shadow: 0 0 12px rgba(255, 215, 0, 0.25);
+        transition: box-shadow 0.4s ease;
+      }
+      .ph-label.playing {
+        box-shadow:
+          0 0 18px rgba(255, 215, 0, 0.5),
+          0 0 32px rgba(255, 77, 166, 0.12);
+        -webkit-animation: label-pulse 2.4s ease-in-out infinite;
+        animation: label-pulse 2.4s ease-in-out infinite;
+      }
+      @-webkit-keyframes label-pulse {
+        0%, 100% { transform: translate(-50%, -50%) scale(1); }
+        50% { transform: translate(-50%, -50%) scale(1.04); }
+      }
+      @keyframes label-pulse {
+        0%, 100% { transform: translate(-50%, -50%) scale(1); }
+        50% { transform: translate(-50%, -50%) scale(1.04); }
       }
       .ph-track-num {
-        font-size: 15px;
+        font-size: 12px;
         font-weight: bold;
         color: #ffd700;
-        line-height: 1.2;
+        line-height: 1.1;
+        letter-spacing: 0.5px;
       }
       .ph-track-sub {
-        font-size: 10px;
-        color: #ffe9a6;
-        opacity: 0.8;
-        margin-top: 2px;
+        display: none;
       }
 
       .ph-horn {
         position: absolute;
-        left: 4%;
-        top: 0;
-        font-size: clamp(48px, 16vw, 72px);
+        left: 0;
+        top: -4%;
+        font-size: clamp(28px, 11vw, 44px);
         line-height: 1;
         z-index: 3;
-        filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.6));
+        filter: drop-shadow(0 3px 10px rgba(0, 0, 0, 0.65));
         pointer-events: none;
+        transform-origin: 70% 90%;
         transform: rotate(-18deg);
+        transition: filter 0.4s ease;
+        opacity: 0.92;
       }
+      .ph-horn.playing {
+        -webkit-animation: horn-sway 3.2s ease-in-out infinite;
+        animation: horn-sway 3.2s ease-in-out infinite;
+        filter: drop-shadow(0 3px 14px rgba(255, 215, 0, 0.22));
+      }
+      @-webkit-keyframes horn-sway {
+        0%, 100% { transform: rotate(-18deg) translateY(0); }
+        50% { transform: rotate(-14deg) translateY(-2px); }
+      }
+      @keyframes horn-sway {
+        0%, 100% { transform: rotate(-18deg) translateY(0); }
+        50% { transform: rotate(-14deg) translateY(-2px); }
+      }
+
       .ph-arm {
         position: absolute;
-        right: 2%;
-        top: 18%;
-        font-size: clamp(36px, 12vw, 52px);
-        z-index: 3;
-        transform-origin: 85% 20%;
-        transition: transform 0.35s ease;
+        right: 4%;
+        top: 8%;
+        width: 42%;
+        height: 42%;
+        z-index: 4;
+        transform-origin: 92% 12%;
+        transition: transform 0.55s cubic-bezier(0.34, 1.3, 0.64, 1);
         pointer-events: none;
-        filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
       }
-      .ph-arm.up {
-        transform: rotate(-28deg);
+      .ph-arm-pivot {
+        position: absolute;
+        right: 0;
+        top: 0;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 35% 30%, #ffe566, #8a7040);
+        border: 1.5px solid #ffd700;
+        box-shadow: 0 0 6px rgba(255, 215, 0, 0.4);
+        z-index: 2;
       }
-      .ph-arm.down {
-        transform: rotate(8deg);
+      .ph-arm-rod {
+        position: absolute;
+        right: 5px;
+        top: 6px;
+        width: 72%;
+        height: 3.5px;
+        border-radius: 2px;
+        background: linear-gradient(90deg, #c9a227, #ffe566 40%, #8a7040);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+        transform-origin: right center;
+        transform: rotate(48deg);
+      }
+      .ph-arm-head {
+        position: absolute;
+        left: 8%;
+        top: 52%;
+        width: 11px;
+        height: 14px;
+        border-radius: 2px;
+        background: linear-gradient(180deg, #ddd, #888 60%, #444);
+        border: 1px solid #ffd700;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.45);
+      }
+      .ph-arm.up { transform: rotate(-38deg); }
+      .ph-arm.down { transform: rotate(12deg); }
+      .ph-arm.down .ph-arm-head {
+        box-shadow:
+          0 0 8px rgba(255, 215, 0, 0.45),
+          0 2px 5px rgba(0, 0, 0, 0.45);
       }
 
       .ph-controls {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 12px;
+        gap: 8px;
         flex-shrink: 0;
-        margin-bottom: 12px;
+        margin-bottom: 8px;
       }
       .ph-transport {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 22px;
+        gap: 14px;
       }
       .ph-btn {
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
-        border: 2px solid #c9a227;
-        background: #140008;
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        border: 1px solid rgba(201, 162, 39, 0.7);
+        background: linear-gradient(160deg, #1a1008 0%, #0a0406 100%);
         color: #ffd700;
-        font-size: 18px;
+        font-size: 13px;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        box-shadow: 0 0 12px rgba(255, 215, 0, 0.15);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 215, 0, 0.12),
+          0 0 8px rgba(255, 215, 0, 0.08);
+        padding: 0;
       }
       .ph-btn:active {
-        transform: scale(0.92);
-        background: #2a1408;
+        transform: scale(0.94);
+        border-color: #ffd700;
+        background: #2a1808;
       }
       .ph-btn-main {
-        width: 68px;
-        height: 68px;
-        font-size: 26px;
-        border-width: 3px;
-        border-color: #ffd700;
-        background: linear-gradient(160deg, #3a2808, #140008);
-        box-shadow: 0 0 20px rgba(255, 215, 0, 0.35);
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        font-size: 16px;
+        border: 1.5px solid #ffd700;
+        background:
+          radial-gradient(circle at 40% 30%, rgba(255, 215, 0, 0.2), transparent 55%),
+          linear-gradient(160deg, #2a1c08, #0c0604);
+        box-shadow:
+          0 0 14px rgba(255, 215, 0, 0.28),
+          inset 0 0 10px rgba(255, 215, 0, 0.08);
       }
       .ph-modes {
         display: flex;
-        gap: 12px;
+        gap: 8px;
       }
       .ph-chip {
-        padding: 6px 16px;
-        border-radius: 20px;
-        border: 1.5px solid #b8860b;
-        background: #0c0006;
-        color: #ffe9a6;
-        font-size: 13px;
+        padding: 4px 12px;
+        border-radius: 6px;
+        border: 1px solid rgba(184, 134, 11, 0.65);
+        background: #0a0406;
+        color: #c9a227;
+        font-size: 11px;
         font-weight: bold;
+        letter-spacing: 1px;
         cursor: pointer;
+        min-width: 52px;
+        text-align: center;
       }
       .ph-chip.on {
-        background: #c9a84c;
-        color: #1a0a00;
+        background: linear-gradient(180deg, rgba(201, 168, 76, 0.35), rgba(80, 50, 10, 0.5));
+        color: #ffe566;
         border-color: #ffd700;
+        box-shadow: 0 0 10px rgba(255, 215, 0, 0.2);
       }
 
       .ph-mini {
         flex-shrink: 0;
-        margin: 0 0 8px;
-        padding: 12px 12px 10px;
-        border: 2px solid #c9a227;
-        border-radius: 14px;
-        background: linear-gradient(180deg, #1a0d02 0%, #0c0006 100%);
-        box-shadow: 0 0 18px rgba(255, 215, 0, 0.12);
+        padding: 8px 8px 6px;
+        border: 1px solid rgba(201, 162, 39, 0.55);
+        border-radius: 10px;
+        background:
+          linear-gradient(180deg, rgba(26, 13, 2, 0.95) 0%, rgba(8, 0, 4, 0.98) 100%);
+        box-shadow: inset 0 0 16px rgba(255, 215, 0, 0.05);
       }
       .ph-mini-head {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        font-size: 12px;
-        color: #ffe9a6;
-        margin-bottom: 8px;
+        font-size: 11px;
+        color: #c9a227;
+        margin-bottom: 6px;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.5px;
       }
       .ph-mini-title {
-        font-size: 13px;
-        font-weight: bold;
-        color: #ffd700;
-        letter-spacing: 1px;
+        display: none;
       }
       .ph-reels {
         display: flex;
         justify-content: center;
-        gap: 8px;
-        margin-bottom: 10px;
+        gap: 6px;
+        margin-bottom: 6px;
       }
       .ph-reel {
-        width: 64px;
-        height: 64px;
-        border-radius: 10px;
-        border: 2px solid #ffd700;
-        background: #12000a;
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 215, 0, 0.55);
+        background: #0c0008;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        font-size: 28px;
+        font-size: 22px;
         line-height: 1;
+        box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.6);
       }
       .ph-reel-sub {
-        font-size: 10px;
-        color: #ffe9a6;
-        margin-top: 2px;
-        opacity: 0.75;
+        display: none;
       }
       .ph-spin {
         display: block;
         width: 100%;
-        max-width: 220px;
+        max-width: 140px;
         margin: 0 auto;
-        padding: 10px 0;
-        border: none;
-        border-radius: 24px;
-        background: linear-gradient(180deg, #e0c060, #c9a84c 40%, #8a7040);
-        color: #2a1a00;
-        font-size: 18px;
+        padding: 7px 0;
+        border: 1px solid #ffd700;
+        border-radius: 8px;
+        background:
+          linear-gradient(180deg, rgba(224, 192, 96, 0.95), rgba(138, 112, 64, 0.95));
+        color: #1a1000;
+        font-size: 13px;
         font-weight: bold;
-        letter-spacing: 2px;
+        letter-spacing: 3px;
         cursor: pointer;
-        box-shadow: 0 3px 0 #5c4010, 0 0 16px rgba(255, 215, 0, 0.3);
+        box-shadow:
+          0 0 12px rgba(255, 215, 0, 0.25),
+          inset 0 1px 0 rgba(255, 255, 255, 0.25);
       }
       .ph-spin:active {
-        transform: translateY(2px);
-        box-shadow: 0 1px 0 #5c4010;
+        transform: translateY(1px);
+        filter: brightness(0.92);
       }
       .ph-spin:disabled {
-        opacity: 0.55;
+        opacity: 0.5;
         cursor: default;
       }
       .ph-msg {
         text-align: center;
-        font-size: 12px;
-        color: #ffe9a6;
-        margin-top: 8px;
-        min-height: 1.2em;
-        opacity: 0.9;
+        font-size: 10px;
+        color: #c9a227;
+        margin-top: 5px;
+        min-height: 1em;
+        letter-spacing: 0.5px;
+        opacity: 0.85;
       }
       .ph-foot {
-        text-align: center;
-        font-size: 11px;
-        color: #b8860b;
-        letter-spacing: 2px;
-        padding: 4px 0 2px;
-        flex-shrink: 0;
-        opacity: 0.85;
+        display: none;
       }
 
       #game {
@@ -418,21 +535,25 @@
 
   <body>
     <div id="rotate-tip">
+      <div class="ph-shell">
       <div class="ph-top">
-        <div class="ph-title">万锦 · 留声机</div>
+        <div class="ph-title">万锦</div>
         <div class="ph-clock" id="ph-clock">--:--</div>
       </div>
 
       <div class="ph-stage">
         <canvas class="ph-spectrum" id="ph-spectrum" width="360" height="360"></canvas>
-        <div class="ph-horn" aria-hidden="true">📯</div>
+        <div class="ph-horn" id="ph-horn" aria-hidden="true">📯</div>
         <div class="ph-vinyl-wrap">
           <div class="ph-vinyl" id="ph-vinyl"></div>
-          <div class="ph-label">
-            <div class="ph-track-num" id="ph-track-num">01 / 18</div>
-            <div class="ph-track-sub">留声记忆</div>
+          <div class="ph-label" id="ph-label">
+            <div class="ph-track-num" id="ph-track-num">01/18</div>
           </div>
-          <div class="ph-arm up" id="ph-arm" aria-hidden="true">🦾</div>
+          <div class="ph-arm up" id="ph-arm" aria-hidden="true">
+            <div class="ph-arm-pivot"></div>
+            <div class="ph-arm-rod"></div>
+            <div class="ph-arm-head"></div>
+          </div>
         </div>
       </div>
 
@@ -450,20 +571,18 @@
 
       <div class="ph-mini">
         <div class="ph-mini-head">
-          <span id="ph-balance">余额 ¥0</span>
-          <span class="ph-mini-title">唱盘小转盘</span>
-          <span id="ph-bet">下注 ¥50</span>
+          <span id="ph-balance">¥0</span>
+          <span id="ph-bet">¥50</span>
         </div>
         <div class="ph-reels">
-          <div class="ph-reel" id="ph-r0"><span>7️⃣</span><span class="ph-reel-sub">·</span></div>
-          <div class="ph-reel" id="ph-r1"><span>🌸</span><span class="ph-reel-sub">·</span></div>
-          <div class="ph-reel" id="ph-r2"><span>🍒</span><span class="ph-reel-sub">·</span></div>
+          <div class="ph-reel" id="ph-r0"><span>7️⃣</span></div>
+          <div class="ph-reel" id="ph-r1"><span>🌸</span></div>
+          <div class="ph-reel" id="ph-r2"><span>🍒</span></div>
         </div>
         <button type="button" class="ph-spin" id="ph-spin">SPIN</button>
-        <div class="ph-msg" id="ph-msg">祝君好运 · 声运相随</div>
+        <div class="ph-msg" id="ph-msg"></div>
       </div>
-
-      <div class="ph-foot">一曲留声 · 万锦如斯</div>
+      </div>
     </div>
     <div id="game-wrapper">
       <div id="game"></div>
@@ -791,7 +910,7 @@
           this.audio = new Audio();
           this.audio.loop = false; // 由 ended/error 事件控制切歌
           this.audio.preload = "auto";
-          this.audio.crossOrigin = "anonymous"; // 同目录本地文件一般无跨域问题；若有 CDN 需服务端 CORS
+          // 注意：不要设 crossOrigin=anonymous，本地/无 CORS 的 mp3 会被静音或加载失败
           this.audio.volume = 0.5; // 固定音量（无滑杆；iOS 上 <audio>.volume 仍受系统限制）
 
           const savedEnabled = localStorage.getItem("bgMusicEnabled");
@@ -814,6 +933,7 @@
           this.vocalBias = 0; // <0 偏男声区能量，>0 偏女声区
           this._playing = false;
           this._bandBins = null;
+          this._analyserFailed = false;
 
           this.audio.addEventListener("ended", () => this._advance());
           this.audio.addEventListener("error", () => this._advance()); // 该编号文件缺失/加载失败，自动跳到下一个
@@ -824,27 +944,30 @@
           this._loadTrack(this.currentNum);
         }
 
-        // 须在用户手势中调用，创建 AudioContext + Analyser 并接管播放链路
+        // 须在用户手势中调用。成功则走 Web Audio 分析；失败则保持原生 <audio> 出声
         ensureAnalyser() {
-          if (this._connected) return true;
+          if (this._connected) {
+            this._resumeCtx();
+            return true;
+          }
+          if (this._analyserFailed) return false;
           try {
             const AC = window.AudioContext || window.webkitAudioContext;
-            if (!AC) return false;
-            if (!this.ctx) this.ctx = new AC();
-            if (this.ctx.state === "suspended") {
-              const r = this.ctx.resume();
-              if (r && typeof r.catch === "function") r.catch(() => {});
+            if (!AC) {
+              this._analyserFailed = true;
+              return false;
             }
+            if (!this.ctx) this.ctx = new AC();
+            this._resumeCtx();
             if (!this.analyser) {
               this.analyser = this.ctx.createAnalyser();
-              // 5 根条用 256 足够，比 512 少一半 FFT 工作量
               this.analyser.fftSize = 256;
               this.analyser.smoothingTimeConstant = 0.6;
               this._freqData = new Uint8Array(this.analyser.frequencyBinCount);
               this._rebuildBandBins();
             }
             if (!this._source) {
-              // MediaElementSource 每个 <audio> 只能创建一次
+              // 每个 <audio> 只能 createMediaElementSource 一次；之后必须经 destination 才能出声
               this._source = this.ctx.createMediaElementSource(this.audio);
               this._source.connect(this.analyser);
               this.analyser.connect(this.ctx.destination);
@@ -852,10 +975,30 @@
             this._connected = true;
             return true;
           } catch (e) {
-            // 部分内置浏览器/webview 接管后可能无声或抛错：安静失败，可视化走假数据回退
+            // 接管失败：不破坏原生播放，频谱走伪数据
+            this._analyserFailed = true;
             this._connected = false;
             return false;
           }
+        }
+
+        _resumeCtx() {
+          if (this.ctx && this.ctx.state === "suspended") {
+            const r = this.ctx.resume();
+            if (r && typeof r.catch === "function") r.catch(() => {});
+          }
+        }
+
+        _playAudio() {
+          this._resumeCtx();
+          try {
+            const p = this.audio.play();
+            if (p && typeof p.catch === "function") {
+              p.catch(() => {
+                // 自动播放被拦或文件缺失：静默，等下次用户手势
+              });
+            }
+          } catch (e) {}
         }
 
         // 预计算 Hz→bin 区间，避免每帧 floor/ceil
@@ -955,7 +1098,17 @@
         }
 
         isPlaying() {
-          return !!this._playing;
+          // 以真实 audio 状态为准，避免仅依赖采样缓存导致 UI/逻辑误判
+          try {
+            return (
+              !!this.enabled &&
+              !!this.audio &&
+              !this.audio.paused &&
+              !this.audio.ended
+            );
+          } catch (e) {
+            return !!this._playing;
+          }
         }
 
         _loadTrack(num) {
@@ -983,10 +1136,7 @@
             return;
           }
           this._loadTrack(this._pickNext());
-          if (this.enabled) {
-            const p = this.audio.play();
-            if (p && typeof p.catch === "function") p.catch(() => {});
-          }
+          if (this.enabled) this._playAudio();
         }
 
         setShuffle(enabled) {
@@ -997,10 +1147,7 @@
         skipNext() {
           this._skipAttempts = 0;
           this._loadTrack(this._pickNext());
-          if (this.enabled) {
-            const p = this.audio.play();
-            if (p && typeof p.catch === "function") p.catch(() => {});
-          }
+          if (this.enabled) this._playAudio();
         }
 
         skipPrev() {
@@ -1012,37 +1159,34 @@
             prev = this.currentNum <= 1 ? BG_MUSIC_MAX : this.currentNum - 1;
           }
           this._loadTrack(prev);
-          if (this.enabled) {
-            const p = this.audio.play();
-            if (p && typeof p.catch === "function") p.catch(() => {});
-          }
+          if (this.enabled) this._playAudio();
         }
 
         async togglePlay() {
-          this.ensureAnalyser();
           if (!this.audio) return;
+          this.ensureAnalyser();
           if (!this.audio.paused && !this.audio.ended) {
             this.audio.pause();
             return;
           }
           if (!this.enabled) {
-            this.setEnabled(true);
-            return;
+            this.enabled = true;
+            localStorage.setItem("bgMusicEnabled", "true");
           }
-          const p = this.audio.play();
-          if (p && typeof p.catch === "function") p.catch(() => {});
+          this._playAudio();
         }
 
         // 需在用户手势（点击/触摸/按键）中调用，否则浏览器会拦截自动播放
         async tryPlay() {
           if (!this.enabled) return;
           this.ensureAnalyser();
-          const p = this.audio.play();
-          if (p && typeof p.catch === "function") p.catch(() => {});
+          this._playAudio();
         }
 
         pause() {
-          this.audio.pause();
+          try {
+            this.audio.pause();
+          } catch (e) {}
         }
 
         setEnabled(enabled) {
@@ -3671,6 +3815,8 @@
       (function setupPhonograph() {
         var vinyl = document.getElementById("ph-vinyl");
         var arm = document.getElementById("ph-arm");
+        var horn = document.getElementById("ph-horn");
+        var label = document.getElementById("ph-label");
         var playBtn = document.getElementById("ph-play");
         var prevBtn = document.getElementById("ph-prev");
         var nextBtn = document.getElementById("ph-next");
@@ -3693,6 +3839,10 @@
         var miniSpinning = false;
         var phActive = false;
         var raf = 0;
+        var vinylAngle = 0;
+        var vinylVel = 0;
+        var specSmooth = [0, 0, 0, 0, 0];
+        var lastPlaying = null;
 
         function pad2(n) {
           return (n < 10 ? "0" : "") + n;
@@ -3707,20 +3857,20 @@
         function syncTrack() {
           if (trackNum) {
             trackNum.textContent =
-              pad2(bgMusic.currentNum) + " / " + pad2(BG_MUSIC_MAX);
+              pad2(bgMusic.currentNum) + "/" + pad2(BG_MUSIC_MAX);
           }
         }
 
         function syncPlayUi() {
           var playing = bgMusic.isPlaying();
           if (playBtn) playBtn.textContent = playing ? "⏸" : "▶";
-          if (vinyl) {
-            if (playing) vinyl.classList.add("spinning");
-            else vinyl.classList.remove("spinning");
-          }
-          if (arm) {
+          if (vinyl) vinyl.classList.toggle("playing", playing);
+          if (label) label.classList.toggle("playing", playing);
+          if (horn) horn.classList.toggle("playing", playing);
+          if (arm && playing !== lastPlaying) {
             arm.classList.toggle("down", playing);
             arm.classList.toggle("up", !playing);
+            lastPlaying = playing;
           }
           syncTrack();
           if (orderChip && shuffleChip) {
@@ -3745,8 +3895,8 @@
               if (typeof s.bet === "number") bet = s.bet;
             }
           } catch (e) {}
-          if (balanceEl) balanceEl.textContent = "余额 ¥" + Number(bal).toFixed(0);
-          if (betEl) betEl.textContent = "下注 ¥" + Number(bet).toFixed(0);
+          if (balanceEl) balanceEl.textContent = "¥" + Number(bal).toFixed(0);
+          if (betEl) betEl.textContent = "¥" + Number(bet).toFixed(0);
         }
 
         function setMsg(t) {
@@ -3767,34 +3917,61 @@
           var bands = bgMusic.bands || [0, 0, 0, 0, 0];
           var playing = bgMusic.isPlaying();
           var colors = ["#c9a227", "#ff8c42", "#40e0ff", "#ff4da6", "#ffe566"];
-          var barCount = 36;
-          var inner = Math.min(w, h) * 0.38;
-          var maxLen = Math.min(w, h) * 0.16;
+          var barCount = 48;
+          var inner = Math.min(w, h) * 0.36;
+          var maxLen = Math.min(w, h) * 0.2;
+
+          for (var b = 0; b < 5; b++) {
+            var target = playing ? bands[b] : 0;
+            specSmooth[b] = specSmooth[b] * 0.72 + target * 0.28;
+          }
 
           for (var i = 0; i < barCount; i++) {
-            var band = bands[i % 5];
-            var level = playing ? Math.max(0.08, Math.min(1, band * 1.2)) : 0.06;
-            // 弧分布：从左上到右上绕过唱盘后侧
-            var ang = -Math.PI * 0.85 + (Math.PI * 1.3 * i) / (barCount - 1);
-            var len = maxLen * level;
+            var bi = i % 5;
+            var level = specSmooth[bi];
+            // 相邻条再插一点，弧面更顺
+            var n1 = specSmooth[(bi + 1) % 5];
+            var blend = level * 0.7 + n1 * 0.3;
+            if (!playing) blend *= 0.15;
+            blend = Math.max(0.05, Math.min(1, blend * 1.15));
+
+            var ang = -Math.PI * 0.92 + (Math.PI * 1.45 * i) / (barCount - 1);
+            var len = maxLen * blend;
             var x0 = cx + Math.cos(ang) * inner;
             var y0 = cy + Math.sin(ang) * inner;
             var x1 = cx + Math.cos(ang) * (inner + len);
             var y1 = cy + Math.sin(ang) * (inner + len);
-            ctx.strokeStyle = colors[i % 5];
-            ctx.globalAlpha = 0.35 + level * 0.55;
-            ctx.lineWidth = 3;
+
+            ctx.strokeStyle = colors[bi];
+            ctx.globalAlpha = 0.25 + blend * 0.65;
+            ctx.lineWidth = 2.5 + blend * 1.5;
             ctx.lineCap = "round";
+            ctx.shadowColor = colors[bi];
+            ctx.shadowBlur = 6 + blend * 10;
             ctx.beginPath();
             ctx.moveTo(x0, y0);
             ctx.lineTo(x1, y1);
             ctx.stroke();
           }
+          ctx.shadowBlur = 0;
           ctx.globalAlpha = 1;
+        }
+
+        function tickVinyl() {
+          if (!vinyl) return;
+          var playing = bgMusic.isPlaying();
+          var energy = bgMusic.energy || 0;
+          // 目标角速度：基础转盘速 + 随能量微加速
+          var targetVel = playing ? 0.55 + energy * 0.55 : 0;
+          vinylVel += (targetVel - vinylVel) * (playing ? 0.045 : 0.08);
+          if (Math.abs(vinylVel) < 0.002) vinylVel = 0;
+          vinylAngle = (vinylAngle + vinylVel) % 360;
+          vinyl.style.transform = "rotate(" + vinylAngle.toFixed(2) + "deg)";
         }
 
         function loop() {
           if (!phActive) return;
+          tickVinyl();
           drawSpectrum();
           syncPlayUi();
           raf = requestAnimationFrame(loop);
@@ -3821,11 +3998,20 @@
         });
         prevBtn.addEventListener("click", function () {
           bgMusic.skipPrev();
-          setTimeout(syncPlayUi, 80);
+          bumpArmOnSeek();
         });
+        function bumpArmOnSeek() {
+          if (!arm) return;
+          arm.classList.add("up");
+          arm.classList.remove("down");
+          lastPlaying = null;
+          setTimeout(function () {
+            syncPlayUi();
+          }, 420);
+        }
         nextBtn.addEventListener("click", function () {
           bgMusic.skipNext();
-          setTimeout(syncPlayUi, 80);
+          bumpArmOnSeek();
         });
         orderChip.addEventListener("click", function () {
           bgMusic.setShuffle(false);
@@ -3853,10 +4039,7 @@
 
         function setReel(el, sym) {
           if (!el) return;
-          el.innerHTML =
-            "<span>" +
-            sym.label +
-            '</span><span class="ph-reel-sub">·</span>';
+          el.innerHTML = "<span>" + sym.label + "</span>";
         }
 
         spinBtn.addEventListener("click", function () {
@@ -3875,7 +4058,7 @@
             }
           } catch (e) {}
           if (bal < bet) {
-            setMsg("余额不足");
+            setMsg("—");
             return;
           }
           miniSpinning = true;
@@ -3896,7 +4079,7 @@
             } catch (e) {}
           }
           syncWallet();
-          setMsg("转动中…");
+          setMsg("");
 
           var ticks = 0;
           var timer = setInterval(function () {
@@ -3924,7 +4107,7 @@
                 win = bet * 2;
                 setMsg("一对 +" + win);
               } else {
-                setMsg("未中奖，再听一曲");
+                setMsg("");
               }
               if (win > 0) {
                 bal += win;
