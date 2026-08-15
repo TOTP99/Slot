@@ -217,6 +217,7 @@
         align-items: center;
         justify-content: center;
         margin: 0 0 6px;
+        perspective: 800px;
       }
 
       .ph-spectrum {
@@ -235,6 +236,8 @@
         width: min(48vw, 160px);
         height: min(48vw, 160px);
         z-index: 1;
+        transform-style: preserve-3d;
+        transform: rotateX(14deg);
       }
       .ph-vinyl {
         width: 100%;
@@ -251,6 +254,8 @@
         border: 2px solid #c9a227;
         box-shadow:
           0 0 0 1px #5c4010,
+          0 5px 0 -1px #050302,
+          0 9px 16px rgba(0, 0, 0, 0.55),
           0 0 10px rgba(255, 215, 0, 0.1),
           inset 0 0 36px rgba(0, 0, 0, 0.9);
         position: relative;
@@ -283,6 +288,8 @@
       .ph-vinyl.playing {
         box-shadow:
           0 0 0 1px #5c4010,
+          0 5px 0 -1px #050302,
+          0 9px 16px rgba(0, 0, 0, 0.55),
           0 0 14px rgba(255, 215, 0, 0.2),
           0 0 24px rgba(255, 140, 66, 0.06),
           inset 0 0 36px rgba(0, 0, 0, 0.9);
@@ -387,70 +394,89 @@
 
       .ph-mini {
         flex-shrink: 0;
-        padding: 8px 8px 6px;
+        padding: 6px 8px 5px;
         border: 1px solid rgba(201, 162, 39, 0.4);
         border-radius: 10px;
         background:
           linear-gradient(180deg, rgba(26, 13, 2, 0.95) 0%, rgba(8, 0, 4, 0.98) 100%);
         box-shadow: inset 0 0 8px rgba(255, 215, 0, 0.025);
       }
-      .ph-mini-head {
+      .ph-mini-row {
         display: flex;
-        justify-content: space-between;
         align-items: center;
+        gap: 8px;
+      }
+      .ph-mini-money {
+        flex: 0 0 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1px;
+        min-width: 44px;
+      }
+      .ph-mini-bal {
         font-size: 11px;
-        color: #c9a227;
-        margin-bottom: 6px;
+        font-weight: bold;
+        color: #ffd700;
+        letter-spacing: 0.3px;
         font-variant-numeric: tabular-nums;
-        letter-spacing: 0.5px;
+        white-space: nowrap;
+      }
+      .ph-mini-bet {
+        font-size: 9.5px;
+        color: #c9a227;
+        opacity: 0.8;
+        font-variant-numeric: tabular-nums;
       }
       .ph-mini-title {
         display: none;
       }
       .ph-reels {
+        flex: 1;
         display: flex;
         justify-content: center;
-        gap: 6px;
-        margin-bottom: 6px;
+        gap: 5px;
       }
       .ph-reel {
-        width: 48px;
-        height: 48px;
-        border-radius: 8px;
+        width: 30px;
+        height: 30px;
+        border-radius: 6px;
         border: 1px solid rgba(255, 215, 0, 0.45);
         background: #0c0008;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        font-size: 22px;
+        font-size: 15px;
         line-height: 1;
-        box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.55);
+        box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.55);
       }
       .ph-reel-sub {
         display: none;
       }
       .ph-spin {
-        display: block;
-        width: 100%;
-        max-width: 140px;
-        margin: 0 auto;
-        padding: 7px 0;
+        flex: 0 0 auto;
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
         border: 1px solid #ffd700;
-        border-radius: 8px;
         background:
-          linear-gradient(180deg, rgba(224, 192, 96, 0.95), rgba(138, 112, 64, 0.95));
+          radial-gradient(circle at 35% 30%, rgba(255, 245, 200, 0.98), rgba(224, 192, 96, 0.95) 45%, rgba(138, 112, 64, 0.95) 100%);
         color: #1a1000;
-        font-size: 13px;
+        font-size: 9px;
         font-weight: bold;
-        letter-spacing: 3px;
+        letter-spacing: 0.5px;
         cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
         box-shadow:
-          0 0 6px rgba(255, 215, 0, 0.12),
-          inset 0 1px 0 rgba(255, 255, 255, 0.2);
+          0 0 6px rgba(255, 215, 0, 0.18),
+          inset 0 1px 0 rgba(255, 255, 255, 0.25);
       }
       .ph-spin:active {
-        transform: translateY(1px);
+        transform: translateY(1px) scale(0.96);
         filter: brightness(0.92);
       }
       .ph-spin:disabled {
@@ -614,16 +640,18 @@
         </div>
 
         <div class="ph-mini">
-          <div class="ph-mini-head">
-            <span id="ph-balance">¥0</span>
-            <span id="ph-bet">¥50</span>
+          <div class="ph-mini-row">
+            <div class="ph-mini-money">
+              <span class="ph-mini-bal">💰<span id="ph-balance">800</span></span>
+              <span class="ph-mini-bet" id="ph-bet">50</span>
+            </div>
+            <div class="ph-reels">
+              <div class="ph-reel" id="ph-r0"><span>7️⃣</span></div>
+              <div class="ph-reel" id="ph-r1"><span>🌸</span></div>
+              <div class="ph-reel" id="ph-r2"><span>🍒</span></div>
+            </div>
+            <button type="button" class="ph-spin" id="ph-spin">SPIN</button>
           </div>
-          <div class="ph-reels">
-            <div class="ph-reel" id="ph-r0"><span>7️⃣</span></div>
-            <div class="ph-reel" id="ph-r1"><span>🌸</span></div>
-            <div class="ph-reel" id="ph-r2"><span>🍒</span></div>
-          </div>
-          <button type="button" class="ph-spin" id="ph-spin">SPIN</button>
           <div class="ph-msg" id="ph-msg"></div>
         </div>
       </div>
@@ -1535,13 +1563,13 @@
           const barDxs = [-46, -23, 0, 23, 46];
 
           this.eqGlow = this.add
-            .rectangle(x, barBaseY - this.eqBarMaxH / 2, w - 30, this.eqBarMaxH + 20, 0xffd700, 0.07)
+            .rectangle(x, barBaseY, w - 30, this.eqBarMaxH + 20, 0xffd700, 0.07)
             .setOrigin(0.5);
 
           this.eqBars = barDxs.map((dx, i) => {
             const bar = this.add
               .rectangle(x + dx, barBaseY, 11, this.eqBarMaxH, barColors[i])
-              .setOrigin(0.5, 1)
+              .setOrigin(0.5, 0.5)
               .setAlpha(0.85)
               .setScale(1, 0.12);
             return bar;
@@ -3952,12 +3980,29 @@
               if (typeof s.bet === "number") bet = s.bet;
             }
           } catch (e) {}
-          if (balanceEl) balanceEl.textContent = "¥" + Number(bal).toFixed(0);
-          if (betEl) betEl.textContent = "¥" + Number(bet).toFixed(0);
+          if (balanceEl) balanceEl.textContent = Number(bal).toFixed(0);
+          if (betEl) betEl.textContent = Number(bet).toFixed(0);
         }
 
         function setMsg(t) {
           if (msgEl) msgEl.textContent = t;
+        }
+
+        var SPEC_GRADIENT = ["#ff2d95", "#ff8c42", "#ffe066", "#40e0ff", "#3d5aff"];
+        function lerpChannel(a, b, t) {
+          return Math.round(a + (b - a) * t);
+        }
+        function specColorAt(t) {
+          var stops = SPEC_GRADIENT;
+          var n = stops.length - 1;
+          var pos = Math.min(n - 0.0001, Math.max(0, t * n));
+          var seg = Math.floor(pos);
+          var localT = pos - seg;
+          var c1 = stops[seg];
+          var c2 = stops[seg + 1];
+          var r1 = parseInt(c1.substr(1, 2), 16), g1 = parseInt(c1.substr(3, 2), 16), b1 = parseInt(c1.substr(5, 2), 16);
+          var r2 = parseInt(c2.substr(1, 2), 16), g2 = parseInt(c2.substr(3, 2), 16), b2 = parseInt(c2.substr(5, 2), 16);
+          return "rgb(" + lerpChannel(r1, r2, localT) + "," + lerpChannel(g1, g2, localT) + "," + lerpChannel(b1, b2, localT) + ")";
         }
 
         function drawSpectrum() {
@@ -3973,44 +4018,43 @@
           bgMusic.sampleSpectrum();
           var bands = bgMusic.bands || [0, 0, 0, 0, 0];
           var playing = bgMusic.isPlaying();
-          var colors = ["#c9a227", "#ff8c42", "#40e0ff", "#ff4da6", "#ffe566"];
-          var barCount = 48;
+          var barCount = 56;
           var inner = Math.min(w, h) * 0.36;
-          var maxLen = Math.min(w, h) * 0.2;
+          var maxLen = Math.min(w, h) * 0.24;
 
           for (var b = 0; b < 5; b++) {
             var target = playing ? bands[b] : 0;
             specSmooth[b] = specSmooth[b] * 0.72 + target * 0.28;
           }
 
+          // 围成正好半圈：从左侧(180°)经过顶部到右侧(360°/0°)
           for (var i = 0; i < barCount; i++) {
-            var bi = i % 5;
+            var t = i / (barCount - 1);
+            var bi = Math.floor(t * 4);
             var level = specSmooth[bi];
-            // 相邻条再插一点，弧面更顺
-            var n1 = specSmooth[(bi + 1) % 5];
+            var n1 = specSmooth[Math.min(4, bi + 1)];
             var blend = level * 0.7 + n1 * 0.3;
             if (!playing) blend *= 0.15;
             blend = Math.max(0.05, Math.min(1, blend * 1.15));
 
-            var ang = -Math.PI * 0.92 + (Math.PI * 1.45 * i) / (barCount - 1);
-            var len = maxLen * blend;
+            var ang = Math.PI + t * Math.PI;
+            var len = maxLen * (0.35 + blend * 0.65);
             var x0 = cx + Math.cos(ang) * inner;
             var y0 = cy + Math.sin(ang) * inner;
             var x1 = cx + Math.cos(ang) * (inner + len);
             var y1 = cy + Math.sin(ang) * (inner + len);
 
-            ctx.strokeStyle = colors[bi];
-            ctx.globalAlpha = 0.15 + blend * 0.4;
-            ctx.lineWidth = 2.5 + blend * 1.5;
+            // 由细到粗：线宽随位置递增，而非发光
+            var baseWidth = 1.2 + t * 4.2;
+            ctx.strokeStyle = specColorAt(t);
+            ctx.globalAlpha = 0.65 + blend * 0.35;
+            ctx.lineWidth = baseWidth * (0.8 + blend * 0.35);
             ctx.lineCap = "round";
-            ctx.shadowColor = colors[bi];
-            ctx.shadowBlur = 3 + blend * 5;
             ctx.beginPath();
             ctx.moveTo(x0, y0);
             ctx.lineTo(x1, y1);
             ctx.stroke();
           }
-          ctx.shadowBlur = 0;
           ctx.globalAlpha = 1;
         }
 
