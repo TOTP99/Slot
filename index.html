@@ -325,14 +325,11 @@
       }
 
       // ---------- 背景音乐歌单清单 ----------
-      // 最简单、最可靠的加歌方式：以后想加新歌，把 mp3 文件放进和 index.html
-      // 同一个目录，然后在下面数组里加一行文件名即可（按你想要的播放顺序排列）。
-      // 这个方法不依赖服务器是否支持"目录列表"，任何托管方式都适用。
-      const BG_MUSIC_FILES = [
-        "经幡.mp3",
-        "Rosie.mp3",
-        // "第三首歌.mp3",
-      ];
+      // 加歌方式：把 mp3 文件改名为 1.mp3、2.mp3 …按你想要的播放顺序编号，
+      // 放进和 index.html 同一个目录即可，以后无需再改这里的代码。
+      // 播放时按数字从小到大依次尝试；如果某个编号的文件缺失，会自动跳过找下一个，
+      // 直到编号 BG_MUSIC_MAX 结束后循环回到 1。
+      const BG_MUSIC_MAX = 9; // 支持的最大编号（对应 1.mp3 ~ 9.mp3）
 
       // ---------- 音效（Web Audio） ----------
       class SoundFX {
@@ -536,16 +533,16 @@
       }
 
       // ---------- 背景音乐（独立于音效，走 HTML5 Audio） ----------
-      // 播放列表模式：自动扫描 index.html 同目录下所有 mp3 文件，
-      // 尝试按服务器返回的修改/上传时间排序，一首放完自动接下一首，
-      // 放完最后一首后循环回到第一首，不依赖具体文件名。
+      // 数字编号模式：按 1.mp3、2.mp3 … 顺序播放，一首放完（或加载失败）
+      // 自动接下一个编号，中间缺号自动跳过，到 BG_MUSIC_MAX 后循环回到 1。
+      // 以后加歌只需把文件改名为下一个空缺编号并上传，无需改代码。
       class BGMusic {
         constructor() {
-          this.playlist = [];
-          this.currentIndex = 0;
+          this.currentNum = 1;
+          this._skipAttempts = 0; // 连续跳过次数，防止全部文件缺失时死循环
 
           this.audio = new Audio();
-          this.audio.loop = false; // 由 ended 事件控制切歌，实现列表循环
+          this.audio.loop = false; // 由 ended/error 事件控制切歌
           this.audio.preload = "auto";
 
           const savedVolume = parseFloat(localStorage.getItem("bgMusicVolume"));
@@ -555,81 +552,57 @@
           const savedEnabled = localStorage.getItem("bgMusicEnabled");
           this.enabled = savedEnabled === null ? true : savedEnabled === "true"; // 默认开启
 
+          const savedShuffle = localStorage.getItem("bgMusicShuffle");
+          this.shuffle = savedShuffle === "true"; // 默认顺序播放（1-9），开启后随机播放
+
           this.audio.addEventListener("ended", () => this._advance());
+          this.audio.addEventListener("error", () => this._advance()); // 该编号文件缺失/加载失败，自动跳到下一个
+          this.audio.addEventListener("playing", () => {
+            this._skipAttempts = 0; // 成功播放后重置跳过计数
+          });
 
-          this._ready = this._loadPlaylist();
+          this._loadTrack(this.currentNum);
         }
 
-        // 播放列表以 BG_MUSIC_FILES 手动清单为可靠基础（任何托管环境都保证生效）；
-        // 同时尝试读取服务器目录列表（Apache/nginx/Python 等 autoindex 页面）作为补充，
-        // 把清单里没有写的、但目录里存在的 mp3 自动追加进来（若解析得到修改时间则按时间排序）。
-        // 若所在环境不支持目录列表，自动补充这步会静默失败，不影响手动清单正常播放。
-        async _loadPlaylist() {
-          const files = BG_MUSIC_FILES.slice();
-          try {
-            const res = await fetch("./", { cache: "no-store" });
-            if (res.ok) {
-              const text = await res.text();
-              const doc = new DOMParser().parseFromString(text, "text/html");
-              const anchors = Array.from(
-                doc.querySelectorAll('a[href$=".mp3" i]'),
-              );
-              if (anchors.length) {
-                const items = anchors.map((a) => {
-                  const href = a.getAttribute("href");
-                  const rowText = a.parentElement
-                    ? a.parentElement.textContent
-                    : "";
-                  const dateMatch = rowText.match(
-                    /(\d{2,4}[-\/]\w{2,3}[-\/]\d{2,4}\s+\d{2}:\d{2})/,
-                  );
-                  let mtime = null;
-                  if (dateMatch) {
-                    const parsed = Date.parse(
-                      dateMatch[1].replace(/-/g, " "),
-                    );
-                    if (!isNaN(parsed)) mtime = parsed;
-                  }
-                  return { href, mtime };
-                });
-                if (items.every((it) => it.mtime !== null)) {
-                  items.sort((a, b) => a.mtime - b.mtime); // 按上传时间从早到晚
-                }
-                items.forEach((it) => {
-                  if (!files.includes(it.href)) files.push(it.href);
-                });
-              }
-            }
-          } catch (e) {
-            // 目录列表不可用，保留手动清单作为播放列表
+        _loadTrack(num) {
+          this.currentNum = num;
+          this.audio.src = `${num}.mp3`;
+        }
+
+        // 顺序模式：1→2→…→BG_MUSIC_MAX→1 循环；随机模式：在 1~BG_MUSIC_MAX 之间随机挑一个（尽量不重复上一首）
+        _pickNext() {
+          if (this.shuffle) {
+            if (BG_MUSIC_MAX <= 1) return 1;
+            let next;
+            do {
+              next = 1 + Math.floor(Math.random() * BG_MUSIC_MAX);
+            } while (next === this.currentNum);
+            return next;
           }
-          this.playlist = files;
-        }
-
-        _loadTrack(index) {
-          if (!this.playlist.length) return;
-          this.currentIndex =
-            ((index % this.playlist.length) + this.playlist.length) %
-            this.playlist.length;
-          this.audio.src = this.playlist[this.currentIndex];
+          return this.currentNum >= BG_MUSIC_MAX ? 1 : this.currentNum + 1;
         }
 
         _advance() {
-          if (!this.playlist.length) return;
-          this._loadTrack(this.currentIndex + 1); // 放完自动接下一首，到末尾后循环回开头
+          this._skipAttempts += 1;
+          if (this._skipAttempts > BG_MUSIC_MAX) {
+            // 连续跳过次数超过总编号数，说明目录里没有任何可用的 mp3，停止尝试避免死循环
+            return;
+          }
+          this._loadTrack(this._pickNext());
           if (this.enabled) {
             const p = this.audio.play();
             if (p && typeof p.catch === "function") p.catch(() => {});
           }
         }
 
+        setShuffle(enabled) {
+          this.shuffle = enabled;
+          localStorage.setItem("bgMusicShuffle", String(enabled));
+        }
+
         // 需在用户手势（点击/触摸/按键）中调用，否则浏览器会拦截自动播放
         async tryPlay() {
           if (!this.enabled) return;
-          await this._ready;
-          if (!this.audio.src) {
-            this._loadTrack(this.currentIndex);
-          }
           const p = this.audio.play();
           if (p && typeof p.catch === "function") p.catch(() => {});
         }
@@ -914,20 +887,7 @@
           });
 
           this.add
-            .text(x, y + 55, "点击查看赔率\n与游戏设置", {
-              fontSize: "13px",
-              fontStyle: "bold",
-              color: UI.cream,
-              align: "center",
-            })
-            .setOrigin(0.5);
-
-          this.add
-            .text(x, y + 98, "点击打开 ▸", {
-              fontSize: "12px",
-              fontStyle: "bold",
-              color: "#ffe566",
-            })
+            .text(x, y + 60, "⚙️", { fontSize: "30px" })
             .setOrigin(0.5);
 
           panel.on("pointerover", () => panel.setStrokeStyle(3, 0xfff6b0));
@@ -1498,7 +1458,7 @@
           this.cashIconY = cy;
 
           this.cashIconGlow = this.add
-            .circle(cx, cy, 37, 0x2f7d32, 0.18)
+            .circle(cx, cy, 40, 0x2f7d32, 0.18)
             .setDepth(4);
 
           this.tweens.add({
@@ -1511,9 +1471,9 @@
             ease: "Sine.easeInOut",
           });
 
-          // 💵 放大至基础尺寸的 166%（30px → 50px）
+          // 💵 基础尺寸 209% 63px 的基础上再缩小 15%（63px → 53.55px，取整 54px）
           this.cashIcon = this.add
-            .text(cx, cy, "💵", { fontSize: "50px" })
+            .text(cx, cy, "💵", { fontSize: "54px" })
             .setOrigin(0.5)
             .setDepth(7);
 
@@ -1532,7 +1492,7 @@
           if (this.cashIconX === undefined) return;
           const cx = this.cashIconX;
           const cy = this.cashIconY;
-          const coinCount = 3;
+          const coinCount = 9;
 
           this.sfx.coinChime(direction);
 
@@ -1971,11 +1931,12 @@
         }
 
         // 赔率弹窗 + 速度 / 自动五次 / 音效 设置（点击"赔率"键弹出）
+        // 左右两栏布局：左边赔率表，右边游戏设置，紧凑横向排列
         createSettingsModal() {
           const cx = GAME_WIDTH / 2;
           const cy = GAME_HEIGHT / 2;
-          const panelW = 380;
-          const panelH = 534;
+          const panelW = 680;
+          const panelH = 380;
           const top = cy - panelH / 2;
 
           this.settingsModalGroup = this.add
@@ -2004,7 +1965,7 @@
           children.push(panel);
 
           const title = this.add
-            .text(cx, top + 26, "赔率与设置", {
+            .text(cx, top + 24, "赔率与设置", {
               fontSize: "22px",
               fontStyle: "bold",
               color: "#ffd700",
@@ -2014,18 +1975,53 @@
             .setOrigin(0.5);
           children.push(title);
 
-          // ---------- 三连赔率列表 ----------
-          const listStartY = top + 58;
+          // ---------- 左右两栏坐标 ----------
+          const pad = 24;
+          const contentLeft = cx - panelW / 2 + pad;
+          const contentRight = cx + panelW / 2 - pad;
+          const dividerX = cx - 20; // 竖分隔线（略偏左，右侧设置栏多留一些空间）
+
+          const headerY = top + 52;
+          const leftHeaderX = (contentLeft + dividerX) / 2;
+          const rightHeaderX = (dividerX + contentRight) / 2;
+
+          const leftHeader = this.add
+            .text(leftHeaderX, headerY, "赔率", {
+              fontSize: "17px",
+              fontStyle: "bold",
+              color: "#ffe9a6",
+            })
+            .setOrigin(0.5);
+          const rightHeader = this.add
+            .text(rightHeaderX, headerY, "设置", {
+              fontSize: "17px",
+              fontStyle: "bold",
+              color: "#ffe9a6",
+            })
+            .setOrigin(0.5);
+          children.push(leftHeader, rightHeader);
+
+          // 表头下方的横向分隔线，贯穿全宽
+          const hDividerY = headerY + 18;
+          const hDivider = this.add
+            .rectangle(cx, hDividerY, panelW - pad * 2, 2, 0xffd700, 0.4)
+            .setOrigin(0.5);
+          children.push(hDivider);
+
+          const contentTop = hDividerY + 22;
+
+          // ---------- 左栏：三连赔率列表 ----------
+          const listStartY = contentTop;
           SYMBOLS.forEach((symbol, index) => {
-            const rowY = listStartY + index * 24;
+            const rowY = listStartY + index * 27;
 
             const symText = this.add
               .text(
-                cx - 150,
+                contentLeft,
                 rowY,
                 `${symbol.label}${symbol.label}${symbol.label}`,
                 {
-                  fontSize: "16px",
+                  fontSize: "17px",
                   fontStyle: "bold",
                   color: symbol.color,
                   stroke: "#000000",
@@ -2035,8 +2031,8 @@
               .setOrigin(0, 0.5);
 
             const multText = this.add
-              .text(cx + 150, rowY, `${symbol.multiplier}x`, {
-                fontSize: "15px",
+              .text(dividerX - 12, rowY, `${symbol.multiplier}x`, {
+                fontSize: "16px",
                 fontStyle: "bold",
                 color: "#ffe9a6",
               })
@@ -2046,36 +2042,29 @@
           });
 
           // 最下一行：任意一对 2x
-          const pairRowY = listStartY + SYMBOLS.length * 24;
+          const pairRowY = listStartY + SYMBOLS.length * 27;
           const pairSymText = this.add
-            .text(cx - 150, pairRowY, "任意一对", {
-              fontSize: "15px",
+            .text(contentLeft, pairRowY, "任意一对", {
+              fontSize: "16px",
               fontStyle: "bold",
               color: UI.cream,
             })
             .setOrigin(0, 0.5);
           const pairMultText = this.add
-            .text(cx + 150, pairRowY, "2x", {
-              fontSize: "15px",
+            .text(dividerX - 12, pairRowY, "2x", {
+              fontSize: "16px",
               fontStyle: "bold",
               color: "#ffe9a6",
             })
             .setOrigin(1, 0.5);
           children.push(pairSymText, pairMultText);
 
-          // ---------- 分隔线 ----------
-          const dividerY = pairRowY + 20;
-          const divider = this.add
-            .rectangle(cx, dividerY, panelW - 40, 2, 0xffd700, 0.4)
-            .setOrigin(0.5);
-          children.push(divider);
-
-          // ---------- 选项按钮辅助 ----------
-          const optBtnW = 76;
-          const optBtnH = 30;
-          const rowLabelX = cx - 150;
-          const optAX = cx + 40;
-          const optBX = cx + 130;
+          // ---------- 右栏：设置选项 ----------
+          const optBtnW = 70;
+          const optBtnH = 28;
+          const rowLabelX = dividerX + 22;
+          const optAX = rowLabelX + 128;
+          const optBX = optAX + 78;
 
           const makeOptionButton = (x, y, label) => {
             const bg = this.add
@@ -2084,7 +2073,7 @@
               .setInteractive({ useHandCursor: true });
             const txt = this.add
               .text(x, y, label, {
-                fontSize: "13px",
+                fontSize: "12px",
                 fontStyle: "bold",
                 color: UI.cream,
               })
@@ -2094,10 +2083,10 @@
           };
 
           // ---------- 速度：正常 / 加速 ----------
-          const speedRowY = dividerY + 34;
+          const speedRowY = contentTop;
           const speedLabel = this.add
             .text(rowLabelX, speedRowY, "速度", {
-              fontSize: "16px",
+              fontSize: "15px",
               fontStyle: "bold",
               color: "#ffd700",
             })
@@ -2132,10 +2121,10 @@
           this.updateSpeedButtons();
 
           // ---------- 自动五次：是 / 否 ----------
-          const autoRowY = speedRowY + 44;
+          const autoRowY = speedRowY + 42;
           const autoLabel = this.add
             .text(rowLabelX, autoRowY, "自动五次", {
-              fontSize: "16px",
+              fontSize: "15px",
               fontStyle: "bold",
               color: "#ffd700",
             })
@@ -2165,10 +2154,10 @@
           this.updateAutoOptionButtons();
 
           // ---------- 音效：开启 / 关闭 ----------
-          const soundRowY = autoRowY + 44;
+          const soundRowY = autoRowY + 42;
           const soundLabel = this.add
             .text(rowLabelX, soundRowY, "音效", {
-              fontSize: "16px",
+              fontSize: "15px",
               fontStyle: "bold",
               color: "#ffd700",
             })
@@ -2199,10 +2188,10 @@
           this.updateSoundOptionButtons();
 
           // ---------- 音乐：开启 / 关闭 ----------
-          const musicRowY = soundRowY + 44;
+          const musicRowY = soundRowY + 42;
           const musicLabel = this.add
             .text(rowLabelX, musicRowY, "音乐", {
-              fontSize: "16px",
+              fontSize: "15px",
               fontStyle: "bold",
               color: "#ffd700",
             })
@@ -2237,15 +2226,15 @@
           const volumeRowY = musicRowY + 40;
           const volumeLabel = this.add
             .text(rowLabelX, volumeRowY, "音量", {
-              fontSize: "16px",
+              fontSize: "15px",
               fontStyle: "bold",
               color: "#ffd700",
             })
             .setOrigin(0, 0.5);
           children.push(volumeLabel);
 
-          const trackX0 = cx - 10;
-          const trackX1 = cx + 130;
+          const trackX0 = rowLabelX + 50;
+          const trackX1 = contentRight - 46;
           const trackW = trackX1 - trackX0;
           const initialRatio = Phaser.Math.Clamp(bgMusic.volume, 0, 1);
 
@@ -2267,17 +2256,17 @@
           children.push(volumeFill);
 
           const volumeHandle = this.add
-            .circle(trackX0 + trackW * initialRatio, volumeRowY, 9, 0xffe9a6)
+            .circle(trackX0 + trackW * initialRatio, volumeRowY, 8, 0xffe9a6)
             .setStrokeStyle(2, UI.gold);
           children.push(volumeHandle);
 
           const volumePercentText = this.add
             .text(
-              trackX1 + 16,
+              trackX1 + 12,
               volumeRowY,
               `${Math.round(initialRatio * 100)}%`,
               {
-                fontSize: "13px",
+                fontSize: "12px",
                 fontStyle: "bold",
                 color: UI.cream,
               },
@@ -2318,6 +2307,56 @@
           this.input.on("pointerup", () => {
             draggingVolume = false;
           });
+
+          // ---------- 播放模式：顺序播放 / 随机播放 ----------
+          const shuffleRowY = volumeRowY + 40;
+          const shuffleLabel = this.add
+            .text(rowLabelX, shuffleRowY, "播放模式", {
+              fontSize: "15px",
+              fontStyle: "bold",
+              color: "#ffd700",
+            })
+            .setOrigin(0, 0.5);
+          children.push(shuffleLabel);
+
+          const orderOpt = makeOptionButton(optAX, shuffleRowY, "顺序");
+          const shuffleOpt = makeOptionButton(optBX, shuffleRowY, "随机");
+          this.orderPlayButton = orderOpt;
+          this.shufflePlayButton = shuffleOpt;
+
+          orderOpt.bg.on("pointerdown", (pointer, lx, ly, event) => {
+            event.stopPropagation();
+            if (bgMusic.shuffle) {
+              bgMusic.setShuffle(false);
+              this.sfx.click();
+              this.updatePlayModeButtons();
+            }
+          });
+          shuffleOpt.bg.on("pointerdown", (pointer, lx, ly, event) => {
+            event.stopPropagation();
+            if (!bgMusic.shuffle) {
+              bgMusic.setShuffle(true);
+              this.sfx.click();
+              this.updatePlayModeButtons();
+            }
+          });
+
+          this.updatePlayModeButtons();
+
+          // ---------- 左右两栏之间的竖分隔线（按实际内容高度绘制）----------
+          const vDividerTop = contentTop - 14;
+          const vDividerBottom = shuffleRowY + 24;
+          const vDivider = this.add
+            .rectangle(
+              dividerX,
+              (vDividerTop + vDividerBottom) / 2,
+              2,
+              vDividerBottom - vDividerTop,
+              0xffd700,
+              0.25,
+            )
+            .setOrigin(0.5);
+          children.push(vDivider);
 
           // ---------- 关闭按钮 ----------
           const closeBtn = this.add
@@ -2382,6 +2421,20 @@
             this.musicOffButton.bg,
             this.musicOffButton.txt,
             !bgMusic.enabled,
+          );
+        }
+
+        updatePlayModeButtons() {
+          if (!this.orderPlayButton || !this.shufflePlayButton) return;
+          this.setControlActive(
+            this.orderPlayButton.bg,
+            this.orderPlayButton.txt,
+            !bgMusic.shuffle,
+          );
+          this.setControlActive(
+            this.shufflePlayButton.bg,
+            this.shufflePlayButton.txt,
+            bgMusic.shuffle,
           );
         }
 
