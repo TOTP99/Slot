@@ -75,126 +75,333 @@
         user-select: none;
       }
 
-      /* 竖屏遮罩 + 旋转过渡 */
+      /* 竖屏：留声机主界面（横屏仍为老虎机） */
       #rotate-tip {
         position: fixed;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        left: 0;
+        inset: 0;
         z-index: 9999;
         display: -webkit-flex;
         display: flex;
-        -webkit-align-items: center;
-        align-items: center;
-        -webkit-justify-content: center;
-        justify-content: center;
         -webkit-flex-direction: column;
         flex-direction: column;
-        gap: 16px;
-        padding: 24px;
-        background: rgba(7, 0, 6, 0.94);
+        -webkit-align-items: stretch;
+        align-items: stretch;
+        overflow-x: hidden;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: max(12px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+        background: #070006;
         color: #ffd700;
         font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
           "Noto Sans SC", Arial, sans-serif;
-        font-size: 18px;
-        font-weight: bold;
-        text-align: center;
-        line-height: 1.6;
-        letter-spacing: 1px;
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
-        -webkit-transition: opacity 0.45s ease, visibility 0.45s ease;
-        transition: opacity 0.45s ease, visibility 0.45s ease;
-        -webkit-backdrop-filter: blur(0px);
-        backdrop-filter: blur(0px);
+        -webkit-transition: opacity 0.4s ease, visibility 0.4s ease;
+        transition: opacity 0.4s ease, visibility 0.4s ease;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
       }
 
       #rotate-tip.show {
         opacity: 1;
         visibility: visible;
         pointer-events: auto;
-        -webkit-backdrop-filter: blur(6px);
-        backdrop-filter: blur(6px);
       }
 
-      #rotate-tip .phone {
-        width: 52px;
-        height: 88px;
-        border: 3px solid #ffd700;
-        border-radius: 10px;
+      .ph-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 4px 4px 8px;
+        flex-shrink: 0;
+      }
+      .ph-title {
+        font-size: 18px;
+        font-weight: bold;
+        letter-spacing: 1px;
+        color: #ffd700;
+        text-shadow: 0 0 12px rgba(255, 215, 0, 0.35);
+      }
+      .ph-clock {
+        font-size: 13px;
+        color: #ffe9a6;
+        opacity: 0.85;
+      }
+
+      .ph-stage {
         position: relative;
-        box-shadow: 0 0 18px rgba(255, 215, 0, 0.35);
-        -webkit-animation: phone-rotate 2s ease-in-out infinite;
-        animation: phone-rotate 2s ease-in-out infinite;
+        flex: 1 1 auto;
+        min-height: 280px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        margin: 4px 0 8px;
       }
 
-      #rotate-tip .phone::after {
+      .ph-spectrum {
+        position: absolute;
+        left: 50%;
+        top: 42%;
+        width: min(88vw, 360px);
+        height: min(88vw, 360px);
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .ph-vinyl-wrap {
+        position: relative;
+        width: min(72vw, 300px);
+        height: min(72vw, 300px);
+        z-index: 1;
+      }
+      .ph-vinyl {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background:
+          radial-gradient(circle at 50% 50%, #2a1a0a 0 14%, #0a0604 15% 18%, #111 19% 100%);
+        border: 3px solid #c9a227;
+        box-shadow:
+          0 0 0 2px #5c4010,
+          0 0 28px rgba(255, 215, 0, 0.22),
+          inset 0 0 40px rgba(0, 0, 0, 0.85);
+        position: relative;
+        transition: transform 0.2s linear;
+      }
+      .ph-vinyl::before {
         content: "";
         position: absolute;
-        top: 8px;
+        inset: 12%;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 215, 0, 0.12);
+        box-shadow:
+          0 0 0 14px rgba(255, 215, 0, 0.04),
+          0 0 0 28px rgba(255, 215, 0, 0.03),
+          0 0 0 42px rgba(255, 215, 0, 0.025);
+        pointer-events: none;
+      }
+      .ph-vinyl.spinning {
+        -webkit-animation: vinyl-spin 10s linear infinite;
+        animation: vinyl-spin 10s linear infinite;
+      }
+      @-webkit-keyframes vinyl-spin {
+        to { -webkit-transform: rotate(360deg); transform: rotate(360deg); }
+      }
+      @keyframes vinyl-spin {
+        to { transform: rotate(360deg); }
+      }
+      .ph-label {
+        position: absolute;
         left: 50%;
-        -webkit-transform: translateX(-50%);
-        transform: translateX(-50%);
-        width: 14px;
-        height: 3px;
-        background: #ffd700;
-        border-radius: 2px;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 34%;
+        height: 34%;
+        border-radius: 50%;
+        background: radial-gradient(circle, #3a2808 0%, #1a1006 100%);
+        border: 2px solid #ffd700;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 2;
+        box-shadow: 0 0 16px rgba(255, 215, 0, 0.25);
+      }
+      .ph-track-num {
+        font-size: 15px;
+        font-weight: bold;
+        color: #ffd700;
+        line-height: 1.2;
+      }
+      .ph-track-sub {
+        font-size: 10px;
+        color: #ffe9a6;
+        opacity: 0.8;
+        margin-top: 2px;
       }
 
-      #rotate-tip .icon {
+      .ph-horn {
+        position: absolute;
+        left: 4%;
+        top: 0;
+        font-size: clamp(48px, 16vw, 72px);
+        line-height: 1;
+        z-index: 3;
+        filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.6));
+        pointer-events: none;
+        transform: rotate(-18deg);
+      }
+      .ph-arm {
+        position: absolute;
+        right: 2%;
+        top: 18%;
+        font-size: clamp(36px, 12vw, 52px);
+        z-index: 3;
+        transform-origin: 85% 20%;
+        transition: transform 0.35s ease;
+        pointer-events: none;
+        filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
+      }
+      .ph-arm.up {
+        transform: rotate(-28deg);
+      }
+      .ph-arm.down {
+        transform: rotate(8deg);
+      }
+
+      .ph-controls {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        flex-shrink: 0;
+        margin-bottom: 12px;
+      }
+      .ph-transport {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 22px;
+      }
+      .ph-btn {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        border: 2px solid #c9a227;
+        background: #140008;
+        color: #ffd700;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 0 12px rgba(255, 215, 0, 0.15);
+      }
+      .ph-btn:active {
+        transform: scale(0.92);
+        background: #2a1408;
+      }
+      .ph-btn-main {
+        width: 68px;
+        height: 68px;
+        font-size: 26px;
+        border-width: 3px;
+        border-color: #ffd700;
+        background: linear-gradient(160deg, #3a2808, #140008);
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.35);
+      }
+      .ph-modes {
+        display: flex;
+        gap: 12px;
+      }
+      .ph-chip {
+        padding: 6px 16px;
+        border-radius: 20px;
+        border: 1.5px solid #b8860b;
+        background: #0c0006;
+        color: #ffe9a6;
+        font-size: 13px;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      .ph-chip.on {
+        background: #c9a84c;
+        color: #1a0a00;
+        border-color: #ffd700;
+      }
+
+      .ph-mini {
+        flex-shrink: 0;
+        margin: 0 0 8px;
+        padding: 12px 12px 10px;
+        border: 2px solid #c9a227;
+        border-radius: 14px;
+        background: linear-gradient(180deg, #1a0d02 0%, #0c0006 100%);
+        box-shadow: 0 0 18px rgba(255, 215, 0, 0.12);
+      }
+      .ph-mini-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 12px;
+        color: #ffe9a6;
+        margin-bottom: 8px;
+      }
+      .ph-mini-title {
+        font-size: 13px;
+        font-weight: bold;
+        color: #ffd700;
+        letter-spacing: 1px;
+      }
+      .ph-reels {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .ph-reel {
+        width: 64px;
+        height: 64px;
+        border-radius: 10px;
+        border: 2px solid #ffd700;
+        background: #12000a;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
         font-size: 28px;
         line-height: 1;
       }
-
-      #rotate-tip .cat-art {
-        width: min(72vw, 320px);
-        height: auto;
+      .ph-reel-sub {
+        font-size: 10px;
+        color: #ffe9a6;
+        margin-top: 2px;
+        opacity: 0.75;
+      }
+      .ph-spin {
+        display: block;
+        width: 100%;
+        max-width: 220px;
+        margin: 0 auto;
+        padding: 10px 0;
+        border: none;
         border-radius: 24px;
-        border: 4px solid #ffd700;
-        box-shadow: 0 0 24px rgba(255, 215, 0, 0.45),
-          inset 0 0 12px rgba(255, 215, 0, 0.25);
-        -o-object-fit: cover;
-        object-fit: cover;
+        background: linear-gradient(180deg, #e0c060, #c9a84c 40%, #8a7040);
+        color: #2a1a00;
+        font-size: 18px;
+        font-weight: bold;
+        letter-spacing: 2px;
+        cursor: pointer;
+        box-shadow: 0 3px 0 #5c4010, 0 0 16px rgba(255, 215, 0, 0.3);
       }
-
-      #rotate-tip .tip-text {
-        opacity: 0.95;
+      .ph-spin:active {
+        transform: translateY(2px);
+        box-shadow: 0 1px 0 #5c4010;
       }
-
-      @-webkit-keyframes phone-rotate {
-        0%,
-        25% {
-          -webkit-transform: rotate(0deg);
-          transform: rotate(0deg);
-        }
-        50%,
-        75% {
-          -webkit-transform: rotate(90deg);
-          transform: rotate(90deg);
-        }
-        100% {
-          -webkit-transform: rotate(0deg);
-          transform: rotate(0deg);
-        }
+      .ph-spin:disabled {
+        opacity: 0.55;
+        cursor: default;
       }
-
-      @keyframes phone-rotate {
-        0%,
-        25% {
-          -webkit-transform: rotate(0deg);
-          transform: rotate(0deg);
-        }
-        50%,
-        75% {
-          -webkit-transform: rotate(90deg);
-          transform: rotate(90deg);
-        }
-        100% {
-          -webkit-transform: rotate(0deg);
-          transform: rotate(0deg);
-        }
+      .ph-msg {
+        text-align: center;
+        font-size: 12px;
+        color: #ffe9a6;
+        margin-top: 8px;
+        min-height: 1.2em;
+        opacity: 0.9;
+      }
+      .ph-foot {
+        text-align: center;
+        font-size: 11px;
+        color: #b8860b;
+        letter-spacing: 2px;
+        padding: 4px 0 2px;
+        flex-shrink: 0;
+        opacity: 0.85;
       }
 
       #game {
@@ -203,9 +410,7 @@
       }
 
       #game.dimmed {
-        opacity: 0.15;
-        -webkit-filter: blur(3px);
-        filter: blur(3px);
+        opacity: 0;
         pointer-events: none;
       }
     </style>
@@ -213,10 +418,52 @@
 
   <body>
     <div id="rotate-tip">
-      <img class="cat-art" src="data:image/webp;base64,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" alt="牛仔猫" />
-      <div class="phone"></div>
-      <div class="icon">⚠️</div>
-      <div class="tip-text">请转为横屏获得更佳体验</div>
+      <div class="ph-top">
+        <div class="ph-title">万锦 · 留声机</div>
+        <div class="ph-clock" id="ph-clock">--:--</div>
+      </div>
+
+      <div class="ph-stage">
+        <canvas class="ph-spectrum" id="ph-spectrum" width="360" height="360"></canvas>
+        <div class="ph-horn" aria-hidden="true">📯</div>
+        <div class="ph-vinyl-wrap">
+          <div class="ph-vinyl" id="ph-vinyl"></div>
+          <div class="ph-label">
+            <div class="ph-track-num" id="ph-track-num">01 / 18</div>
+            <div class="ph-track-sub">留声记忆</div>
+          </div>
+          <div class="ph-arm up" id="ph-arm" aria-hidden="true">🦾</div>
+        </div>
+      </div>
+
+      <div class="ph-controls">
+        <div class="ph-transport">
+          <button type="button" class="ph-btn" id="ph-prev" aria-label="上一首">⏮</button>
+          <button type="button" class="ph-btn ph-btn-main" id="ph-play" aria-label="播放暂停">▶</button>
+          <button type="button" class="ph-btn" id="ph-next" aria-label="下一首">⏭</button>
+        </div>
+        <div class="ph-modes">
+          <button type="button" class="ph-chip on" id="ph-order">顺序</button>
+          <button type="button" class="ph-chip" id="ph-shuffle">随机</button>
+        </div>
+      </div>
+
+      <div class="ph-mini">
+        <div class="ph-mini-head">
+          <span id="ph-balance">余额 ¥0</span>
+          <span class="ph-mini-title">唱盘小转盘</span>
+          <span id="ph-bet">下注 ¥50</span>
+        </div>
+        <div class="ph-reels">
+          <div class="ph-reel" id="ph-r0"><span>7️⃣</span><span class="ph-reel-sub">·</span></div>
+          <div class="ph-reel" id="ph-r1"><span>🌸</span><span class="ph-reel-sub">·</span></div>
+          <div class="ph-reel" id="ph-r2"><span>🍒</span><span class="ph-reel-sub">·</span></div>
+        </div>
+        <button type="button" class="ph-spin" id="ph-spin">SPIN</button>
+        <div class="ph-msg" id="ph-msg">祝君好运 · 声运相随</div>
+      </div>
+
+      <div class="ph-foot">一曲留声 · 万锦如斯</div>
     </div>
     <div id="game-wrapper">
       <div id="game"></div>
@@ -226,7 +473,7 @@
     <script>
       /**
        * 万锦老虎机 - 单文件版
-       * 操作：拉杆/SPIN 两段式开转（握住 → 拉下），空格急停
+       * 操作：拉杆 / SPIN / 空格 一点即转；转动中再次操作急停
        */
 
       // ---------- 常量 ----------
@@ -235,11 +482,11 @@
 
       const SYMBOLS = [
         { key: "seven", label: "7️⃣", color: "#ff2d2d", multiplier: 50 },
-        { key: "maple", label: "🍁", color: "#ff6b35", multiplier: 20 },
-        { key: "lotus", label: "🪷", color: "#e8a0bf", multiplier: 15 },
-        { key: "cat", label: "🐈", color: "#f5c542", multiplier: 10 },
-        { key: "blossom", label: "🌸", color: "#ff8fab", multiplier: 8 },
-        { key: "hibiscus", label: "🌺", color: "#ff4d6d", multiplier: 6 },
+        { key: "blossom", label: "🌸", color: "#ff8fab", multiplier: 20 },
+        { key: "hibiscus", label: "🌺", color: "#ff4d6d", multiplier: 15 },
+        { key: "grape", label: "🍇", color: "#9b5de5", multiplier: 10 },
+        { key: "strawberry", label: "🍓", color: "#ff2d55", multiplier: 8 },
+        { key: "cherry", label: "🍒", color: "#e63946", multiplier: 6 },
         { key: "mushroom", label: "🍄", color: "#c77dff", multiplier: 4 },
       ];
 
@@ -544,20 +791,29 @@
           this.audio = new Audio();
           this.audio.loop = false; // 由 ended/error 事件控制切歌
           this.audio.preload = "auto";
-
-          const savedVolume = parseFloat(localStorage.getItem("bgMusicVolume"));
-          this.volume = isNaN(savedVolume) ? 0.7 : savedVolume; // 滑杆用的线性值（0-1）
-          this.audio.volume = this.volume * this.volume; // 实际播放音量：加入锥度，让滑杆全程更明显好用
-          // 说明：iOS 的 <audio>.volume 不受 JS 控制（系统限制，只能用硬件音量键调），
-          // 这里选择保留最简单可靠、能确保稳定出声的写法；之前尝试过接入 Web Audio
-          // GainNode 来绕开这个限制，但在部分内置浏览器/webview 里会出现"接管后却完全
-          // 无声"的兼容性问题，风险大于收益，所以改回这个方案。
+          this.audio.crossOrigin = "anonymous"; // 同目录本地文件一般无跨域问题；若有 CDN 需服务端 CORS
+          this.audio.volume = 0.5; // 固定音量（无滑杆；iOS 上 <audio>.volume 仍受系统限制）
 
           const savedEnabled = localStorage.getItem("bgMusicEnabled");
           this.enabled = savedEnabled === null ? true : savedEnabled === "true"; // 默认开启
 
           const savedShuffle = localStorage.getItem("bgMusicShuffle");
-          this.shuffle = savedShuffle === "true"; // 默认顺序播放（1-9），开启后随机播放
+          this.shuffle = savedShuffle === "true"; // 默认顺序播放，开启后随机播放
+
+          // Web Audio 分析：频谱 → 均衡条（声高 / 情绪 / 男女声区 / 乐器频段）
+          this.ctx = null;
+          this.analyser = null;
+          this._source = null;
+          this._freqData = null;
+          this._connected = false;
+
+          // 五频段平滑值：低音乐器 / 男声区 / 主旋律 / 女声区 / 高频空气
+          this.bands = [0, 0, 0, 0, 0];
+          this.energy = 0; // 整体响度 0~1
+          this.brightness = 0; // 频谱重心偏高→亮/兴奋；偏低→暖/沉稳
+          this.vocalBias = 0; // <0 偏男声区能量，>0 偏女声区
+          this._playing = false;
+          this._bandBins = null;
 
           this.audio.addEventListener("ended", () => this._advance());
           this.audio.addEventListener("error", () => this._advance()); // 该编号文件缺失/加载失败，自动跳到下一个
@@ -566,6 +822,140 @@
           });
 
           this._loadTrack(this.currentNum);
+        }
+
+        // 须在用户手势中调用，创建 AudioContext + Analyser 并接管播放链路
+        ensureAnalyser() {
+          if (this._connected) return true;
+          try {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) return false;
+            if (!this.ctx) this.ctx = new AC();
+            if (this.ctx.state === "suspended") {
+              const r = this.ctx.resume();
+              if (r && typeof r.catch === "function") r.catch(() => {});
+            }
+            if (!this.analyser) {
+              this.analyser = this.ctx.createAnalyser();
+              // 5 根条用 256 足够，比 512 少一半 FFT 工作量
+              this.analyser.fftSize = 256;
+              this.analyser.smoothingTimeConstant = 0.6;
+              this._freqData = new Uint8Array(this.analyser.frequencyBinCount);
+              this._rebuildBandBins();
+            }
+            if (!this._source) {
+              // MediaElementSource 每个 <audio> 只能创建一次
+              this._source = this.ctx.createMediaElementSource(this.audio);
+              this._source.connect(this.analyser);
+              this.analyser.connect(this.ctx.destination);
+            }
+            this._connected = true;
+            return true;
+          } catch (e) {
+            // 部分内置浏览器/webview 接管后可能无声或抛错：安静失败，可视化走假数据回退
+            this._connected = false;
+            return false;
+          }
+        }
+
+        // 预计算 Hz→bin 区间，避免每帧 floor/ceil
+        _rebuildBandBins() {
+          if (!this.analyser || !this.ctx) return;
+          const n = this.analyser.frequencyBinCount;
+          const binHz = this.ctx.sampleRate / this.analyser.fftSize;
+          // 低音/鼓 · 男声区 · 主旋律 · 女声区 · 高频空气
+          const ranges = [
+            [40, 120],
+            [120, 320],
+            [320, 1200],
+            [1200, 4000],
+            [4000, 12000],
+          ];
+          this._bandBins = ranges.map(([lo, hi]) => [
+            Math.max(0, Math.floor(lo / binHz)),
+            Math.min(n - 1, Math.ceil(hi / binHz)),
+          ]);
+        }
+
+        // 由场景按 ~30fps 调用：频谱 → 5 条 + 情绪指标
+        sampleSpectrum() {
+          const playing =
+            this.enabled &&
+            this.audio &&
+            !this.audio.paused &&
+            !this.audio.ended &&
+            this.audio.currentTime > 0;
+          this._playing = playing;
+
+          if (!playing) {
+            for (let i = 0; i < 5; i++) this.bands[i] *= 0.88;
+            this.energy *= 0.9;
+            this.brightness *= 0.92;
+            this.vocalBias *= 0.92;
+            return this.bands;
+          }
+
+          if (this._connected && this.analyser && this._freqData) {
+            this.analyser.getByteFrequencyData(this._freqData);
+            const data = this._freqData;
+            if (!this._bandBins) this._rebuildBandBins();
+            const bins = this._bandBins;
+
+            for (let b = 0; b < 5; b++) {
+              const a = bins[b][0];
+              const c = bins[b][1];
+              let sum = 0;
+              const count = c - a + 1;
+              for (let i = a; i <= c; i++) sum += data[i];
+              const avg = sum / count / 255;
+              // 软曲线近似 pow(x,0.85)，避免 Math.pow
+              let v = avg * 1.35;
+              if (v > 1) v = 1;
+              v = v * (0.85 + 0.15 * v);
+              this.bands[b] = this.bands[b] * 0.55 + v * 0.45;
+            }
+
+            const e =
+              (this.bands[0] +
+                this.bands[1] +
+                this.bands[2] +
+                this.bands[3] +
+                this.bands[4]) *
+              0.2;
+            this.energy = this.energy * 0.6 + e * 0.4;
+
+            const bright =
+              (this.bands[3] * 0.45 + this.bands[4] * 0.55) /
+              (this.bands[0] * 0.5 + this.bands[1] * 0.3 + 0.15);
+            this.brightness =
+              this.brightness * 0.7 + (bright > 1.4 ? 1.4 : bright) * 0.3;
+
+            this.vocalBias =
+              this.vocalBias * 0.75 + (this.bands[3] - this.bands[1]) * 0.25;
+          } else {
+            // 无分析器：轻量伪频谱
+            const t = performance.now() * 0.001;
+            const pulse = 0.35 + 0.25 * Math.sin(t * 4.2);
+            const raw0 = pulse * (0.7 + 0.3 * Math.sin(t * 2.1));
+            const raw1 = pulse * (0.45 + 0.25 * Math.sin(t * 3.3 + 1));
+            const raw2 = pulse * (0.55 + 0.3 * Math.sin(t * 5.1 + 2));
+            const raw3 = pulse * (0.4 + 0.35 * Math.sin(t * 6.7 + 0.5));
+            const raw4 = pulse * (0.3 + 0.4 * Math.sin(t * 8.9 + 1.2));
+            this.bands[0] = this.bands[0] * 0.7 + raw0 * 0.3;
+            this.bands[1] = this.bands[1] * 0.7 + raw1 * 0.3;
+            this.bands[2] = this.bands[2] * 0.7 + raw2 * 0.3;
+            this.bands[3] = this.bands[3] * 0.7 + raw3 * 0.3;
+            this.bands[4] = this.bands[4] * 0.7 + raw4 * 0.3;
+            this.energy = this.energy * 0.7 + pulse * 0.3;
+            this.brightness = 0.5;
+            this.vocalBias = 0;
+          }
+
+          return this.bands;
+        }
+
+        isPlaying() {
+          return !!this._playing;
         }
 
         _loadTrack(num) {
@@ -604,9 +994,49 @@
           localStorage.setItem("bgMusicShuffle", String(enabled));
         }
 
+        skipNext() {
+          this._skipAttempts = 0;
+          this._loadTrack(this._pickNext());
+          if (this.enabled) {
+            const p = this.audio.play();
+            if (p && typeof p.catch === "function") p.catch(() => {});
+          }
+        }
+
+        skipPrev() {
+          this._skipAttempts = 0;
+          let prev;
+          if (this.shuffle) {
+            prev = this._pickNext();
+          } else {
+            prev = this.currentNum <= 1 ? BG_MUSIC_MAX : this.currentNum - 1;
+          }
+          this._loadTrack(prev);
+          if (this.enabled) {
+            const p = this.audio.play();
+            if (p && typeof p.catch === "function") p.catch(() => {});
+          }
+        }
+
+        async togglePlay() {
+          this.ensureAnalyser();
+          if (!this.audio) return;
+          if (!this.audio.paused && !this.audio.ended) {
+            this.audio.pause();
+            return;
+          }
+          if (!this.enabled) {
+            this.setEnabled(true);
+            return;
+          }
+          const p = this.audio.play();
+          if (p && typeof p.catch === "function") p.catch(() => {});
+        }
+
         // 需在用户手势（点击/触摸/按键）中调用，否则浏览器会拦截自动播放
         async tryPlay() {
           if (!this.enabled) return;
+          this.ensureAnalyser();
           const p = this.audio.play();
           if (p && typeof p.catch === "function") p.catch(() => {});
         }
@@ -623,13 +1053,6 @@
           } else {
             this.pause();
           }
-        }
-
-        setVolume(v) {
-          v = Math.max(0, Math.min(1, v));
-          this.volume = v; // 滑杆位置用的线性值
-          this.audio.volume = v * v; // 实际播放音量（音频锥度，接近人耳感知的线性变化）
-          localStorage.setItem("bgMusicVolume", String(v));
         }
       }
 
@@ -653,7 +1076,7 @@
           this.isSpinning = false;
           this.stopRequested = false;
           this.inputLocked = false;
-          this.leverState = "up"; // up | gripped | down
+          this.leverState = "up"; // up | down
           this.mode = "NORMAL"; // NORMAL | FAST
 
           this.autoPlay = false;
@@ -900,64 +1323,43 @@
             .rectangle(x, y - 18, w - 40, 2, UI.gold, 0.35)
             .setOrigin(0.5);
 
-          // ---------- 音乐律动效果（霓虹均衡条） ----------
-          // 播放背景音乐时跳动、暂停时变暗静止，纯视觉效果，为方框增添一点情趣
+          // ---------- 音乐频谱可视化（跟真实音频联动） ----------
+          // 五条从左到右：低音乐器 → 男声区 → 主旋律/乐器 → 女声区 → 高频空气
+          // 高度跟声压；颜色与光晕跟情绪（沉稳/兴奋）和声线偏向（男/女）
           const barBaseY = y + 44;
-          const barMaxH = 46;
-          const barColors = [0xffd700, 0xff4da6, 0x40e0ff, 0xff4da6, 0xffd700];
+          this.eqBarMaxH = 46;
+          this.eqBarBaseY = barBaseY;
+          // 低音金褐 / 男声暖橙 / 中频青金 / 女声粉 / 高频亮金
+          const barColors = [0xc9a227, 0xff8c42, 0x40e0ff, 0xff4da6, 0xffe566];
           const barDxs = [-46, -23, 0, 23, 46];
 
           this.eqGlow = this.add
-            .rectangle(x, barBaseY - barMaxH / 2, w - 30, barMaxH + 20, 0xffd700, 0.07)
+            .rectangle(x, barBaseY - this.eqBarMaxH / 2, w - 30, this.eqBarMaxH + 20, 0xffd700, 0.07)
             .setOrigin(0.5);
 
           this.eqBars = barDxs.map((dx, i) => {
             const bar = this.add
-              .rectangle(x + dx, barBaseY, 11, barMaxH, barColors[i])
+              .rectangle(x + dx, barBaseY, 11, this.eqBarMaxH, barColors[i])
               .setOrigin(0.5, 1)
-              .setAlpha(0.85);
+              .setAlpha(0.85)
+              .setScale(1, 0.12);
             return bar;
           });
+          this.eqBarColors = barColors;
+          this.eqGlowAlpha = 0.07;
+          this.eqActive = !!bgMusic.enabled;
+          this.eqPageHidden = document.hidden;
+          this._eqAcc = 0;
+          this._eqLastEnergy = -1;
+          this._eqLastPlaying = null;
 
-          this.eqBarTweens = this.eqBars.map((bar, i) =>
-            this.tweens.add({
-              targets: bar,
-              scaleY: { from: 0.16, to: Phaser.Math.FloatBetween(0.55, 1) },
-              duration: Phaser.Math.Between(260, 440),
-              delay: i * 70,
-              yoyo: true,
-              repeat: -1,
-              ease: "Sine.easeInOut",
-              // 每次循环都重新随机一个跳动高度，避免均衡条看起来像固定节拍的机械循环
-              onRepeat: (tween) => {
-                if (tween.data && tween.data[0]) {
-                  tween.data[0].end = Phaser.Math.FloatBetween(0.5, 1);
-                }
-              },
-            }),
-          );
-
-          // 霓虹光晕：金 <-> 蓝紫 缓慢呼吸变色
-          this.tweens.addCounter({
-            from: 0,
-            to: 100,
-            duration: 1700,
-            yoyo: true,
-            repeat: -1,
-            onUpdate: (tween) => {
-              if (!this.eqGlow) return;
-              const c = Phaser.Display.Color.Interpolate.ColorWithColor(
-                Phaser.Display.Color.ValueToColor(0xffd700),
-                Phaser.Display.Color.ValueToColor(0x40e0ff),
-                100,
-                tween.getValue(),
-              );
-              this.eqGlow.setFillStyle(
-                Phaser.Display.Color.GetColor(c.r, c.g, c.b),
-                this.eqGlowAlpha ?? 0.07,
-              );
-            },
-          });
+          // 后台标签页停掉频谱，省电
+          if (!this._eqVisibilityBound) {
+            this._eqVisibilityBound = true;
+            document.addEventListener("visibilitychange", () => {
+              this.eqPageHidden = document.hidden;
+            });
+          }
 
           this.setEqVisualizerActive(bgMusic.enabled);
 
@@ -1402,7 +1804,7 @@
             .setInteractive({ useHandCursor: true });
 
           this.spinHint = this.add
-            .text(lx, 255, "点击握住拉杆", {
+            .text(lx, 255, "点击拉杆开转", {
               fontSize: "11px",
               fontStyle: "bold",
               color: "#ffe9a6",
@@ -1411,11 +1813,11 @@
             })
             .setOrigin(0.5);
 
-          // 拉杆：按住即可直接拉下，不再需要“点一下握住、再点一下拉动”
-          this.leverHit.on("pointerdown", (pointer) => {
+          // 拉杆 / SPIN / 空格 统一：一点即转，转动中再点急停
+          this.leverHit.on("pointerdown", () => {
             this.sfx.init();
             this.sfx.warmup();
-            this.handleLeverPress(pointer);
+            this.handleSpinInput();
           });
 
           this.leverHit.on("pointerover", () => {
@@ -1534,7 +1936,7 @@
           // ========== 金色圆环按钮：买入/提出筹码（SPIN 按键上方）==========
           this.createCoinButton(spinBtnX, spinBtnY);
 
-          // ========== 拉杆面板下方居中 💵（买入/提出飞入飞出动画基准点）==========
+          // ========== 拉杆面板下方居中 🏦（买入/提出飞入飞出动画基准点）==========
           this.createCashIcon(lx);
         }
 
@@ -1560,9 +1962,9 @@
             ease: "Sine.easeInOut",
           });
 
-          // 💵 基础尺寸 209% 63px 的基础上再缩小 15%（63px → 53.55px，取整 54px）
+          // 🏦 图标（约 54px）
           this.cashIcon = this.add
-            .text(cx, cy, "💵", { fontSize: "54px" })
+            .text(cx, cy, "🏦", { fontSize: "54px" })
             .setOrigin(0.5)
             .setDepth(7);
 
@@ -1576,7 +1978,7 @@
           });
         }
 
-        // direction: "out" = 买入（金币从 💵 飞出）；"in" = 提出（金币飞入 💵）
+        // direction: "out" = 买入（金币从 🏦 飞出）；"in" = 提出（金币飞入 🏦）
         playCashFlyAnim(direction) {
           if (this.cashIconX === undefined) return;
           const cx = this.cashIconX;
@@ -1631,7 +2033,7 @@
             });
           }
 
-          // 💵 图标反馈脉冲
+          // 🏦 图标反馈脉冲
           this.tweens.add({
             targets: this.cashIcon,
             scale: 1.25,
@@ -1814,16 +2216,18 @@
           this.coinModalGroup.setVisible(show);
         }
 
-        gripLever() {
-          if (this.leverState !== "up") return;
+        // 一点即转：手飞入握住 → 连贯拉下 → 开转（拉杆 / SPIN / 空格共用）
+        pullLever(thenStart = true) {
+          if (this.leverState === "down") return;
 
-          this.leverState = "gripped";
-          this.spinHint.setText("再点一次拉动！");
+          this.leverState = "down";
+          this.spinHint.setText("点击急停");
           this.sfx.leverGrip();
 
-          // 清掉旧动画，避免叠化
           this.tweens.killTweensOf(this.leverHand);
+          this.tweens.killTweensOf(this.leverContainer);
 
+          // 从侧上方飞入并握住
           const midX = (this.handRestX + this.handGripX) / 2 + 8;
           const midY = (this.handRestY + this.handGripY) / 2 - 18;
 
@@ -1833,138 +2237,94 @@
           this.leverHand.setScale(0.85);
           this.leverHand.setAngle(-40);
 
-          // 1) 淡入出现
+          // 1) 淡入 + 弧线接近
           this.tweens.add({
             targets: this.leverHand,
             alpha: 1,
-            scale: 1.08,
-            duration: 120,
+            scale: 1.05,
+            duration: 90,
             ease: "Sine.easeOut",
           });
 
-          // 2) 弧线接近手柄（先抬后落）
           this.tweens.add({
             targets: this.leverHand,
             x: midX,
             y: midY,
-            angle: -22,
-            duration: 160,
-            delay: 40,
+            angle: -18,
+            duration: 120,
             ease: "Sine.easeOut",
             onComplete: () => {
-              // 3) 落到手柄上
+              // 2) 落到手柄并握紧
               this.tweens.add({
                 targets: this.leverHand,
                 x: this.handGripX,
                 y: this.handGripY,
-                angle: -6,
-                scale: 1.02,
-                duration: 180,
+                angle: -4,
+                scale: 0.96,
+                duration: 110,
                 ease: "Cubic.easeInOut",
                 onComplete: () => {
-                  // 4) 握紧：换拳头 + 微收
                   this.leverHand.setText("✊");
+                  this.sfx.leverPull();
+
+                  // 3) 微抬蓄力后重压拉下
                   this.tweens.add({
                     targets: this.leverHand,
-                    scale: 0.9,
-                    angle: -2,
-                    duration: 90,
-                    ease: "Back.easeIn",
+                    y: this.handGripY - 5,
+                    scale: 0.94,
+                    duration: 50,
+                    ease: "Sine.easeOut",
                     onComplete: () => {
-                      // 5) 稳住并轻微回弹，更有“抓住”感
                       this.tweens.add({
                         targets: this.leverHand,
-                        scale: 0.96,
-                        duration: 140,
-                        ease: "Sine.easeOut",
+                        x: this.handGripX + 14,
+                        y: this.handGripY + 72,
+                        angle: 32,
+                        scale: 0.88,
+                        duration: 260,
+                        ease: "Cubic.easeIn",
+                        onComplete: () => {
+                          this.tweens.add({
+                            targets: this.leverHand,
+                            y: this.handGripY + 68,
+                            scale: 0.92,
+                            duration: 90,
+                            ease: "Sine.easeOut",
+                          });
+                        },
                       });
                     },
                   });
 
                   this.tweens.add({
-                    targets: this.leverHandle,
-                    scale: 1.1,
-                    duration: 90,
-                    yoyo: true,
-                    ease: "Sine.easeOut",
-                  });
-                },
-              });
-            },
-          });
-
-          this.setMessage("握住拉杆，再点击一次重重拉下");
-        }
-
-        pullLever(thenStart = true) {
-          if (this.leverState === "down") return;
-
-          this.leverState = "down";
-          this.spinHint.setText("SPACE 急停");
-          this.sfx.leverPull();
-
-          this.tweens.killTweensOf(this.leverHand);
-          this.tweens.killTweensOf(this.leverContainer);
-
-          this.leverHand.setText("✊");
-
-          // 预备：微微上抬蓄力
-          this.tweens.add({
-            targets: this.leverHand,
-            y: this.handGripY - 6,
-            scale: 0.94,
-            duration: 70,
-            ease: "Sine.easeOut",
-            onComplete: () => {
-              // 与拉杆同步甩下（略有跟随延迟感）
-              this.tweens.add({
-                targets: this.leverHand,
-                x: this.handGripX + 14,
-                y: this.handGripY + 72,
-                angle: 32,
-                scale: 0.88,
-                duration: 300,
-                ease: "Cubic.easeIn",
-                onComplete: () => {
-                  // 撞击后手微震回弹
-                  this.tweens.add({
-                    targets: this.leverHand,
-                    y: this.handGripY + 68,
-                    scale: 0.92,
-                    duration: 100,
-                    ease: "Sine.easeOut",
-                  });
-                },
-              });
-            },
-          });
-
-          // 拉杆：先轻抬再重压
-          this.tweens.add({
-            targets: this.leverContainer,
-            angle: -22,
-            duration: 70,
-            ease: "Sine.easeOut",
-            onComplete: () => {
-              this.tweens.add({
-                targets: this.leverContainer,
-                angle: 55,
-                duration: 300,
-                ease: "Cubic.easeIn",
-                onComplete: () => {
-                  this.cameras.main.shake(120, 0.008);
-
-                  this.tweens.add({
                     targets: this.leverContainer,
-                    angle: 48,
-                    duration: 100,
-                    yoyo: true,
+                    angle: -22,
+                    duration: 50,
                     ease: "Sine.easeOut",
-                  });
+                    onComplete: () => {
+                      this.tweens.add({
+                        targets: this.leverContainer,
+                        angle: 55,
+                        duration: 260,
+                        ease: "Cubic.easeIn",
+                        onComplete: () => {
+                          this.cameras.main.shake(110, 0.008);
 
-                  if (thenStart) {
-                    this.startSpin();
-                  }
+                          this.tweens.add({
+                            targets: this.leverContainer,
+                            angle: 48,
+                            duration: 90,
+                            yoyo: true,
+                            ease: "Sine.easeOut",
+                          });
+
+                          if (thenStart) {
+                            this.startSpin();
+                          }
+                        },
+                      });
+                    },
+                  });
                 },
               });
             },
@@ -1973,7 +2333,7 @@
 
         resetLever() {
           this.leverState = "up";
-          this.spinHint.setText("点击握住拉杆");
+          this.spinHint.setText("点击拉杆开转");
           this.sfx.leverReset();
 
           this.tweens.killTweensOf(this.leverHand);
@@ -2025,7 +2385,7 @@
           const cx = GAME_WIDTH / 2;
           const cy = GAME_HEIGHT / 2;
           const panelW = 680;
-          const panelH = 380;
+          const panelH = 340; // 去掉音量滑杆后收紧高度
           const top = cy - panelH / 2;
 
           this.settingsModalGroup = this.add
@@ -2349,118 +2709,9 @@
 
           this.updatePlayModeButtons();
 
-          // ---------- 音量：可拖动滑动条 ----------
-          // 加粗轨道 + 深色底衬 + 更亮的滑块和光晕，确保在深色背景下清晰可辨
-          const volumeRowY = shuffleRowY + 44;
-          const volumeLabel = this.add
-            .text(rowLabelX, volumeRowY, "音量", {
-              fontSize: "15px",
-              fontStyle: "bold",
-              color: "#ffd700",
-            })
-            .setOrigin(0, 0.5);
-          children.push(volumeLabel);
-
-          const trackX0 = rowLabelX + 50;
-          const trackX1 = contentRight - 46;
-          const trackW = trackX1 - trackX0;
-          const initialRatio = Phaser.Math.Clamp(bgMusic.volume, 0, 1);
-
-          // 深色底衬：清楚划出滑杆整体区域范围
-          const volumeTrackBg = this.add
-            .rectangle(trackX0 + trackW / 2, volumeRowY, trackW + 14, 18, 0x0a0602, 0.85)
-            .setStrokeStyle(1, UI.goldDim, 0.8)
-            .setOrigin(0.5);
-          children.push(volumeTrackBg);
-
-          // 轨道未填充部分：深棕色，与已填充的亮金部分形成清晰对比
-          const volumeTrack = this.add
-            .rectangle(trackX0 + trackW / 2, volumeRowY, trackW, 8, 0x3a2408, 1)
-            .setStrokeStyle(1, UI.goldDim, 0.6)
-            .setOrigin(0.5);
-          children.push(volumeTrack);
-
-          const volumeFill = this.add
-            .rectangle(
-              trackX0,
-              volumeRowY,
-              Math.max(2, trackW * initialRatio),
-              8,
-              UI.goldBright,
-              1,
-            )
-            .setOrigin(0, 0.5);
-          children.push(volumeFill);
-
-          // 滑块外发光，让手柄位置更醒目
-          const volumeHandleGlow = this.add
-            .circle(trackX0 + trackW * initialRatio, volumeRowY, 13, 0xffd700, 0.35)
-            .setOrigin(0.5);
-          children.push(volumeHandleGlow);
-
-          const volumeHandle = this.add
-            .circle(trackX0 + trackW * initialRatio, volumeRowY, 10, 0xfff6b0)
-            .setStrokeStyle(3, UI.gold);
-          children.push(volumeHandle);
-
-          const volumePercentText = this.add
-            .text(
-              trackX1 + 12,
-              volumeRowY,
-              `${Math.round(initialRatio * 100)}%`,
-              {
-                fontSize: "13px",
-                fontStyle: "bold",
-                color: "#ffffff",
-              },
-            )
-            .setOrigin(0, 0.5);
-          children.push(volumePercentText);
-
-          // 更大的透明可点击区域（比可见滑轨高很多），方便手指精准拖动 / 直接点按跳转音量
-          const volumeHitZone = this.add
-            .rectangle(trackX0 + trackW / 2, volumeRowY, trackW + 30, 36, 0x000000, 0.001)
-            .setOrigin(0.5)
-            .setInteractive({ useHandCursor: true });
-          children.push(volumeHitZone);
-
-          const setVolumeFromPointerX = (pointerX) => {
-            const clampedX = Phaser.Math.Clamp(pointerX, trackX0, trackX1);
-            const ratio = (clampedX - trackX0) / trackW;
-            volumeHandle.x = clampedX;
-            volumeHandleGlow.x = clampedX;
-            volumeFill.width = Math.max(2, trackW * ratio);
-            volumePercentText.setText(`${Math.round(ratio * 100)}%`);
-            bgMusic.setVolume(ratio);
-          };
-
-          let draggingVolume = false;
-
-          volumeHitZone.on("pointerdown", (pointer, lx, ly, event) => {
-            event.stopPropagation();
-            draggingVolume = true;
-            setVolumeFromPointerX(pointer.x);
-            this.tweens.add({
-              targets: volumeHandle,
-              scale: 1.2,
-              duration: 90,
-              yoyo: true,
-            });
-          });
-
-          this.input.on("pointermove", (pointer) => {
-            if (draggingVolume) {
-              setVolumeFromPointerX(pointer.x);
-            }
-          });
-
-          this.input.on("pointerup", () => {
-            draggingVolume = false;
-          });
-
           // ---------- 左右两栏之间的竖分隔线（按实际内容高度绘制）----------
           const vDividerTop = contentTop - 14;
-          const vDividerBottom = volumeRowY + 24;
+          const vDividerBottom = shuffleRowY + 24;
           const vDivider = this.add
             .rectangle(
               dividerX,
@@ -2539,28 +2790,115 @@
           );
         }
 
-        // 音乐开启：均衡条明亮跳动；音乐关闭：均衡条变暗并回落静止
+        // 音乐开关：点亮/熄灭频谱条（真实跳动由 updateEqVisualizer 驱动）
         setEqVisualizerActive(active) {
           if (!this.eqBars) return;
+          this.eqActive = !!active;
+          this.eqGlowAlpha = active ? 0.08 : 0.02;
 
-          this.eqGlowAlpha = active ? 0.07 : 0.025;
-
-          this.eqBars.forEach((bar, i) => {
-            const tween = this.eqBarTweens && this.eqBarTweens[i];
+          this.eqBars.forEach((bar) => {
             if (active) {
-              bar.setAlpha(0.85);
-              if (tween) tween.resume();
+              bar.setAlpha(0.9);
             } else {
-              if (tween) tween.pause();
               this.tweens.add({
                 targets: bar,
-                scaleY: 0.16,
-                alpha: 0.28,
+                scaleY: 0.1,
+                alpha: 0.25,
                 duration: 220,
                 ease: "Sine.easeOut",
               });
             }
           });
+        }
+
+        // ~30fps 驱动：频谱条高度每拍更新；光晕颜色变化慢，减少插值开销
+        updateEqVisualizer() {
+          if (!this.eqBars || !this.eqGlow) return;
+          if (this.eqPageHidden) return;
+
+          const bands = bgMusic.sampleSpectrum();
+          const playing = this.eqActive && bgMusic.isPlaying();
+
+          for (let i = 0; i < 5; i++) {
+            const level = playing
+              ? bands[i] * 1.15 > 1
+                ? 1
+                : bands[i] * 1.15 < 0.08
+                  ? 0.08
+                  : bands[i] * 1.15
+              : 0.1;
+            const cur = this.eqBars[i].scaleY;
+            const next = cur * 0.35 + level * 0.65;
+            this.eqBars[i].scaleY = next;
+            this.eqBars[i].setAlpha(playing ? 0.55 + next * 0.4 : 0.25);
+          }
+
+          // 光晕：能量变化够大或播放状态切换才重算颜色
+          const e = bgMusic.energy;
+          if (
+            playing === this._eqLastPlaying &&
+            Math.abs(e - (this._eqLastEnergy || 0)) < 0.05
+          ) {
+            // 仅微调透明度
+            if (playing) {
+              this.eqGlow.setAlpha(
+                Math.min(0.35, (this.eqGlowAlpha || 0.08) * (0.6 + e * 1.2)),
+              );
+            }
+            return;
+          }
+          this._eqLastPlaying = playing;
+          this._eqLastEnergy = e;
+
+          const b = bgMusic.brightness > 1.3 ? 1.3 : bgMusic.brightness < 0 ? 0 : bgMusic.brightness;
+          const v =
+            bgMusic.vocalBias > 0.6
+              ? 0.6
+              : bgMusic.vocalBias < -0.6
+                ? -0.6
+                : bgMusic.vocalBias;
+
+          let c1, c2;
+          if (!playing) {
+            c1 = 0x3a2a10;
+            c2 = 0x1a1208;
+          } else if (v > 0.12) {
+            c1 = 0xff4da6;
+            c2 = 0x40e0ff;
+          } else if (v < -0.12) {
+            c1 = 0xff8c42;
+            c2 = 0xffd700;
+          } else if (b > 0.85) {
+            c1 = 0x40e0ff;
+            c2 = 0xffe566;
+          } else {
+            c1 = 0xc9a227;
+            c2 = 0xffd700;
+          }
+
+          const mix = 0.35 + e * 0.5 + b * 0.15;
+          const t = mix < 0 ? 0 : mix > 1 ? 1 : mix;
+          const col = Phaser.Display.Color.Interpolate.ColorWithColor(
+            Phaser.Display.Color.ValueToColor(c1),
+            Phaser.Display.Color.ValueToColor(c2),
+            100,
+            (t * 100) | 0,
+          );
+          const alpha = playing
+            ? (this.eqGlowAlpha || 0.08) * (0.6 + e * 1.2)
+            : 0.02;
+          this.eqGlow.setFillStyle(
+            Phaser.Display.Color.GetColor(col.r, col.g, col.b),
+            alpha > 0.35 ? 0.35 : alpha,
+          );
+        }
+
+        update(_time, delta) {
+          // 频谱可视化约 30fps，避免每帧 FFT + 改色
+          this._eqAcc = (this._eqAcc || 0) + delta;
+          if (this._eqAcc < 33) return;
+          this._eqAcc = 0;
+          this.updateEqVisualizer();
         }
 
         updatePlayModeButtons() {
@@ -2732,57 +3070,41 @@
           this.updateAutoOptionButtons();
         }
 
-        handleLeverPress(pointer) {
-          if (this.inputLocked) return;
-
-          // 正在转：按住拉杆直接急停
-          if (this.isSpinning) {
-            this.handleSpinInput();
-            return;
-          }
-
-          if (this.leverState === "up" || this.leverState === "gripped") {
-            this.pullLever(true);
-          }
-        }
-
+        // 统一入口：拉杆 / SPIN / 空格
+        // 空闲 → 拉杆动画并开转；转动中 → 急停
         handleSpinInput() {
           if (this.inputLocked) return;
 
           this.inputLocked = true;
-
-          this.time.delayedCall(220, () => {
+          this.time.delayedCall(280, () => {
             this.inputLocked = false;
           });
 
-          // 正在转：急停
           if (this.isSpinning) {
-            if (!this.stopRequested) {
-              this.stopRequested = true;
-              this.setMessage("正在急停...");
+            this.requestStop();
+            return;
+          }
 
-              this.reels.forEach((reel, index) => {
-                if (!reel.stopped && !reel.forceStopScheduled) {
-                  reel.forceStopScheduled = true;
-                  this.time.delayedCall(index * 140, () =>
-                    this.stopReel(reel, index),
-                  );
-                }
-              });
+          // 拉杆正在下落动画中，忽略重复点击
+          if (this.leverState === "down") return;
+
+          this.pullLever(true);
+        }
+
+        requestStop() {
+          if (!this.isSpinning || this.stopRequested) return;
+
+          this.stopRequested = true;
+          this.setMessage("正在急停...");
+
+          this.reels.forEach((reel, index) => {
+            if (!reel.stopped && !reel.forceStopScheduled) {
+              reel.forceStopScheduled = true;
+              this.time.delayedCall(index * 140, () =>
+                this.stopReel(reel, index),
+              );
             }
-            return;
-          }
-
-          // 未转：两段式拉杆
-          if (this.leverState === "up") {
-            this.gripLever();
-            return;
-          }
-
-          if (this.leverState === "gripped") {
-            this.pullLever(true);
-            return;
-          }
+          });
         }
 
         startSpin() {
@@ -2797,10 +3119,10 @@
             return;
           }
 
-          // 自动模式等：若拉杆未下，直接甩下
+          // 自动模式等非手动拉杆路径：若拉杆未下，补一段简短甩下动画
           if (this.leverState !== "down") {
             this.leverState = "down";
-            this.spinHint.setText("SPACE 急停");
+            this.spinHint.setText("点击急停");
             this.sfx.leverPull();
             this.leverHand.setText("✊");
             this.leverHand.setAlpha(1);
@@ -3345,7 +3667,308 @@
         setTimeout(fitGameCanvas, 120);
       });
 
-      // 横竖屏切换：平滑过渡（兼容无 matchMedia / 旧 iOS）
+      // ---------- 竖屏留声机（第一稿）----------
+      (function setupPhonograph() {
+        var vinyl = document.getElementById("ph-vinyl");
+        var arm = document.getElementById("ph-arm");
+        var playBtn = document.getElementById("ph-play");
+        var prevBtn = document.getElementById("ph-prev");
+        var nextBtn = document.getElementById("ph-next");
+        var orderChip = document.getElementById("ph-order");
+        var shuffleChip = document.getElementById("ph-shuffle");
+        var trackNum = document.getElementById("ph-track-num");
+        var clockEl = document.getElementById("ph-clock");
+        var balanceEl = document.getElementById("ph-balance");
+        var betEl = document.getElementById("ph-bet");
+        var msgEl = document.getElementById("ph-msg");
+        var spinBtn = document.getElementById("ph-spin");
+        var spectrum = document.getElementById("ph-spectrum");
+        var reelEls = [
+          document.getElementById("ph-r0"),
+          document.getElementById("ph-r1"),
+          document.getElementById("ph-r2"),
+        ];
+        if (!vinyl || !playBtn) return;
+
+        var miniSpinning = false;
+        var phActive = false;
+        var raf = 0;
+
+        function pad2(n) {
+          return (n < 10 ? "0" : "") + n;
+        }
+
+        function updateClock() {
+          if (!clockEl) return;
+          var d = new Date();
+          clockEl.textContent = pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+        }
+
+        function syncTrack() {
+          if (trackNum) {
+            trackNum.textContent =
+              pad2(bgMusic.currentNum) + " / " + pad2(BG_MUSIC_MAX);
+          }
+        }
+
+        function syncPlayUi() {
+          var playing = bgMusic.isPlaying();
+          if (playBtn) playBtn.textContent = playing ? "⏸" : "▶";
+          if (vinyl) {
+            if (playing) vinyl.classList.add("spinning");
+            else vinyl.classList.remove("spinning");
+          }
+          if (arm) {
+            arm.classList.toggle("down", playing);
+            arm.classList.toggle("up", !playing);
+          }
+          syncTrack();
+          if (orderChip && shuffleChip) {
+            orderChip.classList.toggle("on", !bgMusic.shuffle);
+            shuffleChip.classList.toggle("on", !!bgMusic.shuffle);
+          }
+        }
+
+        function getScene() {
+          return window.__slotGameScene || null;
+        }
+
+        function syncWallet() {
+          var sc = getScene();
+          var bal = sc ? sc.balance : 1000;
+          var bet = sc ? sc.bet : 50;
+          try {
+            var raw = localStorage.getItem("wanjin_slot_save");
+            if (raw && !sc) {
+              var s = JSON.parse(raw);
+              if (typeof s.balance === "number") bal = s.balance;
+              if (typeof s.bet === "number") bet = s.bet;
+            }
+          } catch (e) {}
+          if (balanceEl) balanceEl.textContent = "余额 ¥" + Number(bal).toFixed(0);
+          if (betEl) betEl.textContent = "下注 ¥" + Number(bet).toFixed(0);
+        }
+
+        function setMsg(t) {
+          if (msgEl) msgEl.textContent = t;
+        }
+
+        function drawSpectrum() {
+          if (!spectrum || !phActive) return;
+          var ctx = spectrum.getContext("2d");
+          if (!ctx) return;
+          var w = spectrum.width;
+          var h = spectrum.height;
+          var cx = w / 2;
+          var cy = h / 2;
+          ctx.clearRect(0, 0, w, h);
+
+          bgMusic.sampleSpectrum();
+          var bands = bgMusic.bands || [0, 0, 0, 0, 0];
+          var playing = bgMusic.isPlaying();
+          var colors = ["#c9a227", "#ff8c42", "#40e0ff", "#ff4da6", "#ffe566"];
+          var barCount = 36;
+          var inner = Math.min(w, h) * 0.38;
+          var maxLen = Math.min(w, h) * 0.16;
+
+          for (var i = 0; i < barCount; i++) {
+            var band = bands[i % 5];
+            var level = playing ? Math.max(0.08, Math.min(1, band * 1.2)) : 0.06;
+            // 弧分布：从左上到右上绕过唱盘后侧
+            var ang = -Math.PI * 0.85 + (Math.PI * 1.3 * i) / (barCount - 1);
+            var len = maxLen * level;
+            var x0 = cx + Math.cos(ang) * inner;
+            var y0 = cy + Math.sin(ang) * inner;
+            var x1 = cx + Math.cos(ang) * (inner + len);
+            var y1 = cy + Math.sin(ang) * (inner + len);
+            ctx.strokeStyle = colors[i % 5];
+            ctx.globalAlpha = 0.35 + level * 0.55;
+            ctx.lineWidth = 3;
+            ctx.lineCap = "round";
+            ctx.beginPath();
+            ctx.moveTo(x0, y0);
+            ctx.lineTo(x1, y1);
+            ctx.stroke();
+          }
+          ctx.globalAlpha = 1;
+        }
+
+        function loop() {
+          if (!phActive) return;
+          drawSpectrum();
+          syncPlayUi();
+          raf = requestAnimationFrame(loop);
+        }
+
+        function startPh() {
+          phActive = true;
+          updateClock();
+          syncWallet();
+          syncPlayUi();
+          if (raf) cancelAnimationFrame(raf);
+          raf = requestAnimationFrame(loop);
+        }
+
+        function stopPh() {
+          phActive = false;
+          if (raf) cancelAnimationFrame(raf);
+          raf = 0;
+        }
+
+        playBtn.addEventListener("click", function () {
+          bgMusic.togglePlay();
+          setTimeout(syncPlayUi, 80);
+        });
+        prevBtn.addEventListener("click", function () {
+          bgMusic.skipPrev();
+          setTimeout(syncPlayUi, 80);
+        });
+        nextBtn.addEventListener("click", function () {
+          bgMusic.skipNext();
+          setTimeout(syncPlayUi, 80);
+        });
+        orderChip.addEventListener("click", function () {
+          bgMusic.setShuffle(false);
+          syncPlayUi();
+        });
+        shuffleChip.addEventListener("click", function () {
+          bgMusic.setShuffle(true);
+          syncPlayUi();
+        });
+
+        // 迷你三格：与横屏共用余额存档；符号表与主游戏一致
+        var MINI_SYMBOLS = [
+          { label: "7️⃣", mult: 50 },
+          { label: "🌸", mult: 20 },
+          { label: "🌺", mult: 15 },
+          { label: "🍇", mult: 10 },
+          { label: "🍓", mult: 8 },
+          { label: "🍒", mult: 6 },
+          { label: "🍄", mult: 4 },
+        ];
+
+        function randSym() {
+          return MINI_SYMBOLS[(Math.random() * MINI_SYMBOLS.length) | 0];
+        }
+
+        function setReel(el, sym) {
+          if (!el) return;
+          el.innerHTML =
+            "<span>" +
+            sym.label +
+            '</span><span class="ph-reel-sub">·</span>';
+        }
+
+        spinBtn.addEventListener("click", function () {
+          if (miniSpinning) return;
+          var sc = getScene();
+          var bet = sc ? sc.bet : 50;
+          var bal = sc ? sc.balance : 1000;
+          try {
+            if (!sc) {
+              var raw = localStorage.getItem("wanjin_slot_save");
+              if (raw) {
+                var s = JSON.parse(raw);
+                if (typeof s.balance === "number") bal = s.balance;
+                if (typeof s.bet === "number") bet = s.bet;
+              }
+            }
+          } catch (e) {}
+          if (bal < bet) {
+            setMsg("余额不足");
+            return;
+          }
+          miniSpinning = true;
+          spinBtn.disabled = true;
+          bal -= bet;
+          if (sc) {
+            sc.balance = bal;
+            if (sc.updateDisplay) sc.updateDisplay();
+            else if (sc.saveGameState) sc.saveGameState();
+          } else {
+            try {
+              var payload = JSON.stringify({
+                balance: bal,
+                bet: bet,
+                jackpotValue: 25800,
+              });
+              localStorage.setItem("wanjin_slot_save", payload);
+            } catch (e) {}
+          }
+          syncWallet();
+          setMsg("转动中…");
+
+          var ticks = 0;
+          var timer = setInterval(function () {
+            setReel(reelEls[0], randSym());
+            setReel(reelEls[1], randSym());
+            setReel(reelEls[2], randSym());
+            ticks++;
+            if (ticks > 12) {
+              clearInterval(timer);
+              var a = randSym();
+              var b = randSym();
+              var c = randSym();
+              setReel(reelEls[0], a);
+              setReel(reelEls[1], b);
+              setReel(reelEls[2], c);
+              var win = 0;
+              if (a.label === b.label && b.label === c.label) {
+                win = bet * a.mult;
+                setMsg(a.label + a.label + a.label + " +" + win);
+              } else if (
+                a.label === b.label ||
+                a.label === c.label ||
+                b.label === c.label
+              ) {
+                win = bet * 2;
+                setMsg("一对 +" + win);
+              } else {
+                setMsg("未中奖，再听一曲");
+              }
+              if (win > 0) {
+                bal += win;
+                if (sc) {
+                  sc.balance = bal;
+                  sc.lastWin = win;
+                  if (sc.updateDisplay) sc.updateDisplay();
+                  else if (sc.saveGameState) sc.saveGameState();
+                } else {
+                  try {
+                    localStorage.setItem(
+                      "wanjin_slot_save",
+                      JSON.stringify({
+                        balance: bal,
+                        bet: bet,
+                        jackpotValue: 25800,
+                      }),
+                    );
+                  } catch (e) {}
+                }
+              }
+              syncWallet();
+              miniSpinning = false;
+              spinBtn.disabled = false;
+            }
+          }, 70);
+        });
+
+        setInterval(updateClock, 1000);
+        updateClock();
+        syncWallet();
+        syncPlayUi();
+
+        window.__phonograph = {
+          start: startPh,
+          stop: stopPh,
+          sync: function () {
+            syncWallet();
+            syncPlayUi();
+          },
+        };
+      })();
+
+      // 横竖屏切换：竖屏留声机 / 横屏老虎机
       (function setupOrientationTransition() {
         var tip = document.getElementById("rotate-tip");
         var game = document.getElementById("game");
@@ -3366,8 +3989,10 @@
             } else {
               tip.classList.add("show");
             }
+            if (window.__phonograph) window.__phonograph.start();
           } else {
             tip.classList.remove("show");
+            if (window.__phonograph) window.__phonograph.stop();
             if (animate) {
               setTimeout(function () {
                 game.classList.remove("dimmed");
@@ -3375,6 +4000,7 @@
             } else {
               game.classList.remove("dimmed");
             }
+            if (window.__phonograph) window.__phonograph.sync();
           }
         }
 
