@@ -1162,11 +1162,19 @@
 
           const savedMode = localStorage.getItem("bgMusicPlayMode");
           const savedShuffleLegacy = localStorage.getItem("bgMusicShuffle") === "true";
-          // 仅保留 order / shuffle；旧版 single / all 回落到顺序
+          // order / shuffle / single / all
           let mode = savedMode || (savedShuffleLegacy ? "shuffle" : "order");
-          if (mode !== "order" && mode !== "shuffle") mode = "order";
+          if (mode !== "order" && mode !== "shuffle" && mode !== "single" && mode !== "all") {
+            mode = "order";
+          }
           this.playMode = mode;
           this.shuffle = this.playMode === "shuffle";
+
+          const savedNum = parseInt(localStorage.getItem("bgMusicCurrentNum") || "1", 10);
+          this.currentNum =
+            Number.isFinite(savedNum) && savedNum >= 1 && savedNum <= BG_MUSIC_MAX
+              ? savedNum
+              : 1;
 
           // Web Audio 分析：频谱 → 均衡条（声高 / 情绪 / 男女声区 / 乐器频段）
           this.ctx = null;
@@ -1192,6 +1200,43 @@
           });
 
           this._loadTrack(this.currentNum);
+          this._setupMediaSession();
+        }
+
+        // 尽量让系统在切到其他 App/锁屏时仍显示媒体控件（真正关网页后无法继续播）
+        _setupMediaSession() {
+          try {
+            if (!("mediaSession" in navigator)) return;
+            const update = () => {
+              navigator.mediaSession.metadata = new MediaMetadata({
+                title: "TP音乐 · 第 " + this.currentNum + " 首",
+                artist: "万锦老虎机",
+                album: "Background",
+              });
+              navigator.mediaSession.playbackState = this.isPlaying()
+                ? "playing"
+                : "paused";
+            };
+            navigator.mediaSession.setActionHandler("play", () => {
+              this.play();
+              update();
+            });
+            navigator.mediaSession.setActionHandler("pause", () => {
+              this.pause();
+              update();
+            });
+            navigator.mediaSession.setActionHandler("previoustrack", () => {
+              this.skipPrev();
+              update();
+            });
+            navigator.mediaSession.setActionHandler("nexttrack", () => {
+              this.skipNext();
+              update();
+            });
+            this.audio.addEventListener("play", update);
+            this.audio.addEventListener("pause", update);
+            update();
+          } catch (e) {}
         }
 
         // 须在用户手势中调用。成功则走 Web Audio 分析；失败则保持原生 <audio> 出声
@@ -1370,12 +1415,19 @@
 
         _loadTrack(num) {
           this.currentNum = num;
+          try {
+            localStorage.setItem("bgMusicCurrentNum", String(num));
+          } catch (e) {}
           this.audio.src = new URL(`${num}.mp3`, document.baseURI).href;
+          this.audio.loop = this.playMode === "single";
         }
 
-        // 顺序模式：1→2→…→BG_MUSIC_MAX→1 循环；随机模式：在 1~BG_MUSIC_MAX 之间随机挑一个（尽量不重复上一首）
+        // order: 顺序到尽头后停；all: 顺序循环；shuffle: 随机；single: 单曲循环
         _pickNext() {
-          if (this.shuffle) {
+          if (this.playMode === "single") {
+            return this.currentNum;
+          }
+          if (this.playMode === "shuffle") {
             if (BG_MUSIC_MAX <= 1) return 1;
             let next;
             do {
@@ -1383,6 +1435,7 @@
             } while (next === this.currentNum);
             return next;
           }
+          // order / all
           return this.currentNum >= BG_MUSIC_MAX ? 1 : this.currentNum + 1;
         }
 
@@ -1395,6 +1448,12 @@
           if (this.playMode === "order" && this.currentNum >= BG_MUSIC_MAX) {
             // 顺序播放：播完最后一首后停止，不自动循环回第一首
             this._loadTrack(1);
+            this.pause();
+            return;
+          }
+          if (this.playMode === "single") {
+            this.audio.currentTime = 0;
+            if (this.enabled) this._playAudio();
             return;
           }
           this._loadTrack(this._pickNext());
@@ -1402,9 +1461,17 @@
         }
 
         setPlayMode(mode) {
-          if (mode !== "order" && mode !== "shuffle") mode = "order";
+          if (
+            mode !== "order" &&
+            mode !== "shuffle" &&
+            mode !== "single" &&
+            mode !== "all"
+          ) {
+            mode = "order";
+          }
           this.playMode = mode;
           this.shuffle = mode === "shuffle";
+          this.audio.loop = mode === "single";
           localStorage.setItem("bgMusicPlayMode", mode);
           localStorage.setItem("bgMusicShuffle", String(this.shuffle));
         }
@@ -1534,6 +1601,10 @@
           };
         }
 
+        preload() {
+          // 无需预加载留声机图
+        }
+
         create() {
           window.__slotGameScene = this;
           this.createLuxuryBackground();
@@ -1560,10 +1631,13 @@
             if (!raw) return;
 
             const saved = JSON.parse(raw);
-            if (typeof saved.balance === "number") this.balance = saved.balance;
-            if (typeof saved.bet === "number") this.bet = saved.bet;
+            if (typeof saved.balance === "number") this.balance = Math.round(saved.balance);
+            if (typeof saved.bet === "number") this.bet = Math.round(saved.bet);
             if (typeof saved.jackpotValue === "number")
-              this.jackpotValue = saved.jackpotValue;
+              this.jackpotValue = Math.round(saved.jackpotValue);
+            if (typeof saved.lastWin === "number") this.lastWin = Math.round(saved.lastWin);
+            if (saved.mode === "NORMAL" || saved.mode === "FAST") this.mode = saved.mode;
+            if (typeof saved.sfxEnabled === "boolean") this.sfx.enabled = saved.sfxEnabled;
           } catch (err) {
             // 没有存档、存档损坏，或浏览器禁用了 localStorage：忽略，使用默认初始值
           }
@@ -1573,21 +1647,32 @@
           try {
             if (typeof window === "undefined" || !window.localStorage) return;
             const payload = JSON.stringify({
-              balance: this.balance,
-              bet: this.bet,
-              jackpotValue: this.jackpotValue,
+              balance: Math.round(this.balance),
+              bet: Math.round(this.bet),
+              jackpotValue: Math.round(this.jackpotValue),
+              lastWin: Math.round(this.lastWin),
+              mode: this.mode,
+              sfxEnabled: !!this.sfx.enabled,
+              // 音乐状态同步写入，便于恢复
+              musicEnabled: !!bgMusic.enabled,
+              musicPlayMode: bgMusic.playMode,
+              musicCurrentNum: bgMusic.currentNum,
             });
             window.localStorage.setItem("wanjin_slot_save", payload);
+            localStorage.setItem("bgMusicEnabled", String(!!bgMusic.enabled));
+            localStorage.setItem("bgMusicPlayMode", bgMusic.playMode || "order");
+            localStorage.setItem("bgMusicCurrentNum", String(bgMusic.currentNum || 1));
           } catch (err) {
             // 存储空间已满或浏览器禁用了 localStorage：静默忽略，不影响游戏运行
           }
         }
 
         formatMoney(value) {
-          return Number(value).toFixed(2);
+          // 全站数字统一整数显示，不出现小数点
+          return String(Math.round(Number(value)));
         }
 
-        // 投注 / BALANCE / LAST WIN 专用：只显示整数，不带小数点（例如 50，不是 50.00）
+        // 投注 / BALANCE / LAST WIN 专用：只显示整数
         formatInt(value) {
           return String(Math.round(Number(value)));
         }
@@ -1667,18 +1752,49 @@
             )
             .setOrigin(0.5);
 
-          // TP制作签名：横屏下移，与实时 HH:MM:SS 时钟保持同一水平线
-          this.add
-            .text(255, LAYOUT.paytableY - 166, "TP制作🐈⭐️", {
-              fontSize: "15px",
-              fontStyle: "bold",
-              fontFamily: 'Arial, "Microsoft YaHei", sans-serif',
-              color: "#d8caa6",
-              stroke: "#090b0b",
-              strokeThickness: 1,
-            })
-            .setOrigin(0.5)
-            .setDepth(20);
+          // TP制作：与 JACKPOT 同一水平中线对齐（x=480），渐变金色
+          this.createGradientGoldLabel(
+            480,
+            LAYOUT.jackpotY + 30,
+            "TP制作🐈⭐️",
+            16,
+          );
+        }
+
+        // 横向渐变金字：深金 → 亮金 → 香槟金 → 亮金 → 深金
+        createGradientGoldLabel(x, y, str, fontSize) {
+          const font = `bold ${fontSize}px Arial, "Microsoft YaHei", sans-serif`;
+          const measure = document.createElement("canvas").getContext("2d");
+          measure.font = font;
+          const tw = Math.ceil(measure.measureText(str).width) + 12;
+          const th = fontSize + 14;
+          const canvas = document.createElement("canvas");
+          canvas.width = tw;
+          canvas.height = th;
+          const ctx = canvas.getContext("2d");
+          ctx.font = font;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          // 暗底描边，衬出金色
+          ctx.lineWidth = 2.5;
+          ctx.strokeStyle = "rgba(20,10,0,0.85)";
+          ctx.strokeText(str, tw / 2, th / 2);
+          // 金色渐变填充
+          const grad = ctx.createLinearGradient(0, 0, tw, 0);
+          grad.addColorStop(0, "#8a6914");
+          grad.addColorStop(0.2, "#e6c35c");
+          grad.addColorStop(0.45, "#fff6c8");
+          grad.addColorStop(0.55, "#ffe566");
+          grad.addColorStop(0.8, "#d4af37");
+          grad.addColorStop(1, "#9a7b1a");
+          ctx.fillStyle = grad;
+          ctx.shadowColor = "rgba(255, 215, 0, 0.35)";
+          ctx.shadowBlur = 6;
+          ctx.fillText(str, tw / 2, th / 2);
+          const key = "tp_sign_" + str.length + "_" + fontSize;
+          if (this.textures.exists(key)) this.textures.remove(key);
+          this.textures.addCanvas(key, canvas);
+          return this.add.image(x, y, key).setOrigin(0.5).setDepth(20);
         }
 
         updateLiveClock() {
@@ -1707,96 +1823,165 @@
           const w = LAYOUT.paytableW;
           const h = LAYOUT.paytableH;
 
-          const panel = this.createPanel(x, y, w, h, 0x120006, 0.94).setInteractive({
-            useHandCursor: true,
-          });
+          // 左侧主面板
+          this.createPanel(x, y, w, h, 0x0c0a08, 0.96);
 
-          // 赔率方框外边上方：实时 HH:MM:SS 滚动时钟
+          // 上方时钟
           this.clockText = this.add
             .text(x, y - 166, "--:--:--", {
-              fontSize: "22px",
+              fontSize: "20px",
               fontStyle: "bold",
               color: "#ffd700",
               stroke: "#000000",
               strokeThickness: 1,
-              shadow: {
-                offsetX: 0,
-                offsetY: 0,
-                color: "#ffb000",
-                blur: 8,
-                fill: true,
-              },
             })
             .setOrigin(0.5);
-
           this.updateLiveClock();
           this.clockTimer = setInterval(() => this.updateLiveClock(), 250);
 
-          // 删除赔率标题；原位置改放 💰 资金入口（TP制作签名已移到 jackpot 下方）
-          this.createCoinButton(x, y - 52);
-
-          // 分隔细线：标题与下方音乐可视化区之间
+          // 广播麦克风（不用留声机图）
+          const micY = y - h / 2 + 48;
           this.add
-            .rectangle(x, y - 18, w - 40, 2, UI.gold, 0.35)
+            .text(x, micY, "🎙️", { fontSize: "56px" })
             .setOrigin(0.5);
 
-          // ---------- 音乐频谱可视化（跟真实音频联动） ----------
-          // 五条从左到右：低音乐器 → 男声区 → 主旋律/乐器 → 女声区 → 高频空气
-          // 高度跟声压；颜色与光晕跟情绪（沉稳/兴奋）和声线偏向（男/女）
-          const barBaseY = y + 44;
-          this.eqBarMaxH = 46;
-          this.eqBarBaseY = barBaseY;
-          // 低音金褐 / 男声暖橙 / 中频青金 / 女声粉 / 高频亮金
-          const barColors = [0xc9a227, 0xff8c42, 0x40e0ff, 0xff4da6, 0xffe566];
-          const barDxs = [-46, -23, 0, 23, 46];
-
-          this.eqGlow = this.add
-            .rectangle(x, barBaseY, w - 30, this.eqBarMaxH + 20, 0xffd700, 0.07)
-            .setOrigin(0.5);
-
-          this.eqBars = barDxs.map((dx, i) => {
-            const bar = this.add
-              .rectangle(x + dx, barBaseY, 11, this.eqBarMaxH, barColors[i])
-              .setOrigin(0.5, 0.5)
-              .setAlpha(0.85)
-              .setScale(1, 0.12);
-            return bar;
-          });
-          this.eqBarColors = barColors;
-          this.eqGlowAlpha = 0.07;
-          this.eqActive = !!bgMusic.enabled;
-          this.eqPageHidden = document.hidden;
-          this._eqAcc = 0;
-          this._eqLastEnergy = -1;
-          this._eqLastPlaying = null;
-
-          // 后台标签页停掉频谱，省电
-          if (!this._eqVisibilityBound) {
-            this._eqVisibilityBound = true;
-            document.addEventListener("visibilitychange", () => {
-              this.eqPageHidden = document.hidden;
+          // 运输键组：⏮️ ▶️ ⏸️ ⏭️
+          const tY = micY + 56;
+          this.add
+            .rectangle(x, tY, w - 24, 38, 0x120a04, 0.92)
+            .setStrokeStyle(1, UI.gold);
+          const transport = [
+            { lab: "⏮️", act: () => bgMusic.skipPrev() },
+            {
+              lab: "▶️",
+              act: () => {
+                if (!bgMusic.isPlaying()) bgMusic.play();
+              },
+            },
+            {
+              lab: "⏸️",
+              act: () => {
+                if (bgMusic.isPlaying()) bgMusic.pause();
+              },
+            },
+            { lab: "⏭️", act: () => bgMusic.skipNext() },
+          ];
+          const tGap = 34;
+          const tStart = x - ((transport.length - 1) * tGap) / 2;
+          transport.forEach((item, i) => {
+            const btn = this.add
+              .text(tStart + i * tGap, tY, item.lab, { fontSize: "17px" })
+              .setOrigin(0.5)
+              .setInteractive({ useHandCursor: true });
+            btn.on("pointerdown", () => {
+              this.sfx.click();
+              item.act();
+              this.saveGameState();
+              this.refreshTrackLabel();
             });
-          }
+            btn.on("pointerover", () => btn.setScale(1.12));
+            btn.on("pointerout", () => btn.setScale(1));
+          });
 
-          this.setEqVisualizerActive(bgMusic.enabled);
-
+          // 播放模式组：🔢 🔀 🔂 🔄
+          const mY = tY + 48;
           this.add
-            .text(x, y + h / 2 - 16, "点击查看修改", {
-              fontSize: "18px",
+            .rectangle(x, mY, w - 24, 38, 0x120a04, 0.92)
+            .setStrokeStyle(1, UI.gold);
+          const modes = [
+            { emoji: "🔢", mode: "order" },
+            { emoji: "🔀", mode: "shuffle" },
+            { emoji: "🔂", mode: "single" },
+            { emoji: "🔄", mode: "all" },
+          ];
+          this.musicModeBtns = {};
+          const mGap = 34;
+          const mStart = x - ((modes.length - 1) * mGap) / 2;
+          modes.forEach((m, i) => {
+            const btn = this.add
+              .text(mStart + i * mGap, mY, m.emoji, { fontSize: "17px" })
+              .setOrigin(0.5)
+              .setInteractive({ useHandCursor: true })
+              .setAlpha(0.6);
+            btn.on("pointerdown", () => {
+              this.sfx.click();
+              bgMusic.setPlayMode(m.mode);
+              this.updateMusicModeButtons();
+              this.saveGameState();
+            });
+            this.musicModeBtns[m.mode] = btn;
+          });
+          this.updateMusicModeButtons();
+
+          // 曲号
+          const trackY = mY + 36;
+          this.sideTrackLabel = this.add
+            .text(x, trackY, "01 / 36", {
+              fontSize: "14px",
               fontStyle: "bold",
               color: "#ffe9a6",
-              stroke: "#000000",
-              strokeThickness: 2,
+            })
+            .setOrigin(0.5);
+          this.refreshTrackLabel();
+
+          // 分隔
+          this.add
+            .rectangle(x, trackY + 20, w - 36, 1, UI.gold, 0.35)
+            .setOrigin(0.5);
+
+          // ㊙️ 打开控制面板（赔率 / 设置 / 筹码 / 下注）
+          const secretY = trackY + 48;
+          const secretBtn = this.add
+            .text(x, secretY, "㊙️", { fontSize: "28px" })
+            .setOrigin(0.5)
+            .setInteractive({ useHandCursor: true });
+          secretBtn.on("pointerdown", () => {
+            this.sfx.click();
+            this.toggleSettingsModal(true);
+          });
+          secretBtn.on("pointerover", () => secretBtn.setScale(1.12));
+          secretBtn.on("pointerout", () => secretBtn.setScale(1));
+
+          this.add
+            .text(x, secretY + 28, "控制", {
+              fontSize: "11px",
+              color: "#c9a227",
             })
             .setOrigin(0.5)
             .setAlpha(0.75);
 
-          panel.on("pointerover", () => panel.setStrokeStyle(3, 0xfff6b0));
-          panel.on("pointerout", () => panel.setStrokeStyle(2, UI.gold));
-          panel.on("pointerdown", () => {
-            this.sfx.click();
-            this.toggleSettingsModal(true);
+          // 兼容旧引用
+          this.eqBars = null;
+          this.eqGlow = null;
+          this.eqActive = false;
+          this.eqPageHidden = false;
+          this._eqAcc = 0;
+          this.sideBetValue = null;
+          this.musicPanelGroup = null;
+        }
+
+        refreshTrackLabel() {
+          if (!this.sideTrackLabel) return;
+          const n = bgMusic.currentNum || 1;
+          this.sideTrackLabel.setText(
+            String(n).padStart(2, "0") +
+              " / " +
+              String(BG_MUSIC_MAX).padStart(2, "0"),
+          );
+        }
+
+        updateMusicModeButtons() {
+          if (!this.musicModeBtns) return;
+          Object.keys(this.musicModeBtns).forEach((mode) => {
+            const btn = this.musicModeBtns[mode];
+            const on = bgMusic.playMode === mode;
+            btn.setAlpha(on ? 1 : 0.55);
+            btn.setScale(on ? 1.12 : 1);
           });
+        }
+
+        toggleMusicPanel(show) {
+          // 已并入左侧常驻模式键，保留空实现兼容
         }
 
         createMachine() {
@@ -1842,36 +2027,44 @@
             )
             .setStrokeStyle(2, UI.goldDim);
 
+          // 深色转轮窗：去掉粉红/酒红描边，保持传统赌场深色窗框
           this.add
-            .rectangle(LAYOUT.machineX, LAYOUT.machineY, 452, 170, 0x12000a)
-            .setStrokeStyle(3, 0x8b1540);
+            .rectangle(LAYOUT.machineX, LAYOUT.machineY, 452, 170, 0x0a0a0c)
+            .setStrokeStyle(2, UI.goldDim);
 
-          this.paylineTop = this.add.rectangle(
-            LAYOUT.machineX,
-            LAYOUT.machineY - 43,
-            452,
-            3,
-            UI.goldDim,
-            0.24,
-          );
+          // 传统三线：中间粗、上下细；放在图标下方，不压住符号，更干净
+          this.paylineTop = this.add
+            .rectangle(
+              LAYOUT.machineX,
+              LAYOUT.machineY - 43,
+              448,
+              2,
+              UI.goldDim,
+              0.4,
+            )
+            .setDepth(1);
 
-          this.paylineMiddle = this.add.rectangle(
-            LAYOUT.machineX,
-            LAYOUT.machineY,
-            452,
-            4,
-            UI.gold,
-            0.72,
-          );
+          this.paylineMiddle = this.add
+            .rectangle(
+              LAYOUT.machineX,
+              LAYOUT.machineY,
+              448,
+              5,
+              UI.gold,
+              0.55,
+            )
+            .setDepth(1);
 
-          this.paylineBottom = this.add.rectangle(
-            LAYOUT.machineX,
-            LAYOUT.machineY + 43,
-            452,
-            3,
-            UI.goldDim,
-            0.24,
-          );
+          this.paylineBottom = this.add
+            .rectangle(
+              LAYOUT.machineX,
+              LAYOUT.machineY + 43,
+              448,
+              2,
+              UI.goldDim,
+              0.4,
+            )
+            .setDepth(1);
 
           this.add
             .text(226, LAYOUT.machineY, "三线", {
@@ -1906,7 +2099,8 @@
                 0x090b0b,
                 1,
               )
-              .setStrokeStyle(2, UI.goldDim);
+              .setStrokeStyle(2, UI.goldDim)
+              .setDepth(2);
 
             const maskShape = this.add.graphics();
             maskShape.fillStyle(0xffffff);
@@ -1920,7 +2114,7 @@
             const mask = maskShape.createGeometryMask();
             maskShape.setVisible(false);
 
-            const container = this.add.container(x, LAYOUT.reelY);
+            const container = this.add.container(x, LAYOUT.reelY).setDepth(3);
             container.setMask(mask);
 
             const items = [];
@@ -2178,8 +2372,7 @@
             }
           });
 
-          // ========== 💰 资金按钮：买入 / 提出合并为一个入口，放在左侧赔率面板"设置"位 ==========
-          this.createCoinButton();
+          // 筹码 +/- 已并入左侧面板，不再在机身旁放 💰 入口
         }
 
         // direction: "out" = 买入（金币从 💰 飞出）；"in" = 提出（金币飞入 💰）
@@ -2248,6 +2441,7 @@
         }
 
         createCoinButton(cx, cy) {
+          if (cx == null || cy == null) return;
           // 呼吸光晕（尺寸收紧以贴合赔率面板内的小方框）
           this.coinBtnGlow = this.add
             .circle(cx, cy, 19, 0xffd700, 0.22)
@@ -2597,8 +2791,8 @@
         createSettingsModal() {
           const cx = GAME_WIDTH / 2;
           const cy = GAME_HEIGHT / 2;
-          const panelW = 640;
-          const panelH = 330; // 紧凑双栏：赔率 + 控制 + 投注
+          const panelW = 600;
+          const panelH = 340;
           const top = cy - panelH / 2;
 
           this.settingsModalGroup = this.add
@@ -2608,430 +2802,355 @@
 
           const children = [];
 
-          // 全屏遮罩，点击空白处关闭
           const overlay = this.add
-            .rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.65)
+            .rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.7)
             .setOrigin(0)
             .setInteractive();
           overlay.on("pointerdown", () => this.toggleSettingsModal(false));
           children.push(overlay);
 
-          // 面板本体（拦截点击，避免穿透到遮罩）
           const panel = this.add
-            .rectangle(cx, cy, panelW, panelH, 0x1a0d02, 0.97)
-            .setStrokeStyle(3, 0xffd700)
+            .rectangle(cx, cy, panelW, panelH, 0x100c08, 0.98)
+            .setStrokeStyle(2, UI.gold)
             .setInteractive();
           panel.on("pointerdown", (pointer, lx, ly, event) => {
             event.stopPropagation();
           });
           children.push(panel);
 
-          const title = this.add
-            .text(cx, top + 24, "赔率  /  控制", {
-              fontSize: "22px",
-              fontStyle: "bold",
-              color: "#ffd700",
-              stroke: "#000000",
-              strokeThickness: 1,
-            })
-            .setOrigin(0.5);
-          children.push(title);
+          // 顶栏
+          children.push(
+            this.add
+              .text(cx, top + 20, "控  制", {
+                fontSize: "20px",
+                fontStyle: "bold",
+                color: "#ffd700",
+              })
+              .setOrigin(0.5),
+          );
+          children.push(
+            this.add
+              .rectangle(cx, top + 36, panelW - 40, 1, UI.gold, 0.35)
+              .setOrigin(0.5),
+          );
 
-          // ---------- 左右两栏坐标 ----------
-          const pad = 24;
-          const contentLeft = cx - panelW / 2 + pad;
-          const contentRight = cx + panelW / 2 - pad;
-          const dividerX = cx - 20; // 竖分隔线（略偏左，右侧设置栏多留一些空间）
+          const pad = 20;
+          const leftX = cx - panelW / 2 + pad;
+          const rightX = cx + panelW / 2 - pad;
+          const colMid = cx + 20;
+          const dividerX = cx - 30;
 
-          const headerY = top + 52;
-          const leftHeaderX = (contentLeft + dividerX) / 2;
-          const rightHeaderX = (dividerX + contentRight) / 2;
-
-          const leftHeader = this.add
-            .text(leftHeaderX, headerY, "赔率", {
-              fontSize: "17px",
-              fontStyle: "bold",
-              color: "#ffe9a6",
-            })
-            .setOrigin(0.5);
-          const rightHeader = this.add
-            .text(rightHeaderX, headerY, "设置", {
-              fontSize: "17px",
-              fontStyle: "bold",
-              color: "#ffe9a6",
-            })
-            .setOrigin(0.5);
-          children.push(leftHeader, rightHeader);
-
-          // 表头下方的横向分隔线，贯穿全宽
-          const hDividerY = headerY + 18;
-          const hDivider = this.add
-            .rectangle(cx, hDividerY, panelW - pad * 2, 2, 0xffd700, 0.4)
-            .setOrigin(0.5);
-          children.push(hDivider);
-
-          const contentTop = hDividerY + 22;
-
-          // ---------- 左栏：三连赔率列表（整体放大约15%，看得更清楚） ----------
-          const oddsRowH = 31;
-          const listStartY = contentTop;
-          SYMBOLS.forEach((symbol, index) => {
-            const rowY = listStartY + index * oddsRowH;
-
-            const symText = this.add
-              .text(
-                contentLeft,
-                rowY,
-                `${symbol.label}${symbol.label}${symbol.label}`,
-                {
-                  fontSize: "20px",
-                  fontStyle: "bold",
-                  color: symbol.color,
-                  stroke: "#000000",
-                  strokeThickness: 1,
-                },
-              )
-              .setOrigin(0, 0.5);
-
-            const multText = this.add
-              .text(dividerX - 12, rowY, `${symbol.multiplier}x`, {
-                fontSize: "18px",
+          // ===== 左栏：赔率 =====
+          children.push(
+            this.add
+              .text((leftX + dividerX) / 2, top + 54, "赔率", {
+                fontSize: "14px",
                 fontStyle: "bold",
                 color: "#ffe9a6",
               })
-              .setOrigin(1, 0.5);
+              .setOrigin(0.5),
+          );
 
-            children.push(symText, multText);
+          const payRows = [
+            ["7️⃣7️⃣7️⃣", "×50"],
+            ["🌸🌸🌸", "×20"],
+            ["🌺🌺🌺", "×15"],
+            ["🍇🍇🍇", "×10"],
+            ["🍓🍓🍓", "×8"],
+            ["🍒🍒🍒", "×6"],
+            ["🍄🍄🍄", "×4"],
+            ["任意一对", "×2"],
+          ];
+          payRows.forEach((row, i) => {
+            const ry = top + 78 + i * 24;
+            children.push(
+              this.add
+                .text(leftX + 10, ry, row[0], {
+                  fontSize: "13px",
+                  color: "#e8dcc0",
+                })
+                .setOrigin(0, 0.5),
+            );
+            children.push(
+              this.add
+                .text(dividerX - 12, ry, row[1], {
+                  fontSize: "13px",
+                  fontStyle: "bold",
+                  color: "#ffd700",
+                })
+                .setOrigin(1, 0.5),
+            );
           });
 
-          // 最下一行：任意一对 2x
-          const pairRowY = listStartY + SYMBOLS.length * oddsRowH;
-          const pairSymText = this.add
-            .text(contentLeft, pairRowY, "任意一对", {
-              fontSize: "18px",
-              fontStyle: "bold",
-              color: UI.cream,
-            })
-            .setOrigin(0, 0.5);
-          const pairMultText = this.add
-            .text(dividerX - 12, pairRowY, "2x", {
-              fontSize: "18px",
-              fontStyle: "bold",
-              color: "#ffe9a6",
-            })
-            .setOrigin(1, 0.5);
-          children.push(pairSymText, pairMultText);
+          // 竖线
+          children.push(
+            this.add
+              .rectangle(dividerX, cy + 10, 1, panelH - 64, UI.gold, 0.3)
+              .setOrigin(0.5),
+          );
 
-          // ---------- 右栏：设置选项 ----------
-          const optBtnW = 68;
-          const optBtnH = 28;
-          const rowLabelX = dividerX + 22;
-          const optAX = rowLabelX + 128;
-          const optBX = optAX + 74;
+          // ===== 右栏：设置 + 投注 + 筹码 =====
+          children.push(
+            this.add
+              .text((dividerX + rightX) / 2, top + 54, "设置", {
+                fontSize: "14px",
+                fontStyle: "bold",
+                color: "#ffe9a6",
+              })
+              .setOrigin(0.5),
+          );
 
-          const makeOptionButton = (x, y, label) => {
+          const makeOptionButton = (bx, by, label, bw = 54) => {
             const bg = this.add
-              .rectangle(x, y, optBtnW, optBtnH, UI.panelDeep, 0.96)
-              .setStrokeStyle(2, UI.gold)
+              .rectangle(bx, by, bw, 26, 0x1a140c, 0.95)
+              .setStrokeStyle(1, UI.goldDim)
               .setInteractive({ useHandCursor: true });
             const txt = this.add
-              .text(x, y, label, {
+              .text(bx, by, label, {
                 fontSize: "12px",
-                fontStyle: "bold",
-                color: UI.cream,
+                color: "#e8dcc0",
               })
               .setOrigin(0.5);
             children.push(bg, txt);
             return { bg, txt };
           };
 
-          // ---------- 速度：正常 / 加速 ----------
-          const speedRowY = contentTop;
-          const speedLabel = this.add
-            .text(rowLabelX, speedRowY, "速度", {
-              fontSize: "15px",
-              fontStyle: "bold",
-              color: "#ffd700",
-            })
-            .setOrigin(0, 0.5);
-          children.push(speedLabel);
+          const rowLabelX = dividerX + 14;
+          const optAX = rightX - 92;
+          const optBX = rightX - 28;
 
-          const normalOpt = makeOptionButton(optAX, speedRowY, "正常");
-          const fastOpt = makeOptionButton(optBX, speedRowY, "加速");
-
+          // 速度
+          let rowY = top + 86;
+          children.push(
+            this.add
+              .text(rowLabelX, rowY, "速度", {
+                fontSize: "13px",
+                fontStyle: "bold",
+                color: "#ffd700",
+              })
+              .setOrigin(0, 0.5),
+          );
+          const normalOpt = makeOptionButton(optAX, rowY, "正常");
+          const fastOpt = makeOptionButton(optBX, rowY, "加速");
           this.speedButtons = [
             { label: "NORMAL", btn: normalOpt.bg, txt: normalOpt.txt },
             { label: "FAST", btn: fastOpt.bg, txt: fastOpt.txt },
           ];
-
-          const selectSpeed = (label) => {
-            if (this.isSpinning) return;
+          normalOpt.bg.on("pointerdown", (p, lx, ly, e) => {
+            e.stopPropagation();
+            this.mode = "NORMAL";
             this.sfx.click();
-            this.mode = label;
             this.updateSpeedButtons();
-            this.setMessage(`速度：${label === "NORMAL" ? "正常" : "加速"}`);
-          };
-
-          normalOpt.bg.on("pointerdown", (pointer, lx, ly, event) => {
-            event.stopPropagation();
-            selectSpeed("NORMAL");
+            this.saveGameState();
           });
-          fastOpt.bg.on("pointerdown", (pointer, lx, ly, event) => {
-            event.stopPropagation();
-            selectSpeed("FAST");
+          fastOpt.bg.on("pointerdown", (p, lx, ly, e) => {
+            e.stopPropagation();
+            this.mode = "FAST";
+            this.sfx.click();
+            this.updateSpeedButtons();
+            this.saveGameState();
           });
-
           this.updateSpeedButtons();
 
-          // ---------- 自动五次：是 / 否 ----------
-          const autoRowY = speedRowY + 38;
-          const autoLabel = this.add
-            .text(rowLabelX, autoRowY, "自动五次", {
-              fontSize: "15px",
-              fontStyle: "bold",
-              color: "#ffd700",
-            })
-            .setOrigin(0, 0.5);
-          children.push(autoLabel);
-
-          const autoYesOpt = makeOptionButton(optAX, autoRowY, "是");
-          const autoNoOpt = makeOptionButton(optBX, autoRowY, "否");
+          // 自动
+          rowY += 36;
+          children.push(
+            this.add
+              .text(rowLabelX, rowY, "自动", {
+                fontSize: "13px",
+                fontStyle: "bold",
+                color: "#ffd700",
+              })
+              .setOrigin(0, 0.5),
+          );
+          const autoYesOpt = makeOptionButton(optAX, rowY, "是");
+          const autoNoOpt = makeOptionButton(optBX, rowY, "否");
           this.autoYesButton = autoYesOpt;
           this.autoNoButton = autoNoOpt;
-
-          autoYesOpt.bg.on("pointerdown", (pointer, lx, ly, event) => {
-            event.stopPropagation();
+          autoYesOpt.bg.on("pointerdown", (p, lx, ly, e) => {
+            e.stopPropagation();
             if (!this.autoPlay) {
               this.sfx.click();
               this.toggleAutoPlay();
             }
           });
-          autoNoOpt.bg.on("pointerdown", (pointer, lx, ly, event) => {
-            event.stopPropagation();
+          autoNoOpt.bg.on("pointerdown", (p, lx, ly, e) => {
+            e.stopPropagation();
             if (this.autoPlay) {
               this.sfx.click();
               this.toggleAutoPlay();
             }
           });
-
           this.updateAutoOptionButtons();
 
-          // ---------- 音效：开启 / 关闭 ----------
-          const soundRowY = autoRowY + 38;
-          const soundLabel = this.add
-            .text(rowLabelX, soundRowY, "音效", {
-              fontSize: "15px",
-              fontStyle: "bold",
-              color: "#ffd700",
-            })
-            .setOrigin(0, 0.5);
-          children.push(soundLabel);
-
-          const soundOnOpt = makeOptionButton(optAX, soundRowY, "开启");
-          const soundOffOpt = makeOptionButton(optBX, soundRowY, "关闭");
+          // 音效
+          rowY += 36;
+          children.push(
+            this.add
+              .text(rowLabelX, rowY, "音效", {
+                fontSize: "13px",
+                fontStyle: "bold",
+                color: "#ffd700",
+              })
+              .setOrigin(0, 0.5),
+          );
+          const soundOnOpt = makeOptionButton(optAX, rowY, "开启");
+          const soundOffOpt = makeOptionButton(optBX, rowY, "关闭");
           this.soundOnButton = soundOnOpt;
           this.soundOffButton = soundOffOpt;
-
-          soundOnOpt.bg.on("pointerdown", (pointer, lx, ly, event) => {
-            event.stopPropagation();
+          soundOnOpt.bg.on("pointerdown", (p, lx, ly, e) => {
+            e.stopPropagation();
             if (!this.sfx.enabled) {
               this.sfx.enabled = true;
               this.sfx.click();
               this.updateSoundOptionButtons();
+              this.saveGameState();
             }
           });
-          soundOffOpt.bg.on("pointerdown", (pointer, lx, ly, event) => {
-            event.stopPropagation();
+          soundOffOpt.bg.on("pointerdown", (p, lx, ly, e) => {
+            e.stopPropagation();
             if (this.sfx.enabled) {
               this.sfx.enabled = false;
               this.updateSoundOptionButtons();
+              this.saveGameState();
             }
           });
-
           this.updateSoundOptionButtons();
 
-          // ---------- 音乐：开启 / 关闭 ----------
-          const musicRowY = soundRowY + 38;
-          const musicLabel = this.add
-            .text(rowLabelX, musicRowY, "音乐", {
-              fontSize: "15px",
-              fontStyle: "bold",
-              color: "#ffd700",
-            })
-            .setOrigin(0, 0.5);
-          children.push(musicLabel);
+          // 分隔：投注 / 筹码
+          rowY += 28;
+          children.push(
+            this.add
+              .rectangle((dividerX + rightX) / 2, rowY, rightX - dividerX - 10, 1, UI.gold, 0.3)
+              .setOrigin(0.5),
+          );
 
-          const musicOnOpt = makeOptionButton(optAX, musicRowY, "开启");
-          const musicOffOpt = makeOptionButton(optBX, musicRowY, "关闭");
-          this.musicOnButton = musicOnOpt;
-          this.musicOffButton = musicOffOpt;
-
-          musicOnOpt.bg.on("pointerdown", (pointer, lx, ly, event) => {
-            event.stopPropagation();
-            if (!bgMusic.enabled) {
-              bgMusic.setEnabled(true);
-              this.sfx.click();
-              this.updateMusicOptionButtons();
-              this.setEqVisualizerActive(true);
-            }
-          });
-          musicOffOpt.bg.on("pointerdown", (pointer, lx, ly, event) => {
-            event.stopPropagation();
-            if (bgMusic.enabled) {
-              bgMusic.setEnabled(false);
-              this.sfx.click();
-              this.updateMusicOptionButtons();
-              this.setEqVisualizerActive(false);
-            }
-          });
-
-          this.updateMusicOptionButtons();
-
-          // ---------- 播放模式：顺序播放 / 随机播放 ----------
-          const shuffleRowY = musicRowY + 38;
-          const shuffleLabel = this.add
-            .text(rowLabelX, shuffleRowY, "播放模式", {
-              fontSize: "15px",
-              fontStyle: "bold",
-              color: "#ffd700",
-            })
-            .setOrigin(0, 0.5);
-          children.push(shuffleLabel);
-
-          const orderOpt = makeOptionButton(optAX, shuffleRowY, "顺序");
-          const shuffleOpt = makeOptionButton(optBX, shuffleRowY, "随机");
-          this.orderPlayButton = orderOpt;
-          this.shufflePlayButton = shuffleOpt;
-
-          orderOpt.bg.on("pointerdown", (pointer, lx, ly, event) => {
-            event.stopPropagation();
-            if (bgMusic.shuffle) {
-              bgMusic.setShuffle(false);
-              this.sfx.click();
-              this.updatePlayModeButtons();
-            }
-          });
-          shuffleOpt.bg.on("pointerdown", (pointer, lx, ly, event) => {
-            event.stopPropagation();
-            if (!bgMusic.shuffle) {
-              bgMusic.setShuffle(true);
-              this.sfx.click();
-              this.updatePlayModeButtons();
-            }
-          });
-
-          this.updatePlayModeButtons();
-
-          // ---------- 投注：紧跟播放模式，集中在控制栏 ----------
-          const betRowY = shuffleRowY + 40;
-          const betLabel = this.add
-            .text(rowLabelX, betRowY, "投注", {
-              fontSize: "15px",
-              fontStyle: "bold",
-              color: UI.cream,
-            })
-            .setOrigin(0, 0.5);
-          children.push(betLabel);
-
-          // 长方形金色边框：内部只放 "+  金额  −" 三个元素，不再套小框，靠间距区分彼此
-          const betGroupHalfW = optBX - optAX + 34;
-          const betGroupCenterX = (optAX + optBX) / 2;
-          const betGroupLeft = betGroupCenterX - betGroupHalfW / 2;
-          const betGroupRight = betGroupCenterX + betGroupHalfW / 2;
-          const betGroupBorder = this.add
-            .rectangle(
-              betGroupCenterX,
-              betRowY,
-              betGroupRight - betGroupLeft,
-              38,
-              0x000000,
-              0,
-            )
-            .setStrokeStyle(2, UI.gold);
-          children.push(betGroupBorder);
-
-          // 三等分：+ 靠左、金额居中、− 靠右，留足边距避免与外框贴边或互相遮挡
-          const betInnerPad = 26;
-          const betPlusX = betGroupLeft + betInnerPad;
-          const betValueX = betGroupCenterX;
-          const betMinusX = betGroupRight - betInnerPad;
-
-          const makeBetSymbol = (x, label) => {
-            const txt = this.add
-              .text(x, betRowY, label, {
-                fontSize: "22px",
+          // 投注
+          rowY += 28;
+          children.push(
+            this.add
+              .text(rowLabelX, rowY, "投注", {
+                fontSize: "13px",
                 fontStyle: "bold",
-                color: UI.cream,
+                color: "#ffd700",
               })
-              .setOrigin(0.5)
-              .setInteractive({
-                useHandCursor: true,
-                hitArea: new Phaser.Geom.Rectangle(-20, -19, 40, 38),
-                hitAreaCallback: Phaser.Geom.Rectangle.Contains,
-              });
-            children.push(txt);
-            return txt;
-          };
-
-          const betPlus = makeBetSymbol(betPlusX, "+");
-          const betMinus = makeBetSymbol(betMinusX, "−");
-          this.betPlus = betPlus;
-          this.betMinus = betMinus;
-          this.betValue = this.add
-            .text(betValueX, betRowY, this.formatInt(this.bet), {
-              fontSize: "15px",
+              .setOrigin(0, 0.5),
+          );
+          const betBoxX = (optAX + optBX) / 2;
+          children.push(
+            this.add
+              .rectangle(betBoxX, rowY, 118, 28, 0x0a0806, 0.95)
+              .setStrokeStyle(1, UI.goldDim),
+          );
+          const betMinus = this.add
+            .text(betBoxX - 42, rowY, "−", {
+              fontSize: "18px",
+              color: "#ffd700",
               fontStyle: "bold",
-              color: "#f4ead0",
+            })
+            .setOrigin(0.5)
+            .setInteractive({ useHandCursor: true });
+          const betPlus = this.add
+            .text(betBoxX + 42, rowY, "+", {
+              fontSize: "18px",
+              color: "#ffd700",
+              fontStyle: "bold",
+            })
+            .setOrigin(0.5)
+            .setInteractive({ useHandCursor: true });
+          this.modalBetValue = this.add
+            .text(betBoxX, rowY, this.formatInt(this.bet), {
+              fontSize: "14px",
+              color: "#ffe9a6",
+              fontStyle: "bold",
             })
             .setOrigin(0.5);
-          children.push(this.betValue);
-
-          const betSymbolPress = (txt) => {
-            this.tweens.killTweensOf(txt);
-            txt.setScale(1);
-            this.tweens.add({
-              targets: txt,
-              scale: 0.82,
-              duration: 70,
-              yoyo: true,
-            });
-          };
-
-          betPlus.on("pointerdown", (pointer, lx, ly, event) => {
-            event.stopPropagation();
-            betSymbolPress(betPlus);
-            this.changeBet(this.betStep);
-          });
-          betPlus.on("pointerover", () => betPlus.setColor("#ffd700"));
-          betPlus.on("pointerout", () => betPlus.setColor(UI.cream));
-
-          betMinus.on("pointerdown", (pointer, lx, ly, event) => {
-            event.stopPropagation();
-            betSymbolPress(betMinus);
+          betMinus.on("pointerdown", (p, lx, ly, e) => {
+            e.stopPropagation();
             this.changeBet(-this.betStep);
+            if (this.modalBetValue)
+              this.modalBetValue.setText(this.formatInt(this.bet));
           });
-          betMinus.on("pointerover", () => betMinus.setColor("#ffd700"));
-          betMinus.on("pointerout", () => betMinus.setColor(UI.cream));
+          betPlus.on("pointerdown", (p, lx, ly, e) => {
+            e.stopPropagation();
+            this.changeBet(this.betStep);
+            if (this.modalBetValue)
+              this.modalBetValue.setText(this.formatInt(this.bet));
+          });
+          children.push(betMinus, betPlus, this.modalBetValue);
 
-          // ---------- 左右两栏之间的竖分隔线（按实际内容高度绘制）----------
-          const vDividerTop = contentTop - 14;
-          const vDividerBottom = betRowY + 24;
-          const vDivider = this.add
-            .rectangle(
-              dividerX,
-              (vDividerTop + vDividerBottom) / 2,
-              2,
-              vDividerBottom - vDividerTop,
-              0xffd700,
-              0.25,
-            )
-            .setOrigin(0.5);
-          children.push(vDivider);
+          // 筹码
+          rowY += 36;
+          children.push(
+            this.add
+              .text(rowLabelX, rowY, "筹码", {
+                fontSize: "13px",
+                fontStyle: "bold",
+                color: "#ffd700",
+              })
+              .setOrigin(0, 0.5),
+          );
+          children.push(
+            this.add
+              .rectangle(betBoxX, rowY, 130, 28, 0x0a0806, 0.95)
+              .setStrokeStyle(1, UI.goldDim),
+          );
+          const chipMinus = this.add
+            .text(betBoxX - 48, rowY, "−", {
+              fontSize: "18px",
+              color: "#ffd700",
+              fontStyle: "bold",
+            })
+            .setOrigin(0.5)
+            .setInteractive({ useHandCursor: true });
+          const chipPlus = this.add
+            .text(betBoxX + 48, rowY, "+", {
+              fontSize: "18px",
+              color: "#ffd700",
+              fontStyle: "bold",
+            })
+            .setOrigin(0.5)
+            .setInteractive({ useHandCursor: true });
+          children.push(
+            this.add
+              .text(betBoxX, rowY, "1000", {
+                fontSize: "14px",
+                color: "#ffe9a6",
+                fontStyle: "bold",
+              })
+              .setOrigin(0.5),
+          );
+          chipPlus.on("pointerdown", (p, lx, ly, e) => {
+            e.stopPropagation();
+            this.sfx.coinChime("out");
+            this.balance = Math.round(this.balance + 1000);
+            this.updateDisplay();
+            this.setMessage("筹码 +1000");
+          });
+          chipMinus.on("pointerdown", (p, lx, ly, e) => {
+            e.stopPropagation();
+            if (this.balance < 1000) {
+              this.setMessage("筹码不足");
+              this.sfx.lose();
+              return;
+            }
+            this.sfx.coinChime("in");
+            this.balance = Math.round(this.balance - 1000);
+            this.updateDisplay();
+            this.setMessage("筹码 −1000");
+          });
+          children.push(chipMinus, chipPlus);
 
-          // ---------- 关闭按钮 ----------
+          // 占位旧引用
+          this.musicOnButton = null;
+          this.musicOffButton = null;
+          this.orderPlayButton = null;
+          this.shufflePlayButton = null;
+
+          // 关闭
           const closeBtn = this.add
-            .text(cx + panelW / 2 - 22, top + 20, "✕", {
-              fontSize: "20px",
+            .text(cx + panelW / 2 - 18, top + 16, "✕", {
+              fontSize: "16px",
               fontStyle: "bold",
               color: "#ffe9a6",
             })
@@ -3049,6 +3168,9 @@
         }
 
         toggleSettingsModal(show) {
+          if (show && this.modalBetValue) {
+            this.modalBetValue.setText(this.formatInt(this.bet));
+          }
           this.settingsModalGroup.setVisible(show);
         }
 
@@ -3258,10 +3380,10 @@
             onRepeat: () => this.signatureSheen.setX(-120),
           });
 
-          this.machineGlow.setAlpha(0.09);
-          this.paylineTop.setAlpha(0.24);
-          this.paylineMiddle.setAlpha(0.72);
-          this.paylineBottom.setAlpha(0.24);
+          this.machineGlow.setAlpha(0.07);
+          if (this.paylineTop) this.paylineTop.setAlpha(0.4);
+          if (this.paylineMiddle) this.paylineMiddle.setAlpha(0.55);
+          if (this.paylineBottom) this.paylineBottom.setAlpha(0.4);
         }
 
         updateDisplay() {
@@ -3273,13 +3395,21 @@
             13,
           );
 
-          fitTextToBox(
-            this.betValue,
-            this.formatInt(this.bet),
-            78,
-            15,
-            10,
-          );
+          if (this.betValue) {
+            fitTextToBox(
+              this.betValue,
+              this.formatInt(this.bet),
+              78,
+              15,
+              10,
+            );
+          }
+          if (this.sideBetValue) {
+            this.sideBetValue.setText(this.formatInt(this.bet));
+          }
+          if (this.modalBetValue) {
+            this.modalBetValue.setText(this.formatInt(this.bet));
+          }
 
           fitTextToBox(
             this.lastWinValue,
@@ -3305,29 +3435,38 @@
 
           this.sfx.click();
 
-          this.bet = Phaser.Math.Clamp(
-            this.bet + amount,
-            this.minBet,
-            this.maxBet,
+          this.bet = Math.round(
+            Phaser.Math.Clamp(
+              this.bet + amount,
+              this.minBet,
+              this.maxBet,
+            ),
           );
 
-          fitTextToBox(
-            this.betValue,
-            this.formatInt(this.bet),
-            78,
-            15,
-            10,
-          );
-
-          // 连续快速点击 +/- 时，先停掉上一次未播完的缩放动画，避免叠加抖动
-          this.tweens.killTweensOf(this.betValue);
-          this.betValue.setScale(1);
-          this.tweens.add({
-            targets: this.betValue,
-            scale: 1.18,
-            duration: 120,
-            yoyo: true,
-          });
+          if (this.betValue) {
+            fitTextToBox(
+              this.betValue,
+              this.formatInt(this.bet),
+              78,
+              15,
+              10,
+            );
+            this.tweens.killTweensOf(this.betValue);
+            this.betValue.setScale(1);
+            this.tweens.add({
+              targets: this.betValue,
+              scale: 1.18,
+              duration: 120,
+              yoyo: true,
+            });
+          }
+          if (this.sideBetValue) {
+            this.sideBetValue.setText(this.formatInt(this.bet));
+          }
+          if (this.modalBetValue) {
+            this.modalBetValue.setText(this.formatInt(this.bet));
+          }
+          this.saveGameState();
         }
 
         setBetButtonsEnabled(enabled) {
@@ -3533,7 +3672,7 @@
           reel.stopped = false;
           reel.forceStopScheduled = false;
 
-          reel.frame.setStrokeStyle(4, 0xff0066);
+          reel.frame.setStrokeStyle(3, UI.goldBright);
 
           const stopDelay = settings.duration + index * 320;
           const decelWindow = 260; // 停止前的减速窗口（毫秒），让转轮"滑行进站"而不是硬停
@@ -3808,7 +3947,7 @@
         playJackpot() {
           this.sfx.jackpot();
           this.cameras.main.flash(600, 255, 215, 0);
-          this.cameras.main.shake(800, 0.014);
+          this.cameras.main.shake(900, 0.018);
           this.flashLines();
 
           this.tweens.add({
@@ -3821,10 +3960,48 @@
 
           this.showWinText("JACKPOT!", "#ffd700");
           this.coinExplosion(90);
+          this.fireworksBurst(70);
 
           this.jackpotValue =
             this.baseJackpotValue + Phaser.Math.Between(250, 1250);
           this.updateDisplay();
+        }
+
+        // 礼花：彩色粒子向上炸开后缓落
+        fireworksBurst(amount) {
+          const colors = ["#ffd700", "#ff6b6b", "#4ecdc4", "#ffe66d", "#ff9ff3", "#54a0ff", "#ffffff"];
+          const batch = 12;
+          const batches = Math.ceil(amount / batch);
+          for (let b = 0; b < batches; b++) {
+            this.time.delayedCall(b * 55, () => {
+              const count = Math.min(batch, amount - b * batch);
+              const ox = Phaser.Math.Between(380, 560);
+              const oy = Phaser.Math.Between(160, 240);
+              for (let i = 0; i < count; i++) {
+                const col = colors[i % colors.length];
+                const p = this.add
+                  .text(ox, oy, "✦", {
+                    fontSize: `${Phaser.Math.Between(14, 26)}px`,
+                    color: col,
+                  })
+                  .setOrigin(0.5)
+                  .setDepth(60);
+                const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+                const dist = Phaser.Math.Between(80, 220);
+                this.tweens.add({
+                  targets: p,
+                  x: ox + Math.cos(angle) * dist,
+                  y: oy + Math.sin(angle) * dist * 0.7 - Phaser.Math.Between(40, 120),
+                  alpha: 0,
+                  scale: Phaser.Math.FloatBetween(0.4, 1.4),
+                  angle: Phaser.Math.Between(-180, 180),
+                  duration: Phaser.Math.Between(700, 1300),
+                  ease: "Cubic.easeOut",
+                  onComplete: () => p.destroy(),
+                });
+              }
+            });
+          }
         }
 
         showWinText(text, color) {
@@ -4145,7 +4322,7 @@
 
             // 每次最多补 2 个点，避免切回页面后瞬间拉出长直线。
             var elapsed = now - specLastSampleAt;
-            var steps = Math.min(2, Math.floor(elapsed / 28));
+            var steps = Math.min(2, Math.floor(elapsed / 36));
 
             for (var s = 0; s < steps; s++) {
               var sampleEnergy = Math.max(0, Math.min(1, energy));
@@ -4153,41 +4330,46 @@
               var sampleBody = Math.max(0, Math.min(1, body));
               var sampleTreble = Math.max(0, Math.min(1, treble));
 
-              // 低频越强，波形摆动越明显；重拍瞬间额外拉出尖峰。
+              // 飘逸海浪：振幅拉开、波峰稀疏，像风吹的长线，不要弹簧密齿
               var amp =
-                4 +
-                sampleEnergy * 30 +
-                sampleBass * 24 +
-                transient * 58 +
-                sampleTreble * 8;
+                10 +
+                sampleEnergy * 42 +
+                sampleBass * 38 +
+                transient * 90 +
+                sampleTreble * 10;
 
-              // 用低频驱动相位，避免固定速度的“假波形”。
-              specPhase += 0.20 + sampleBass * 0.42 + sampleBody * 0.16;
+              // 相位推进更慢 → 峰谷间距更大、更舒展
+              specPhase += 0.09 + sampleBass * 0.22 + sampleBody * 0.08;
 
-              // 基础连续起伏 + 很短的尖峰分量。
+              // 主波缓慢飘动 + 极少次谐波，避免拥挤锯齿
               var carrier =
-                Math.sin(specPhase) * 0.72 +
-                Math.sin(specPhase * 2.13 + 0.8) * 0.18;
+                Math.sin(specPhase) * 0.88 +
+                Math.sin(specPhase * 1.37 + 0.6) * 0.12;
 
+              // 重拍尖峰短而高，像浪头掀起
               var spike =
-                Math.sign(Math.sin(specPhase * 0.53 + 1.7)) *
-                Math.min(1, transient * 5.5) *
-                (0.35 + sampleTreble * 0.65);
+                Math.sign(Math.sin(specPhase * 0.31 + 1.1)) *
+                Math.min(1, transient * 4.2) *
+                (0.25 + sampleTreble * 0.55);
 
               var sample = Math.max(
                 -1,
-                Math.min(1, carrier * 0.88 + spike)
+                Math.min(1, carrier * 0.92 + spike * 0.75)
               ) * amp;
 
-              // 峰值/低谷保持尖锐，但相邻点仍然连续。
-              if (transient > 0.035) {
+              if (transient > 0.04) {
                 sample +=
                   Math.sign(carrier || 1) *
-                  Math.min(22, transient * 170);
+                  Math.min(34, transient * 220);
+              }
+
+              // 平滑一点，线条更像被风吹动而不是噪音
+              if (specHistory.length > 0) {
+                sample = sample * 0.62 + specHistory[specHistory.length - 1] * 0.38;
               }
 
               specHistory.push(sample);
-              if (specHistory.length > 180) specHistory.shift();
+              if (specHistory.length > 140) specHistory.shift();
             }
 
             if (steps > 0) specLastSampleAt += steps * 28;
@@ -4207,7 +4389,7 @@
           ctx.globalAlpha = playing ? 0.96 : 0.28;
 
           // 固定线宽：和参考图一样，整条波形粗细一致。
-          ctx.lineWidth = playing ? 5 : 3.2;
+          ctx.lineWidth = playing ? 4.2 : 2.8;
 
           var prevX = 0;
           var prevY = mid;
@@ -4218,10 +4400,10 @@
 
             // 留一点上下安全边距，避免尖峰撞到容器边缘。
             var normalized = specHistory[i] / maxAbs;
-            var y = mid + normalized * (h * 0.43);
+            var y = mid + normalized * (h * 0.48);
 
-            // 轻微压缩极端尖峰，让视觉更接近参考图而不是“音频示波器”。
-            y = mid + Math.tanh((y - mid) / (h * 0.36)) * (h * 0.36);
+            // 保留峰谷冲击力，只在极端时软压缩
+            y = mid + Math.tanh((y - mid) / (h * 0.42)) * (h * 0.42);
 
             if (i > 0) {
               var col = specColorAt(t);
