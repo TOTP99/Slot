@@ -1172,6 +1172,7 @@
           this.ctx = null;
           this.analyser = null;
           this._source = null;
+          this._gain = null;
           this._freqData = null;
           this._connected = false;
 
@@ -1218,8 +1219,12 @@
             if (!this._source) {
               // 每个 <audio> 只能 createMediaElementSource 一次；之后必须经 destination 才能出声
               this._source = this.ctx.createMediaElementSource(this.audio);
+              // 用一个 GainNode 兜底：暂停/切歌时先做几十毫秒淡出，避免直接截断波形产生"啪"的爆音
+              this._gain = this.ctx.createGain();
+              this._gain.gain.value = 1;
               this._source.connect(this.analyser);
-              this.analyser.connect(this.ctx.destination);
+              this._source.connect(this._gain);
+              this._gain.connect(this.ctx.destination);
             }
             this._connected = true;
             return true;
@@ -1434,6 +1439,7 @@
             this.enabled = true;
             localStorage.setItem("bgMusicEnabled", "true");
           }
+          this._fadeGainTo(1, 0.05);
           this._playAudio();
         }
 
@@ -1441,10 +1447,40 @@
         async tryPlay() {
           if (!this.enabled) return;
           this.ensureAnalyser();
+          this._fadeGainTo(1, 0.05);
           this._playAudio();
         }
 
+        // 短暂线性淡入/淡出，避免音量突变（尤其是暂停瞬间）产生爆音/怪声
+        _fadeGainTo(target, seconds) {
+          if (!this._gain || !this.ctx) return;
+          try {
+            const now = this.ctx.currentTime;
+            const g = this._gain.gain;
+            g.cancelScheduledValues(now);
+            g.setValueAtTime(g.value, now);
+            g.linearRampToValueAtTime(target, now + seconds);
+          } catch (e) {}
+        }
+
         pause() {
+          if (this._gain && this.ctx && this.ctx.state === "running") {
+            // 先淡出 60ms 再真正 pause()，避免直接截断波形产生"咔"的爆音
+            this._fadeGainTo(0, 0.06);
+            const audioEl = this.audio;
+            const gain = this._gain;
+            setTimeout(() => {
+              try {
+                audioEl.pause();
+              } catch (e) {}
+              // 淡出后立刻把音量拉回 1，供下次播放使用（此时已静音，不会有声音）
+              try {
+                gain.gain.cancelScheduledValues(this.ctx.currentTime);
+                gain.gain.setValueAtTime(1, this.ctx.currentTime);
+              } catch (e) {}
+            }, 70);
+            return;
+          }
           try {
             this.audio.pause();
           } catch (e) {}
@@ -1551,6 +1587,11 @@
           return Number(value).toFixed(2);
         }
 
+        // 投注 / BALANCE / LAST WIN 专用：只显示整数，不带小数点（例如 50，不是 50.00）
+        formatInt(value) {
+          return String(Math.round(Number(value)));
+        }
+
         setMessage(value, baseFontSize = 20) {
           fitTextToBox(
             this.messageText,
@@ -1562,74 +1603,9 @@
         }
 
         createLuxuryBackground() {
-          // 统一金属光泽黑：深黑基底 + 顶部一道冷白高光模拟抛光反射 + 细腻拉丝纹理。
-          const w = GAME_WIDTH;
-          const h = GAME_HEIGHT;
-          const canvas = document.createElement("canvas");
-          canvas.width = w;
-          canvas.height = h;
-          const ctx = canvas.getContext("2d");
-
-          // 基底：接近纯黑，带极轻微的竖向明暗过渡（顶亮底暗，模拟打光的金属板）
-          const base = ctx.createLinearGradient(0, 0, 0, h);
-          base.addColorStop(0, "#141416");
-          base.addColorStop(0.14, "#0d0d0f");
-          base.addColorStop(0.55, "#0a0a0b");
-          base.addColorStop(1, "#020202");
-          ctx.fillStyle = base;
-          ctx.fillRect(0, 0, w, h);
-
-          // 抛光反射带：一条柔和但有明确边界的冷白光带，斜切过画面上半部分
-          ctx.save();
-          ctx.translate(w * 0.5, h * 0.28);
-          ctx.rotate(-0.06);
-          const sheen = ctx.createLinearGradient(0, -h * 0.18, 0, h * 0.18);
-          sheen.addColorStop(0, "rgba(255,255,255,0)");
-          sheen.addColorStop(0.46, "rgba(220,224,230,0.05)");
-          sheen.addColorStop(0.5, "rgba(255,255,255,0.10)");
-          sheen.addColorStop(0.54, "rgba(220,224,230,0.05)");
-          sheen.addColorStop(1, "rgba(255,255,255,0)");
-          ctx.fillStyle = sheen;
-          ctx.fillRect(-w, -h * 0.2, w * 2, h * 0.4);
-          ctx.restore();
-
-          // 极细竖向拉丝纹理：一组低透明度的细竖线，制造金属拉丝质感
-          ctx.globalAlpha = 1;
-          for (let x = 0; x < w; x += 3) {
-            const shade = (x / 3) % 2 === 0 ? "rgba(255,255,255,0.012)" : "rgba(0,0,0,0.02)";
-            ctx.fillStyle = shade;
-            ctx.fillRect(x, 0, 1, h);
-          }
-
-          // 四周压暗，收边更沉、更聚焦
-          const vignette = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.32, w / 2, h / 2, Math.max(w, h) * 0.72);
-          vignette.addColorStop(0, "rgba(0,0,0,0)");
-          vignette.addColorStop(1, "rgba(0,0,0,0.55)");
-          ctx.fillStyle = vignette;
-          ctx.fillRect(0, 0, w, h);
-
-          // 极轻噪点：只为破掉数字渐变的死黑色阶
-          const image = ctx.createImageData(w, h);
-          const data = image.data;
-          for (let i = 0; i < data.length; i += 4) {
-            const n = (Math.random() * 2 - 1) * 6;
-            data[i] = 128 + n;
-            data[i + 1] = 128 + n;
-            data[i + 2] = 128 + n;
-            data[i + 3] = 6;
-          }
-          ctx.putImageData(image, 0, 0);
-
-          if (!this.textures.exists("luxury-bg")) {
-            this.textures.addCanvas("luxury-bg", canvas);
-          }
-          this.add.image(w / 2, h / 2, "luxury-bg").setDepth(-100);
-
-          this.createLightSweep();
+          // 已按需求移除全部背景（渐变 / 高光 / 拉丝纹理 / 暗角 / 噪点），
+          // 画面背景现在完全由 Phaser 游戏配置的 backgroundColor 承担。
         }
-
-        // 已移除所有划过的光影动画。
-        createLightSweep() {}
 
         createPanel(x, y, width, height, fill = UI.panel, alpha = 0.96) {
           // 哑光金属 / 磨砂玻璃式卡片：暗金外缘 + 半透明内层 + 细高光线。
@@ -1690,6 +1666,18 @@
               },
             )
             .setOrigin(0.5);
+
+          // TP制作签名：移到 jackpot 面板正下方的空位
+          this.add
+            .text(480, LAYOUT.jackpotY + 30, "TP制作🐈⭐️", {
+              fontSize: "13px",
+              fontStyle: "bold",
+              fontFamily: 'Arial, "Microsoft YaHei", sans-serif',
+              color: "#d8caa6",
+              stroke: "#090b0b",
+              strokeThickness: 1,
+            })
+            .setOrigin(0.5);
         }
 
         updateLiveClock() {
@@ -1743,19 +1731,7 @@
           this.updateLiveClock();
           this.clockTimer = setInterval(() => this.updateLiveClock(), 250);
 
-          // 删除赔率标题；原位置改放 TP制作
-          this.add
-            .text(x, y - 86, "TP制作🐈⭐️", {
-              fontSize: "14px",
-              fontStyle: "bold",
-              fontFamily: 'Arial, "Microsoft YaHei", sans-serif',
-              color: "#d8caa6",
-              stroke: "#090b0b",
-              strokeThickness: 1,
-            })
-            .setOrigin(0.5);
-
-          // 🏦 资金入口保留在原赔率面板位置
+          // 删除赔率标题；原位置改放 💰 资金入口（TP制作签名已移到 jackpot 下方）
           this.createCoinButton(x, y - 52);
 
           // 分隔细线：标题与下方音乐可视化区之间
@@ -2011,7 +1987,7 @@
             })
             .setOrigin(0.5);
           this.balanceValue = this.add
-            .text(xs[0], LAYOUT.messageY + 10, this.formatMoney(this.balance), {
+            .text(xs[0], LAYOUT.messageY + 10, this.formatInt(this.balance), {
               fontSize: "17px",
               fontStyle: "bold",
               color: "#f4ead0",
@@ -2038,7 +2014,7 @@
             })
             .setOrigin(0.5);
           this.lastWinValue = this.add
-            .text(xs[3], LAYOUT.messageY + 10, this.formatMoney(this.lastWin), {
+            .text(xs[3], LAYOUT.messageY + 10, this.formatInt(this.lastWin), {
               fontSize: "17px",
               fontStyle: "bold",
               color: "#f4ead0",
@@ -2201,99 +2177,11 @@
             }
           });
 
-          // ========== SPIN 立体金属按键（拉杆面板上方）==========
-          // 面板中心 y=338、高 180 → 顶边 ≈ 248；按键放上方并留间隙
-          const spinBtnX = lx;
-          const spinBtnY = 218;
-
-          // 底层阴影（立体厚度）
-          this.spinBtnShadow = this.add
-            .rectangle(spinBtnX + 2, spinBtnY + 4, 118, 36, 0x1a1200, 0.85)
-            .setDepth(5);
-
-          // 金属外框
-          this.spinBtnRim = this.add
-            .rectangle(spinBtnX, spinBtnY, 118, 36, 0x8a7040)
-            .setStrokeStyle(2, 0xffe566)
-            .setDepth(6);
-
-          // 主金属面
-          this.spinBtnBg = this.add
-            .rectangle(spinBtnX, spinBtnY - 1, 108, 28, 0xc9a84c)
-            .setStrokeStyle(1, 0xfff2a8)
-            .setInteractive({ useHandCursor: true })
-            .setDepth(7);
-
-          // 顶部高光条
-          this.spinBtnShine = this.add
-            .rectangle(spinBtnX, spinBtnY - 10, 96, 6, 0xfff8dc, 0.55)
-            .setDepth(8);
-
-          // 底部暗边
-          this.spinBtnShade = this.add
-            .rectangle(spinBtnX, spinBtnY + 10, 100, 5, 0x5c4010, 0.45)
-            .setDepth(8);
-
-          // 黄色光晕
-          this.spinGlow = this.add
-            .circle(spinBtnX, spinBtnY, 48, 0xffd700, 0)
-            .setDepth(4);
-
-          this.spinBtnText = this.add
-            .text(spinBtnX, spinBtnY - 1, "SPIN", {
-              fontSize: "18px",
-              fontStyle: "bold",
-              color: "#2a1a00",
-              stroke: "#ffe9a6",
-              strokeThickness: 1,
-            })
-            .setOrigin(0.5)
-            .setDepth(9);
-
-          const spinVisuals = [
-            this.spinBtnShadow,
-            this.spinBtnRim,
-            this.spinBtnBg,
-            this.spinBtnShine,
-            this.spinBtnShade,
-            this.spinBtnText,
-          ];
-          // 记录每一层的基准 Y 坐标，供按压动画每次复位，避免连点后位置产生累积漂移
-          spinVisuals.forEach((obj) => obj.setData("baseY", obj.y));
-
-          const flashSpinGlow = () => {
-            // 已移除动态光晕/扫光，只保留轻微按压反馈。
-            this.tweens.killTweensOf(spinVisuals);
-            spinVisuals.forEach((obj) => obj.setY(obj.getData("baseY")));
-            this.tweens.add({
-              targets: spinVisuals,
-              y: "+=2",
-              duration: 60,
-              yoyo: true,
-            });
-          };
-
-          this.spinBtnBg.on("pointerdown", () => {
-            this.sfx.buttonPress();
-            flashSpinGlow();
-            this.handleSpinInput();
-          });
-
-          this.spinBtnBg.on("pointerover", () => {
-            this.spinBtnBg.setFillStyle(0xe0c060);
-            this.spinBtnRim.setStrokeStyle(2, 0xfff6b0);
-          });
-
-          this.spinBtnBg.on("pointerout", () => {
-            this.spinBtnBg.setFillStyle(0xc9a84c);
-            this.spinBtnRim.setStrokeStyle(2, 0xffe566);
-          });
-
-          // ========== 🏦 资金按钮：买入 / 提出合并为一个入口，放在左侧赔率面板"设置"位 ==========
+          // ========== 💰 资金按钮：买入 / 提出合并为一个入口，放在左侧赔率面板"设置"位 ==========
           this.createCoinButton();
         }
 
-        // direction: "out" = 买入（金币从 🏦 飞出）；"in" = 提出（金币飞入 🏦）
+        // direction: "out" = 买入（金币从 💰 飞出）；"in" = 提出（金币飞入 💰）
         playCashFlyAnim(direction) {
           if (this.cashIconX === undefined) return;
           const cx = this.cashIconX;
@@ -2348,7 +2236,7 @@
             });
           }
 
-          // 🏦 图标反馈脉冲
+          // 💰 图标反馈脉冲
           this.tweens.add({
             targets: this.cashIcon,
             scale: 1.25,
@@ -2380,9 +2268,21 @@
             .setStrokeStyle(2, UI.goldDim)
             .setDepth(12);
 
-          // 🏦 图标：买入 / 提出统一入口
+          // 💰 图标：买入 / 提出统一入口（原 🏦 改为筹码袋 + 角标 +/−，功能与动画不变）
           this.coinBtnIcon = this.add
-            .text(cx, cy, "🏦", { fontSize: "18px" })
+            .text(cx, cy, "💰", { fontSize: "18px" })
+            .setOrigin(0.5)
+            .setDepth(13);
+
+          // 角标 +/−：提示可增减筹码，纯装饰，不单独接管点击
+          this.coinBtnBadge = this.add
+            .text(cx + 10, cy + 9, "+/−", {
+              fontSize: "8px",
+              fontStyle: "bold",
+              color: "#ffe9a6",
+              stroke: "#2a1400",
+              strokeThickness: 2,
+            })
             .setOrigin(0.5)
             .setDepth(13);
 
@@ -2398,7 +2298,7 @@
           this.coinBtnHit.on("pointerout", () => {
             this.coinBtnRing.setStrokeStyle(2, UI.goldDim);
           });
-          // 资金动画统一以 🏦 为汇聚 / 发散基准点
+          // 资金动画统一以 💰 为汇聚 / 发散基准点
           this.cashIconX = cx;
           this.cashIconY = cy;
           this.cashIcon = this.coinBtnIcon;
@@ -2407,7 +2307,7 @@
             event.stopPropagation();
             this.sfx.click();
             this.tweens.add({
-              targets: [this.coinBtnRing, this.coinBtnIcon],
+              targets: [this.coinBtnRing, this.coinBtnIcon, this.coinBtnBadge],
               scale: 0.88,
               duration: 70,
               yoyo: true,
@@ -2440,7 +2340,7 @@
             .setStrokeStyle(3, 0xffd700);
 
           const title = this.add
-            .text(cx, cy - 70, "🏦 资金操作", {
+            .text(cx, cy - 70, "💰 资金操作", {
               fontSize: "20px",
               fontStyle: "bold",
               color: "#ffd700",
@@ -3032,50 +2932,52 @@
             .setOrigin(0, 0.5);
           children.push(betLabel);
 
-          const betBtnW = 46;
-          const betBtnH = 28;
-          const betMinusX = optAX;
-          const betValueX = optAX + 78;
-          const betPlusX = optBX;
-
-          // 长方形外边框：把 −  /  金额  /  + 整体框在一起
-          const betGroupLeft = betMinusX - betBtnW / 2 - 10;
-          const betGroupRight = betPlusX + betBtnW / 2 + 10;
+          // 长方形金色边框：内部只放 "+  金额  −" 三个元素，不再套小框，靠间距区分彼此
+          const betGroupHalfW = optBX - optAX + 34;
+          const betGroupCenterX = (optAX + optBX) / 2;
+          const betGroupLeft = betGroupCenterX - betGroupHalfW / 2;
+          const betGroupRight = betGroupCenterX + betGroupHalfW / 2;
           const betGroupBorder = this.add
             .rectangle(
-              (betGroupLeft + betGroupRight) / 2,
+              betGroupCenterX,
               betRowY,
               betGroupRight - betGroupLeft,
-              betBtnH + 14,
+              38,
               0x000000,
               0,
             )
             .setStrokeStyle(2, UI.gold);
           children.push(betGroupBorder);
 
-          const makeBetButton = (x, label) => {
-            const bg = this.add
-              .rectangle(x, betRowY, betBtnW, betBtnH, UI.panelDeep, 0.96)
-              .setStrokeStyle(1, UI.goldDim)
-              .setInteractive({ useHandCursor: true });
+          // 三等分：+ 靠左、金额居中、− 靠右，留足边距避免与外框贴边或互相遮挡
+          const betInnerPad = 26;
+          const betPlusX = betGroupLeft + betInnerPad;
+          const betValueX = betGroupCenterX;
+          const betMinusX = betGroupRight - betInnerPad;
+
+          const makeBetSymbol = (x, label) => {
             const txt = this.add
               .text(x, betRowY, label, {
-                fontSize: "16px",
+                fontSize: "22px",
                 fontStyle: "bold",
                 color: UI.cream,
               })
-              .setOrigin(0.5);
-            children.push(bg, txt);
-            return { bg, txt };
+              .setOrigin(0.5)
+              .setInteractive({
+                useHandCursor: true,
+                hitArea: new Phaser.Geom.Rectangle(-20, -19, 40, 38),
+                hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+              });
+            children.push(txt);
+            return txt;
           };
-          const betMinus = makeBetButton(betMinusX, "−");
-          const betPlus = makeBetButton(betPlusX, "+");
-          this.betMinus = betMinus.bg;
-          this.betPlus = betPlus.bg;
-          this.betMinusText = betMinus.txt;
-          this.betPlusText = betPlus.txt;
+
+          const betPlus = makeBetSymbol(betPlusX, "+");
+          const betMinus = makeBetSymbol(betMinusX, "−");
+          this.betPlus = betPlus;
+          this.betMinus = betMinus;
           this.betValue = this.add
-            .text(betValueX, betRowY, this.formatMoney(this.bet), {
+            .text(betValueX, betRowY, this.formatInt(this.bet), {
               fontSize: "15px",
               fontStyle: "bold",
               color: "#f4ead0",
@@ -3083,14 +2985,32 @@
             .setOrigin(0.5);
           children.push(this.betValue);
 
-          betMinus.bg.on("pointerdown", (pointer, lx, ly, event) => {
+          const betSymbolPress = (txt) => {
+            this.tweens.killTweensOf(txt);
+            txt.setScale(1);
+            this.tweens.add({
+              targets: txt,
+              scale: 0.82,
+              duration: 70,
+              yoyo: true,
+            });
+          };
+
+          betPlus.on("pointerdown", (pointer, lx, ly, event) => {
             event.stopPropagation();
-            this.changeBet(-this.betStep);
-          });
-          betPlus.bg.on("pointerdown", (pointer, lx, ly, event) => {
-            event.stopPropagation();
+            betSymbolPress(betPlus);
             this.changeBet(this.betStep);
           });
+          betPlus.on("pointerover", () => betPlus.setColor("#ffd700"));
+          betPlus.on("pointerout", () => betPlus.setColor(UI.cream));
+
+          betMinus.on("pointerdown", (pointer, lx, ly, event) => {
+            event.stopPropagation();
+            betSymbolPress(betMinus);
+            this.changeBet(-this.betStep);
+          });
+          betMinus.on("pointerover", () => betMinus.setColor("#ffd700"));
+          betMinus.on("pointerout", () => betMinus.setColor(UI.cream));
 
           // ---------- 左右两栏之间的竖分隔线（按实际内容高度绘制）----------
           const vDividerTop = contentTop - 14;
@@ -3346,7 +3266,7 @@
         updateDisplay() {
           fitTextToBox(
             this.balanceValue,
-            this.formatMoney(this.balance),
+            this.formatInt(this.balance),
             LAYOUT.balanceW - 35,
             21,
             13,
@@ -3354,7 +3274,7 @@
 
           fitTextToBox(
             this.betValue,
-            this.formatMoney(this.bet),
+            this.formatInt(this.bet),
             78,
             15,
             10,
@@ -3362,7 +3282,7 @@
 
           fitTextToBox(
             this.lastWinValue,
-            this.formatMoney(this.lastWin),
+            this.formatInt(this.lastWin),
             LAYOUT.lastWinW - 35,
             21,
             13,
@@ -3392,7 +3312,7 @@
 
           fitTextToBox(
             this.betValue,
-            this.formatMoney(this.bet),
+            this.formatInt(this.bet),
             78,
             15,
             10,
@@ -3418,16 +3338,19 @@
           this.betPlus.disableInteractive();
 
           if (enabled) {
-            this.betMinus.setInteractive({ useHandCursor: true });
-            this.betPlus.setInteractive({ useHandCursor: true });
+            this.betMinus.setInteractive({
+              useHandCursor: true,
+              hitArea: new Phaser.Geom.Rectangle(-20, -19, 40, 38),
+              hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+            });
+            this.betPlus.setInteractive({
+              useHandCursor: true,
+              hitArea: new Phaser.Geom.Rectangle(-20, -19, 40, 38),
+              hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+            });
           }
 
-          [
-            this.betMinus,
-            this.betPlus,
-            this.betMinusText,
-            this.betPlusText,
-          ].forEach((item) => item.setAlpha(alpha));
+          [this.betMinus, this.betPlus].forEach((item) => item.setAlpha(alpha));
         }
 
         toggleAutoPlay() {
@@ -3581,7 +3504,7 @@
             onUpdate: (tween) => {
               fitTextToBox(
                 this.balanceValue,
-                this.formatMoney(tween.getValue()),
+                this.formatInt(tween.getValue()),
                 LAYOUT.balanceW - 35,
                 21,
                 13,
@@ -4188,41 +4111,47 @@
             specSmooth[b] = specSmooth[b] * 0.82 + target * 0.18;
           }
 
-          // 与竖屏一致：单条干净的心电图线，不再使用跳动竖条、彩虹渐变或额外光晕。
-          var points = 220;
-          var values = [];
-          var bass = specSmooth[0] || 0;
-          var midBand = specSmooth[2] || 0;
-          var treble = specSmooth[4] || 0;
+          // 彩虹粗线：颜色沿宽度做彩虹渐变，线条随各频段能量起伏“起舞”
+          var points = 130;
           var energy = bgMusic.energy || 0;
-          var time = performance.now() * 0.0035;
+          var time = performance.now() * 0.0022;
 
+          ctx.save();
+          ctx.lineJoin = "round";
+          ctx.lineCap = "round";
+          ctx.globalAlpha = playing ? 0.95 : 0.32;
+          ctx.lineWidth = playing ? 5 + energy * 3.5 : 3.2;
+
+          var prevX = 0,
+            prevY = mid;
           for (var i = 0; i <= points; i++) {
             var t = i / points;
             var x = t * w;
-            var localLevel = bass * (1 - t) + treble * t;
-            var carrier = Math.sin(t * 42 + time * 0.35) * (2.2 + localLevel * 4.5);
-            var pulsePhase = (t * 9 - time * 0.75) % 1;
-            if (pulsePhase < 0) pulsePhase += 1;
-            var spike = Math.exp(-Math.pow((pulsePhase - 0.5) / 0.055, 2));
-            var notch = Math.exp(-Math.pow((pulsePhase - 0.61) / 0.025, 2));
-            var spikeAmp = playing ? (8 + energy * 22 + bass * 16) : 0;
-            var y = mid + carrier + spike * spikeAmp - notch * spikeAmp * 0.38;
-            values.push({ x: x, y: y });
-          }
+            var bandPos = t * (specSmooth.length - 1);
+            var bi = Math.floor(bandPos);
+            var bf = bandPos - bi;
+            var lvl =
+              (specSmooth[bi] || 0) * (1 - bf) +
+              (specSmooth[Math.min(bi + 1, specSmooth.length - 1)] || 0) * bf;
+            var amp = playing ? 6 + lvl * 46 + energy * 10 : 3;
+            var y =
+              mid +
+              Math.sin(t * 8 + time * 3.2) * amp * 0.6 +
+              Math.sin(t * 17 - time * 5.5) * amp * 0.35;
 
-          ctx.save();
-          ctx.lineJoin = "miter";
-          ctx.lineCap = "round";
-          ctx.globalAlpha = playing ? 0.95 : 0.32;
-          ctx.strokeStyle = "#ffe066";
-          ctx.lineWidth = 2.2;
-          ctx.beginPath();
-          for (var j = 0; j < values.length; j++) {
-            if (j === 0) ctx.moveTo(values[j].x, values[j].y);
-            else ctx.lineTo(values[j].x, values[j].y);
+            if (i > 0) {
+              var col = specColorAt(t);
+              ctx.strokeStyle = col;
+              ctx.shadowColor = col;
+              ctx.shadowBlur = playing ? 8 : 0;
+              ctx.beginPath();
+              ctx.moveTo(prevX, prevY);
+              ctx.lineTo(x, y);
+              ctx.stroke();
+            }
+            prevX = x;
+            prevY = y;
           }
-          ctx.stroke();
           ctx.restore();
         }
 
