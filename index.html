@@ -1667,17 +1667,18 @@
             )
             .setOrigin(0.5);
 
-          // TP制作签名：移到 jackpot 面板正下方的空位
+          // TP制作签名：横屏下移，与实时 HH:MM:SS 时钟保持同一水平线
           this.add
-            .text(480, LAYOUT.jackpotY + 30, "TP制作🐈⭐️", {
-              fontSize: "13px",
+            .text(255, LAYOUT.paytableY - 166, "TP制作🐈⭐️", {
+              fontSize: "15px",
               fontStyle: "bold",
               fontFamily: 'Arial, "Microsoft YaHei", sans-serif',
               color: "#d8caa6",
               stroke: "#090b0b",
               strokeThickness: 1,
             })
-            .setOrigin(0.5);
+            .setOrigin(0.5)
+            .setDepth(20);
         }
 
         updateLiveClock() {
@@ -4012,6 +4013,12 @@
         var vinylAngle = 0;
         var vinylVel = 0;
         var specSmooth = [0, 0, 0, 0, 0];
+        // 波动线历史：把每一帧的音乐能量累积成“时间轴波形”，
+        // 而不是用正弦波直接假造整条曲线。
+        var specHistory = [];
+        var specLastSampleAt = 0;
+        var specLastEnergy = 0;
+        var specPhase = 0;
         var lastPlaying = null;
 
         function pad2(n) {
@@ -4098,62 +4105,143 @@
           if (!spectrum || !phActive) return;
           var ctx = spectrum.getContext("2d");
           if (!ctx) return;
+
           var w = spectrum.width;
           var h = spectrum.height;
           var mid = h / 2;
           ctx.clearRect(0, 0, w, h);
 
           bgMusic.sampleSpectrum();
+
           var bands = bgMusic.bands || [0, 0, 0, 0, 0];
           var playing = bgMusic.isPlaying();
+
           for (var b = 0; b < 5; b++) {
             var target = playing ? bands[b] : 0;
             specSmooth[b] = specSmooth[b] * 0.82 + target * 0.18;
           }
 
-          // 彩虹粗线：颜色沿宽度做彩虹渐变，线条随各频段能量起伏“起舞”
-          var points = 130;
+          /*
+           * 时间型音乐波形：
+           * - 每隔约 28ms 采一个点，形成真正的“从左到右”的节奏轨迹；
+           * - 能量突然上升时提高峰值，形成鼓点/重拍的尖峰；
+           * - 低频决定波形主体起伏，高频给尖峰增加一点锐度；
+           * - 整条线固定同一粗细，不再随音量忽粗忽细。
+           */
+          var now = performance.now();
           var energy = bgMusic.energy || 0;
-          var time = performance.now() * 0.0022;
+          var bass = specSmooth[0] || 0;
+          var body = specSmooth[1] || 0;
+          var treble = specSmooth[4] || 0;
+          var transient = Math.max(0, energy - specLastEnergy);
+
+          if (!playing) {
+            specHistory = [];
+            specLastSampleAt = now;
+            specLastEnergy = 0;
+            specPhase = 0;
+          } else {
+            if (!specLastSampleAt) specLastSampleAt = now;
+
+            // 每次最多补 2 个点，避免切回页面后瞬间拉出长直线。
+            var elapsed = now - specLastSampleAt;
+            var steps = Math.min(2, Math.floor(elapsed / 28));
+
+            for (var s = 0; s < steps; s++) {
+              var sampleEnergy = Math.max(0, Math.min(1, energy));
+              var sampleBass = Math.max(0, Math.min(1, bass));
+              var sampleBody = Math.max(0, Math.min(1, body));
+              var sampleTreble = Math.max(0, Math.min(1, treble));
+
+              // 低频越强，波形摆动越明显；重拍瞬间额外拉出尖峰。
+              var amp =
+                4 +
+                sampleEnergy * 30 +
+                sampleBass * 24 +
+                transient * 58 +
+                sampleTreble * 8;
+
+              // 用低频驱动相位，避免固定速度的“假波形”。
+              specPhase += 0.20 + sampleBass * 0.42 + sampleBody * 0.16;
+
+              // 基础连续起伏 + 很短的尖峰分量。
+              var carrier =
+                Math.sin(specPhase) * 0.72 +
+                Math.sin(specPhase * 2.13 + 0.8) * 0.18;
+
+              var spike =
+                Math.sign(Math.sin(specPhase * 0.53 + 1.7)) *
+                Math.min(1, transient * 5.5) *
+                (0.35 + sampleTreble * 0.65);
+
+              var sample = Math.max(
+                -1,
+                Math.min(1, carrier * 0.88 + spike)
+              ) * amp;
+
+              // 峰值/低谷保持尖锐，但相邻点仍然连续。
+              if (transient > 0.035) {
+                sample +=
+                  Math.sign(carrier || 1) *
+                  Math.min(22, transient * 170);
+              }
+
+              specHistory.push(sample);
+              if (specHistory.length > 180) specHistory.shift();
+            }
+
+            if (steps > 0) specLastSampleAt += steps * 28;
+            specLastEnergy = energy;
+          }
+
+          var points = Math.max(2, specHistory.length);
+          var maxAbs = 1;
+
+          for (var m = 0; m < specHistory.length; m++) {
+            maxAbs = Math.max(maxAbs, Math.abs(specHistory[m]));
+          }
 
           ctx.save();
           ctx.lineJoin = "round";
           ctx.lineCap = "round";
-          ctx.globalAlpha = playing ? 0.95 : 0.32;
-          ctx.lineWidth = playing ? 5 + energy * 3.5 : 3.2;
+          ctx.globalAlpha = playing ? 0.96 : 0.28;
 
-          var prevX = 0,
-            prevY = mid;
-          for (var i = 0; i <= points; i++) {
-            var t = i / points;
+          // 固定线宽：和参考图一样，整条波形粗细一致。
+          ctx.lineWidth = playing ? 5 : 3.2;
+
+          var prevX = 0;
+          var prevY = mid;
+
+          for (var i = 0; i < points; i++) {
+            var t = i / (points - 1);
             var x = t * w;
-            var bandPos = t * (specSmooth.length - 1);
-            var bi = Math.floor(bandPos);
-            var bf = bandPos - bi;
-            var lvl =
-              (specSmooth[bi] || 0) * (1 - bf) +
-              (specSmooth[Math.min(bi + 1, specSmooth.length - 1)] || 0) * bf;
-            var amp = playing ? 6 + lvl * 46 + energy * 10 : 3;
-            var y =
-              mid +
-              Math.sin(t * 8 + time * 3.2) * amp * 0.6 +
-              Math.sin(t * 17 - time * 5.5) * amp * 0.35;
+
+            // 留一点上下安全边距，避免尖峰撞到容器边缘。
+            var normalized = specHistory[i] / maxAbs;
+            var y = mid + normalized * (h * 0.43);
+
+            // 轻微压缩极端尖峰，让视觉更接近参考图而不是“音频示波器”。
+            y = mid + Math.tanh((y - mid) / (h * 0.36)) * (h * 0.36);
 
             if (i > 0) {
               var col = specColorAt(t);
               ctx.strokeStyle = col;
               ctx.shadowColor = col;
               ctx.shadowBlur = playing ? 8 : 0;
+
               ctx.beginPath();
               ctx.moveTo(prevX, prevY);
               ctx.lineTo(x, y);
               ctx.stroke();
             }
+
             prevX = x;
             prevY = y;
           }
+
           ctx.restore();
         }
+
 
         function tickVinyl() {
           if (!vinyl) return;
