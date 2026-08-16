@@ -1608,21 +1608,21 @@
         }
 
         createPanel(x, y, width, height, fill = UI.panel, alpha = 0.96) {
-          // 哑光金属 / 磨砂玻璃式卡片：暗金外缘 + 半透明内层 + 细高光线。
+          // 不使用玻璃/透视效果：面板改为完全不透明的实色层。
           const outer = this.add
-            .rectangle(x, y, width + 6, height + 6, UI.goldDim, 0.26)
+            .rectangle(x, y, width + 6, height + 6, UI.goldDim, 1)
             .setStrokeStyle(1, UI.goldDim);
 
           const panel = this.add
-            .rectangle(x, y, width, height, fill, Math.min(alpha, 0.92))
+            .rectangle(x, y, width, height, fill, 1)
             .setStrokeStyle(1, UI.gold);
 
           this.add
-            .rectangle(x, y - height / 2 + 2, width - 14, 1, UI.champagne, 0.11)
+            .rectangle(x, y - height / 2 + 2, width - 14, 1, UI.champagne, 1)
             .setOrigin(0.5);
 
           this.add
-            .rectangle(x, y + height / 2 - 2, width - 14, 1, 0x050706, 0.42)
+            .rectangle(x, y + height / 2 - 2, width - 14, 1, 0x050706, 1)
             .setOrigin(0.5);
 
           return panel;
@@ -1903,8 +1903,8 @@
                 LAYOUT.reelY,
                 LAYOUT.reelFrameW,
                 LAYOUT.reelFrameH,
-                0xffffff,
-                0.05,
+                0x090b0b,
+                1,
               )
               .setStrokeStyle(2, UI.goldDim);
 
@@ -1928,7 +1928,7 @@
             for (let i = -2; i <= 2; i++) {
               const symbol = Phaser.Utils.Array.GetRandom(SYMBOLS);
 
-              const bg = this.add.circle(0, i * 64, 30, 0x000000, 0.18);
+              const bg = this.add.circle(0, i * 64, 30, 0x000000, 1);
 
               const txt = this.add
                 .text(0, i * 64, symbol.label, {
