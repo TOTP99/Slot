@@ -172,27 +172,13 @@
 
         .ph-controls {
           margin-top: 9px;
-          gap: 9px;
         }
-        .ph-transport { gap: 22px; }
+        .ph-transport { gap: 9px; }
         .ph-btn {
-          width: 44px;
-          height: 44px;
+          width: 40px;
+          height: 40px;
           border-radius: 50%;
-          font-size: 15px;
-        }
-        .ph-btn-main {
-          width: 58px;
-          height: 58px;
-          font-size: 20px;
-          box-shadow: 0 0 12px rgba(255,215,0,.16), inset 0 0 8px rgba(255,215,0,.05);
-        }
-        .ph-modes { gap: 10px; }
-        .ph-chip {
-          padding: 6px 16px;
-          min-width: 74px;
-          border-radius: 18px;
-          font-size: 11px;
+          font-size: 19px;
         }
       }
 
@@ -202,13 +188,13 @@
         .ph-vinyl-wrap { width: 215px; height: 215px; }
         .ph-reel { width: 38px; height: 38px; }
         .ph-spin { width: 46px; height: 46px; }
-        .ph-btn { width: 40px; height: 40px; }
-        .ph-btn-main { width: 52px; height: 52px; }
+        .ph-btn { width: 34px; height: 34px; font-size: 16px; }
       }
 
       @media (orientation: portrait) and (min-height: 900px) {
         .ph-stage { height: 330px; }
         .ph-vinyl-wrap { width: 285px; height: 285px; }
+        .ph-btn { width: 46px; height: 46px; font-size: 21px; }
       }
 
       #game {
@@ -494,9 +480,6 @@
         line-height: 1.1;
         letter-spacing: 0.5px;
       }
-      .ph-track-sub {
-        display: none;
-      }
 
       .ph-arm {
         position: absolute;
@@ -587,9 +570,7 @@
         color: #c9a227;
         opacity: 0.8;
         font-variant-numeric: tabular-nums;
-      }
-      .ph-mini-title {
-        display: none;
+        white-space: nowrap;
       }
       .ph-reels {
         flex: 1;
@@ -610,9 +591,6 @@
         font-size: 15px;
         line-height: 1;
         box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.55);
-      }
-      .ph-reel-sub {
-        display: none;
       }
       .ph-spin {
         flex: 0 0 auto;
@@ -653,12 +631,10 @@
         opacity: 0.85;
       }
 
-      /* 控制键：金框外下方居中 */
+      /* 控制键：金框外下方居中，8 个键一行排列 */
       .ph-controls {
         display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
+        justify-content: center;
         flex-shrink: 0;
         margin-top: 10px;
         width: 100%;
@@ -667,68 +643,41 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 14px;
+        flex-wrap: nowrap;
+        gap: 6px;
+        width: 100%;
+        max-width: 400px;
       }
       .ph-btn {
-        width: 36px;
-        height: 36px;
+        flex: 0 0 auto;
+        width: 34px;
+        height: 34px;
         border-radius: 8px;
-        border: 1px solid rgba(201, 162, 39, 0.7);
-        background: linear-gradient(160deg, #1a1008 0%, #0a0406 100%);
+        border: none;
+        background: transparent;
         color: #ffd700;
-        font-size: 13px;
+        font-size: 16px;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        box-shadow:
-          inset 0 1px 0 rgba(255, 215, 0, 0.08),
-          0 0 4px rgba(255, 215, 0, 0.05);
+        box-shadow: none;
+        text-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
         padding: 0;
+        opacity: 0.82;
+        transition: opacity 0.15s ease, transform 0.15s ease;
       }
       .ph-btn:active {
-        transform: scale(0.94);
-        border-color: #ffd700;
-        background: #2a1808;
+        transform: scale(0.88);
+        opacity: 0.6;
       }
-      .ph-btn-main {
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
-        font-size: 16px;
-        border: 1.5px solid #ffd700;
-        background:
-          radial-gradient(circle at 40% 30%, rgba(255, 215, 0, 0.12), transparent 55%),
-          linear-gradient(160deg, #2a1c08, #0c0604);
-        box-shadow:
-          0 0 7px rgba(255, 215, 0, 0.14),
-          inset 0 0 6px rgba(255, 215, 0, 0.05);
-      }
-      .ph-modes {
-        display: flex;
-        gap: 8px;
-      }
-      .ph-chip {
-        padding: 4px 12px;
-        border-radius: 6px;
-        border: 1px solid rgba(184, 134, 11, 0.65);
-        background: #0a0406;
-        color: #c9a227;
-        font-size: 11px;
-        font-weight: bold;
-        letter-spacing: 1px;
-        cursor: pointer;
-        min-width: 52px;
-        text-align: center;
-      }
-      .ph-chip.on {
-        background: linear-gradient(180deg, rgba(201, 168, 76, 0.28), rgba(80, 50, 10, 0.4));
-        color: #ffe566;
-        border-color: #ffd700;
-        box-shadow: 0 0 5px rgba(255, 215, 0, 0.1);
-      }
-      .ph-foot {
-        display: none;
+      .ph-btn.on {
+        opacity: 1;
+        color: #fff6b0;
+        text-shadow:
+          0 0 10px rgba(255, 215, 0, 0.65),
+          0 0 4px rgba(255, 255, 255, 0.4);
+        transform: scale(1.1);
       }
 
       #game {
@@ -748,7 +697,7 @@
       <div class="ph-root">
       <div class="ph-above">
         <div class="ph-above-left">
-          <div class="ph-title">万锦</div>
+          <div class="ph-title">MP3</div>
           <div class="ph-horn" id="ph-horn" aria-hidden="true">
           <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
             <defs>
@@ -782,7 +731,7 @@
         </div>
         <div class="ph-track-info">
           <div class="ph-track-kicker">♫ 现在播放</div>
-          <div class="ph-track-title" id="ph-track-title">第 01 首 · 万锦音乐</div>
+          <div class="ph-track-title" id="ph-track-title">第 01 首 · TP音乐</div>
         </div>
         <div class="ph-clock" id="ph-clock">--:--</div>
       </div>
@@ -793,7 +742,7 @@
           <div class="ph-vinyl-wrap">
             <div class="ph-vinyl" id="ph-vinyl"></div>
             <div class="ph-label" id="ph-label">
-              <div class="ph-track-num" id="ph-track-num">01/18</div>
+              <div class="ph-track-num" id="ph-track-num">01/36</div>
             </div>
             <div class="ph-arm up" id="ph-arm" aria-hidden="true">
               <div class="ph-arm-pivot"></div>
@@ -807,7 +756,7 @@
           <div class="ph-mini-row">
             <div class="ph-mini-money">
               <span class="ph-mini-bal">💰<span id="ph-balance">800</span></span>
-              <span class="ph-mini-bet" id="ph-bet">50</span>
+              <span class="ph-mini-bet" id="ph-bet">—$50</span>
             </div>
             <div class="ph-reels">
               <div class="ph-reel" id="ph-r0"><span>7️⃣</span></div>
@@ -822,13 +771,14 @@
 
       <div class="ph-controls">
         <div class="ph-transport">
-          <button type="button" class="ph-btn" id="ph-prev" aria-label="上一首">⏮</button>
-          <button type="button" class="ph-btn ph-btn-main" id="ph-play" aria-label="播放暂停">▶</button>
-          <button type="button" class="ph-btn" id="ph-next" aria-label="下一首">⏭</button>
-        </div>
-        <div class="ph-modes">
-          <button type="button" class="ph-chip on" id="ph-order">顺序</button>
-          <button type="button" class="ph-chip" id="ph-shuffle">随机</button>
+          <button type="button" class="ph-btn" id="ph-prev" aria-label="上一首">⏮️</button>
+          <button type="button" class="ph-btn" id="ph-play" aria-label="播放">▶️</button>
+          <button type="button" class="ph-btn" id="ph-pause" aria-label="暂停">⏸️</button>
+          <button type="button" class="ph-btn" id="ph-next" aria-label="下一首">⏭️</button>
+          <button type="button" class="ph-btn" id="ph-order" aria-label="顺序播放">🔢</button>
+          <button type="button" class="ph-btn" id="ph-shuffle" aria-label="随机播放">🔀</button>
+          <button type="button" class="ph-btn" id="ph-single" aria-label="单曲循环">🔂</button>
+          <button type="button" class="ph-btn" id="ph-loopall" aria-label="全部循环">🔄</button>
         </div>
       </div>
       </div>
@@ -944,7 +894,7 @@
       // 放进和 index.html 同一个目录即可，以后无需再改这里的代码。
       // 播放时按数字从小到大依次尝试；如果某个编号的文件缺失，会自动跳过找下一个，
       // 直到编号 BG_MUSIC_MAX 结束后循环回到 1。
-      const BG_MUSIC_MAX = 18; // 支持的最大编号（对应 1.mp3 ~ 18.mp3），全部 18 首参与循环播放
+      const BG_MUSIC_MAX = 36; // 支持的最大编号（对应 1.mp3 ~ 36.mp3），全部 36 首参与循环播放
 
       // ---------- 音效（Web Audio） ----------
       class SoundFX {
@@ -1165,8 +1115,10 @@
           const savedEnabled = localStorage.getItem("bgMusicEnabled");
           this.enabled = savedEnabled === null ? true : savedEnabled === "true"; // 默认开启
 
-          const savedShuffle = localStorage.getItem("bgMusicShuffle");
-          this.shuffle = savedShuffle === "true"; // 默认顺序播放，开启后随机播放
+          const savedMode = localStorage.getItem("bgMusicPlayMode");
+          const savedShuffleLegacy = localStorage.getItem("bgMusicShuffle") === "true";
+          this.playMode = savedMode || (savedShuffleLegacy ? "shuffle" : "all"); // order | shuffle | single | all
+          this.shuffle = this.playMode === "shuffle"; // 兼容旧逻辑（顺序取歌等仍读取此字段）
 
           // Web Audio 分析：频谱 → 均衡条（声高 / 情绪 / 男女声区 / 乐器频段）
           this.ctx = null;
@@ -1384,13 +1336,30 @@
             // 连续跳过次数超过总编号数，说明目录里没有任何可用的 mp3，停止尝试避免死循环
             return;
           }
+          if (this.playMode === "single") {
+            // 单曲循环：重复播放当前这首
+            this._loadTrack(this.currentNum);
+            if (this.enabled) this._playAudio();
+            return;
+          }
+          if (this.playMode === "order" && this.currentNum >= BG_MUSIC_MAX) {
+            // 顺序播放：播完最后一首后停止，不自动循环回第一首
+            this._loadTrack(1);
+            return;
+          }
           this._loadTrack(this._pickNext());
           if (this.enabled) this._playAudio();
         }
 
+        setPlayMode(mode) {
+          this.playMode = mode;
+          this.shuffle = mode === "shuffle";
+          localStorage.setItem("bgMusicPlayMode", mode);
+          localStorage.setItem("bgMusicShuffle", String(this.shuffle));
+        }
+
         setShuffle(enabled) {
-          this.shuffle = enabled;
-          localStorage.setItem("bgMusicShuffle", String(enabled));
+          this.setPlayMode(enabled ? "shuffle" : "all");
         }
 
         skipNext() {
@@ -1411,13 +1380,10 @@
           if (this.enabled) this._playAudio();
         }
 
-        async togglePlay() {
+        // 显式播放（竖屏 ▶️ 键）
+        async play() {
           if (!this.audio) return;
           this.ensureAnalyser();
-          if (!this.audio.paused && !this.audio.ended) {
-            this.audio.pause();
-            return;
-          }
           if (!this.enabled) {
             this.enabled = true;
             localStorage.setItem("bgMusicEnabled", "true");
@@ -1571,7 +1537,7 @@
 
         createHeader() {
           const titleObj = this.add
-            .text(480, LAYOUT.titleY, "万锦🎤卡拉OK🎰老虎一体机", {
+            .text(480, LAYOUT.titleY, "MP3播放/老虎一体机🎤🎰", {
               fontSize: "30px",
               fontStyle: "bold",
               color: "#ffd700",
@@ -1678,7 +1644,7 @@
           this.clockTimer = setInterval(() => this.updateLiveClock(), 250);
 
           const line1 = this.add
-            .text(x, y - 86, "赔率 💰", {
+            .text(x, y - 86, "赔率", {
               fontSize: "27px",
               fontStyle: "bold",
               color: "#ffd700",
@@ -1689,7 +1655,7 @@
             .setOrigin(0.5);
 
           const line2 = this.add
-            .text(x, y - 52, "设置 ⚙", {
+            .text(x, y - 52, "设置", {
               fontSize: "27px",
               fontStyle: "bold",
               color: "#ffd700",
@@ -1699,8 +1665,8 @@
             })
             .setOrigin(0.5);
 
-          fitTextToBox(line1, "赔率 💰", w - 20, 27, 16);
-          fitTextToBox(line2, "设置 ⚙", w - 20, 27, 16);
+          fitTextToBox(line1, "赔率", w - 20, 27, 16);
+          fitTextToBox(line2, "设置", w - 20, 27, 16);
 
           this.tweens.add({
             targets: [line1, line2],
@@ -1758,7 +1724,7 @@
 
           this.add
             .text(x, y + h / 2 - 16, "点击进入", {
-              fontSize: "12px",
+              fontSize: "18px",
               fontStyle: "bold",
               color: "#ffe9a6",
               stroke: "#000000",
@@ -1880,7 +1846,7 @@
           );
 
           this.messageText = this.add
-            .text(LAYOUT.messageX, LAYOUT.messageY, "点击拉杆或 SPIN 开始", {
+            .text(LAYOUT.messageX, LAYOUT.messageY, "Pull Lever or Press SPIN", {
               fontSize: "20px",
               fontStyle: "bold",
               color: "#ffe9a6",
@@ -2197,7 +2163,7 @@
             .setInteractive({ useHandCursor: true });
 
           this.spinHint = this.add
-            .text(lx, 255, "点击拉杆开转", {
+            .text(lx, 255, "Pull to Spin", {
               fontSize: "11px",
               fontStyle: "bold",
               color: "#ffe9a6",
@@ -2614,7 +2580,7 @@
           if (this.leverState === "down") return;
 
           this.leverState = "down";
-          this.spinHint.setText("点击急停");
+          this.spinHint.setText("Click to Stop");
           this.sfx.leverGrip();
 
           this.tweens.killTweensOf(this.leverHand);
@@ -2726,7 +2692,7 @@
 
         resetLever() {
           this.leverState = "up";
-          this.spinHint.setText("点击拉杆开转");
+          this.spinHint.setText("Pull to Spin");
           this.sfx.leverReset();
 
           this.tweens.killTweensOf(this.leverHand);
@@ -3213,17 +3179,24 @@
           const playing = this.eqActive && bgMusic.isPlaying();
 
           for (let i = 0; i < 5; i++) {
+            // 喷泉效果：基础增益更猛，并叠加随机跳花，让静音频段也有细碎跃动
+            const spark = playing ? Math.random() * 0.22 : 0;
+            const raw = bands[i] * 1.9 + spark;
             const level = playing
-              ? bands[i] * 1.15 > 1
-                ? 1
-                : bands[i] * 1.15 < 0.08
-                  ? 0.08
-                  : bands[i] * 1.15
+              ? raw > 1.35
+                ? 1.35
+                : raw < 0.1
+                  ? 0.1
+                  : raw
               : 0.1;
             const cur = this.eqBars[i].scaleY;
-            const next = cur * 0.35 + level * 0.65;
+            // 喷涌：冲高时几乎瞬发（像水柱猛地冲出），回落时缓慢飘落（像水滴落下）
+            const rising = level > cur;
+            const next = rising
+              ? cur * 0.12 + level * 0.88
+              : cur * 0.86 + level * 0.14;
             this.eqBars[i].scaleY = next;
-            this.eqBars[i].setAlpha(playing ? 0.55 + next * 0.4 : 0.25);
+            this.eqBars[i].setAlpha(playing ? 0.6 + Math.min(0.4, next * 0.35) : 0.25);
           }
 
           // 光晕：能量变化够大或播放状态切换才重算颜色
@@ -3515,7 +3488,7 @@
           // 自动模式等非手动拉杆路径：若拉杆未下，补一段简短甩下动画
           if (this.leverState !== "down") {
             this.leverState = "down";
-            this.spinHint.setText("点击急停");
+            this.spinHint.setText("Click to Stop");
             this.sfx.leverPull();
             this.leverHand.setText("✊");
             this.leverHand.setAlpha(1);
@@ -4067,10 +4040,13 @@
         var horn = document.getElementById("ph-horn");
         var label = document.getElementById("ph-label");
         var playBtn = document.getElementById("ph-play");
+        var pauseBtn = document.getElementById("ph-pause");
         var prevBtn = document.getElementById("ph-prev");
         var nextBtn = document.getElementById("ph-next");
         var orderChip = document.getElementById("ph-order");
         var shuffleChip = document.getElementById("ph-shuffle");
+        var singleChip = document.getElementById("ph-single");
+        var loopAllChip = document.getElementById("ph-loopall");
         var trackNum = document.getElementById("ph-track-num");
         var clockEl = document.getElementById("ph-clock");
         var balanceEl = document.getElementById("ph-balance");
@@ -4083,7 +4059,7 @@
           document.getElementById("ph-r1"),
           document.getElementById("ph-r2"),
         ];
-        if (!vinyl || !playBtn) return;
+        if (!vinyl || !playBtn || !pauseBtn) return;
 
         var miniSpinning = false;
         var phActive = false;
@@ -4111,13 +4087,14 @@
           var trackTitle = document.getElementById("ph-track-title");
           if (trackTitle) {
             trackTitle.textContent =
-              "第 " + pad2(bgMusic.currentNum) + " 首 · 万锦音乐";
+              "第 " + pad2(bgMusic.currentNum) + " 首 · TP音乐";
           }
         }
 
         function syncPlayUi() {
           var playing = bgMusic.isPlaying();
-          if (playBtn) playBtn.textContent = playing ? "⏸" : "▶";
+          if (playBtn) playBtn.classList.toggle("on", playing);
+          if (pauseBtn) pauseBtn.classList.toggle("on", !playing);
           if (vinyl) vinyl.classList.toggle("playing", playing);
           if (label) label.classList.toggle("playing", playing);
           if (horn) horn.classList.toggle("playing", playing);
@@ -4127,10 +4104,10 @@
             lastPlaying = playing;
           }
           syncTrack();
-          if (orderChip && shuffleChip) {
-            orderChip.classList.toggle("on", !bgMusic.shuffle);
-            shuffleChip.classList.toggle("on", !!bgMusic.shuffle);
-          }
+          if (orderChip) orderChip.classList.toggle("on", bgMusic.playMode === "order");
+          if (shuffleChip) shuffleChip.classList.toggle("on", bgMusic.playMode === "shuffle");
+          if (singleChip) singleChip.classList.toggle("on", bgMusic.playMode === "single");
+          if (loopAllChip) loopAllChip.classList.toggle("on", bgMusic.playMode === "all");
         }
 
         function getScene() {
@@ -4150,7 +4127,7 @@
             }
           } catch (e) {}
           if (balanceEl) balanceEl.textContent = Number(bal).toFixed(0);
-          if (betEl) betEl.textContent = Number(bet).toFixed(0);
+          if (betEl) betEl.textContent = "—$" + Number(bet).toFixed(0);
         }
 
         function setMsg(t) {
@@ -4277,8 +4254,8 @@
           var playing = bgMusic.isPlaying();
           var energy = bgMusic.energy || 0;
           // 目标角速度：基础转盘速 + 随能量微加速
-          var targetVel = playing ? 0.55 + energy * 0.55 : 0;
-          vinylVel += (targetVel - vinylVel) * (playing ? 0.045 : 0.08);
+          var targetVel = playing ? 1.8 + energy * 1.2 : 0;
+          vinylVel += (targetVel - vinylVel) * (playing ? 0.06 : 0.08);
           if (Math.abs(vinylVel) < 0.002) vinylVel = 0;
           vinylAngle = (vinylAngle + vinylVel) % 360;
           vinyl.style.transform = "rotate(" + vinylAngle.toFixed(2) + "deg)";
@@ -4308,7 +4285,11 @@
         }
 
         playBtn.addEventListener("click", function () {
-          bgMusic.togglePlay();
+          bgMusic.play();
+          setTimeout(syncPlayUi, 80);
+        });
+        pauseBtn.addEventListener("click", function () {
+          bgMusic.pause();
           setTimeout(syncPlayUi, 80);
         });
         prevBtn.addEventListener("click", function () {
@@ -4329,11 +4310,19 @@
           bumpArmOnSeek();
         });
         orderChip.addEventListener("click", function () {
-          bgMusic.setShuffle(false);
+          bgMusic.setPlayMode("order");
           syncPlayUi();
         });
         shuffleChip.addEventListener("click", function () {
-          bgMusic.setShuffle(true);
+          bgMusic.setPlayMode("shuffle");
+          syncPlayUi();
+        });
+        singleChip.addEventListener("click", function () {
+          bgMusic.setPlayMode("single");
+          syncPlayUi();
+        });
+        loopAllChip.addEventListener("click", function () {
+          bgMusic.setPlayMode("all");
           syncPlayUi();
         });
 
