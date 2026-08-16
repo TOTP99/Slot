@@ -173,11 +173,15 @@
         .ph-controls {
           margin-top: 9px;
         }
-        .ph-transport { gap: 9px; }
+        .ph-transport { gap: 14px; }
+        .ph-btn-group {
+          padding: 5px 8px;
+          border-radius: 14px;
+        }
         .ph-btn {
           width: 40px;
           height: 40px;
-          border-radius: 50%;
+          border-radius: 9px;
           font-size: 19px;
         }
       }
@@ -644,9 +648,38 @@
         align-items: center;
         justify-content: center;
         flex-wrap: nowrap;
-        gap: 6px;
+        gap: 12px;
         width: 100%;
         max-width: 400px;
+      }
+      /* 细金边分组：播放四键 / 模式两键 */
+      .ph-btn-group {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        padding: 4px 6px;
+        border-radius: 12px;
+        border: 1px solid rgba(154, 123, 47, 0.42);
+        background: linear-gradient(
+          180deg,
+          rgba(28, 14, 20, 0.55) 0%,
+          rgba(12, 4, 10, 0.65) 100%
+        );
+        box-shadow:
+          inset 0 1px 0 rgba(212, 175, 55, 0.08),
+          0 2px 8px rgba(0, 0, 0, 0.25);
+        transition:
+          border-color 0.35s cubic-bezier(0.22, 0.61, 0.36, 1),
+          box-shadow 0.35s cubic-bezier(0.22, 0.61, 0.36, 1),
+          background 0.35s cubic-bezier(0.22, 0.61, 0.36, 1);
+      }
+      .ph-btn-group:hover {
+        border-color: rgba(212, 175, 55, 0.55);
+        box-shadow:
+          inset 0 1px 0 rgba(212, 175, 55, 0.14),
+          0 3px 12px rgba(0, 0, 0, 0.3),
+          0 0 14px rgba(212, 175, 55, 0.08);
       }
       .ph-btn {
         flex: 0 0 auto;
@@ -655,29 +688,43 @@
         border-radius: 8px;
         border: none;
         background: transparent;
-        color: #ffd700;
+        color: var(--gold);
         font-size: 16px;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
         box-shadow: none;
-        text-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
+        text-shadow: 0 0 6px rgba(212, 175, 55, 0.22);
         padding: 0;
-        opacity: 0.82;
-        transition: opacity 0.15s ease, transform 0.15s ease;
+        opacity: 0.78;
+        transform: scale(1);
+        transition:
+          opacity 0.28s cubic-bezier(0.22, 0.61, 0.36, 1),
+          transform 0.28s cubic-bezier(0.22, 0.61, 0.36, 1),
+          color 0.28s cubic-bezier(0.22, 0.61, 0.36, 1),
+          text-shadow 0.28s cubic-bezier(0.22, 0.61, 0.36, 1),
+          background 0.28s cubic-bezier(0.22, 0.61, 0.36, 1);
+      }
+      .ph-btn:hover {
+        opacity: 0.95;
+        color: var(--champagne);
+        text-shadow: 0 0 10px rgba(212, 175, 55, 0.35);
+        background: rgba(212, 175, 55, 0.08);
       }
       .ph-btn:active {
-        transform: scale(0.88);
-        opacity: 0.6;
+        transform: scale(0.9);
+        opacity: 0.65;
+        transition-duration: 0.12s;
       }
       .ph-btn.on {
         opacity: 1;
-        color: #fff6b0;
+        color: var(--gold-bright);
         text-shadow:
-          0 0 10px rgba(255, 215, 0, 0.65),
-          0 0 4px rgba(255, 255, 255, 0.4);
-        transform: scale(1.1);
+          0 0 10px rgba(212, 175, 55, 0.5),
+          0 0 4px rgba(255, 255, 255, 0.22);
+        transform: scale(1.08);
+        background: rgba(212, 175, 55, 0.12);
       }
 
       #game {
@@ -771,14 +818,16 @@
 
       <div class="ph-controls">
         <div class="ph-transport">
-          <button type="button" class="ph-btn" id="ph-prev" aria-label="上一首">⏮️</button>
-          <button type="button" class="ph-btn" id="ph-play" aria-label="播放">▶️</button>
-          <button type="button" class="ph-btn" id="ph-pause" aria-label="暂停">⏸️</button>
-          <button type="button" class="ph-btn" id="ph-next" aria-label="下一首">⏭️</button>
-          <button type="button" class="ph-btn" id="ph-order" aria-label="顺序播放">🔢</button>
-          <button type="button" class="ph-btn" id="ph-shuffle" aria-label="随机播放">🔀</button>
-          <button type="button" class="ph-btn" id="ph-single" aria-label="单曲循环">🔂</button>
-          <button type="button" class="ph-btn" id="ph-loopall" aria-label="全部循环">🔄</button>
+          <div class="ph-btn-group" role="group" aria-label="播放控制">
+            <button type="button" class="ph-btn" id="ph-prev" aria-label="上一首">⏮️</button>
+            <button type="button" class="ph-btn" id="ph-play" aria-label="播放">▶️</button>
+            <button type="button" class="ph-btn" id="ph-pause" aria-label="暂停">⏸️</button>
+            <button type="button" class="ph-btn" id="ph-next" aria-label="下一首">⏭️</button>
+          </div>
+          <div class="ph-btn-group" role="group" aria-label="播放模式">
+            <button type="button" class="ph-btn" id="ph-order" aria-label="顺序播放">🔢</button>
+            <button type="button" class="ph-btn" id="ph-shuffle" aria-label="随机播放">🔀</button>
+          </div>
         </div>
       </div>
       </div>
@@ -1117,8 +1166,11 @@
 
           const savedMode = localStorage.getItem("bgMusicPlayMode");
           const savedShuffleLegacy = localStorage.getItem("bgMusicShuffle") === "true";
-          this.playMode = savedMode || (savedShuffleLegacy ? "shuffle" : "all"); // order | shuffle | single | all
-          this.shuffle = this.playMode === "shuffle"; // 兼容旧逻辑（顺序取歌等仍读取此字段）
+          // 仅保留 order / shuffle；旧版 single / all 回落到顺序
+          let mode = savedMode || (savedShuffleLegacy ? "shuffle" : "order");
+          if (mode !== "order" && mode !== "shuffle") mode = "order";
+          this.playMode = mode;
+          this.shuffle = this.playMode === "shuffle";
 
           // Web Audio 分析：频谱 → 均衡条（声高 / 情绪 / 男女声区 / 乐器频段）
           this.ctx = null;
@@ -1336,12 +1388,6 @@
             // 连续跳过次数超过总编号数，说明目录里没有任何可用的 mp3，停止尝试避免死循环
             return;
           }
-          if (this.playMode === "single") {
-            // 单曲循环：重复播放当前这首
-            this._loadTrack(this.currentNum);
-            if (this.enabled) this._playAudio();
-            return;
-          }
           if (this.playMode === "order" && this.currentNum >= BG_MUSIC_MAX) {
             // 顺序播放：播完最后一首后停止，不自动循环回第一首
             this._loadTrack(1);
@@ -1352,6 +1398,7 @@
         }
 
         setPlayMode(mode) {
+          if (mode !== "order" && mode !== "shuffle") mode = "order";
           this.playMode = mode;
           this.shuffle = mode === "shuffle";
           localStorage.setItem("bgMusicPlayMode", mode);
@@ -1359,7 +1406,7 @@
         }
 
         setShuffle(enabled) {
-          this.setPlayMode(enabled ? "shuffle" : "all");
+          this.setPlayMode(enabled ? "shuffle" : "order");
         }
 
         skipNext() {
@@ -4045,8 +4092,6 @@
         var nextBtn = document.getElementById("ph-next");
         var orderChip = document.getElementById("ph-order");
         var shuffleChip = document.getElementById("ph-shuffle");
-        var singleChip = document.getElementById("ph-single");
-        var loopAllChip = document.getElementById("ph-loopall");
         var trackNum = document.getElementById("ph-track-num");
         var clockEl = document.getElementById("ph-clock");
         var balanceEl = document.getElementById("ph-balance");
@@ -4106,8 +4151,6 @@
           syncTrack();
           if (orderChip) orderChip.classList.toggle("on", bgMusic.playMode === "order");
           if (shuffleChip) shuffleChip.classList.toggle("on", bgMusic.playMode === "shuffle");
-          if (singleChip) singleChip.classList.toggle("on", bgMusic.playMode === "single");
-          if (loopAllChip) loopAllChip.classList.toggle("on", bgMusic.playMode === "all");
         }
 
         function getScene() {
@@ -4309,22 +4352,18 @@
           bgMusic.skipNext();
           bumpArmOnSeek();
         });
-        orderChip.addEventListener("click", function () {
-          bgMusic.setPlayMode("order");
-          syncPlayUi();
-        });
-        shuffleChip.addEventListener("click", function () {
-          bgMusic.setPlayMode("shuffle");
-          syncPlayUi();
-        });
-        singleChip.addEventListener("click", function () {
-          bgMusic.setPlayMode("single");
-          syncPlayUi();
-        });
-        loopAllChip.addEventListener("click", function () {
-          bgMusic.setPlayMode("all");
-          syncPlayUi();
-        });
+        if (orderChip) {
+          orderChip.addEventListener("click", function () {
+            bgMusic.setPlayMode("order");
+            syncPlayUi();
+          });
+        }
+        if (shuffleChip) {
+          shuffleChip.addEventListener("click", function () {
+            bgMusic.setPlayMode("shuffle");
+            syncPlayUi();
+          });
+        }
 
         // 迷你三格：与横屏共用余额存档；符号表与主游戏一致
         var MINI_SYMBOLS = [
