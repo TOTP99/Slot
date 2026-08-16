@@ -881,40 +881,40 @@
 
         messageX: 470,
         messageY: 402,
-        messageW: 405,
-        messageH: 40,
+        messageW: 448,
+        messageH: 44,
 
-        balanceX: 130,
-        balanceY: 456,
-        balanceW: 200,
-        balanceH: 50,
+        // 余额 / 上次获胜现在并入四分屏，不再占用底部独立区域
+        balanceX: 302,
+        balanceY: 402,
+        balanceW: 108,
+        balanceH: 44,
 
-        betX: 355,
-        betY: 456,
-        betW: 190,
-        betH: 50,
-
-        lastWinX: 580,
-        lastWinY: 456,
-        lastWinW: 200,
-        lastWinH: 50,
+        lastWinX: 638,
+        lastWinY: 402,
+        lastWinW: 108,
+        lastWinH: 44,
 
         rightPanelX: 855,
       };
 
       // ---------- UI 配色（高级金边主题） ----------
       const UI = {
-        bg: 0x070006,
-        panel: 0x140008,
-        panelDeep: 0x0c0006,
-        gold: 0xffd700,
-        goldDim: 0xb8860b,
-        goldBright: 0xffe566,
-        cream: "#ffe9a6",
-        creamHex: 0xffe9a6,
-        textDark: "#1a0a00",
-        danger: 0x8b0015,
-        activeFill: 0xc9a84c,
+        bg: 0x090b0b,
+        bgWine: 0x16070d,
+        bgGreen: 0x07130f,
+        panel: 0x101714,
+        panelDeep: 0x0b100e,
+        gold: 0xd2b36a,
+        goldDim: 0x8d6f32,
+        goldBright: 0xf0d58a,
+        champagne: 0xe4d2a0,
+        cream: "#e8dcc0",
+        creamHex: 0xe8dcc0,
+        textDark: "#17120a",
+        danger: 0x651a2c,
+        emerald: 0x1f6b55,
+        activeFill: 0x8d6f32,
       };
 
       // ---------- 文本适配 ----------
@@ -1501,6 +1501,7 @@
 
         create() {
           window.__slotGameScene = this;
+          this.createLuxuryBackground();
           this.createHeader();
           this.loadGameState(); // 读取本机浏览器存档：余额 / 下注 / 奖池
           this.createPaytableButton();
@@ -1561,14 +1562,67 @@
           );
         }
 
+        createLuxuryBackground() {
+          // 横屏主舞台：深墨绿 + 深酒红的径向渐变，中心略亮、四周压暗。
+          // 细微噪点以低透明度叠加，避免纯色黑的“塑料感”。
+          const w = GAME_WIDTH;
+          const h = GAME_HEIGHT;
+          const canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+
+          const g = ctx.createRadialGradient(w * 0.50, h * 0.42, 35, w * 0.50, h * 0.48, Math.max(w, h) * 0.72);
+          g.addColorStop(0, "#17251f");
+          g.addColorStop(0.42, "#101a17");
+          g.addColorStop(0.72, "#120b10");
+          g.addColorStop(1, "#050607");
+          ctx.fillStyle = g;
+          ctx.fillRect(0, 0, w, h);
+
+          const wine = ctx.createRadialGradient(w * 0.76, h * 0.18, 0, w * 0.76, h * 0.18, w * 0.48);
+          wine.addColorStop(0, "rgba(104, 25, 49, 0.16)");
+          wine.addColorStop(1, "rgba(104, 25, 49, 0)");
+          ctx.fillStyle = wine;
+          ctx.fillRect(0, 0, w, h);
+
+          // 哑光纹理：非常轻，只负责破掉数字渐变的“塑料黑”。
+          const image = ctx.createImageData(w, h);
+          const data = image.data;
+          for (let i = 0; i < data.length; i += 4) {
+            const n = (Math.random() * 2 - 1) * 7;
+            data[i] = 128 + n;
+            data[i + 1] = 128 + n;
+            data[i + 2] = 128 + n;
+            data[i + 3] = 7;
+          }
+          ctx.putImageData(image, 0, 0);
+
+          if (!this.textures.exists("luxury-bg")) {
+            this.textures.addCanvas("luxury-bg", canvas);
+          }
+          this.add.image(w / 2, h / 2, "luxury-bg").setDepth(-100);
+        }
+
         createPanel(x, y, width, height, fill = UI.panel, alpha = 0.96) {
-          // 外层暗金描边 + 内层面板，形成双线金边高级感
-          this.add
-            .rectangle(x, y, width + 4, height + 4, UI.goldDim, 0.55)
+          // 哑光金属 / 磨砂玻璃式卡片：暗金外缘 + 半透明内层 + 细高光线。
+          const outer = this.add
+            .rectangle(x, y, width + 6, height + 6, UI.goldDim, 0.26)
+            .setStrokeStyle(1, UI.goldDim);
+
+          const panel = this.add
+            .rectangle(x, y, width, height, fill, Math.min(alpha, 0.92))
             .setStrokeStyle(1, UI.gold);
-          return this.add
-            .rectangle(x, y, width, height, fill, alpha)
-            .setStrokeStyle(2, UI.gold);
+
+          this.add
+            .rectangle(x, y - height / 2 + 2, width - 14, 1, UI.champagne, 0.11)
+            .setOrigin(0.5);
+
+          this.add
+            .rectangle(x, y + height / 2 - 2, width - 14, 1, 0x050706, 0.42)
+            .setOrigin(0.5);
+
+          return panel;
         }
 
         // 选项按钮的高亮/常规两态切换样式（设置弹窗中的速度/自动/音效选项复用）
@@ -1587,7 +1641,8 @@
             .text(480, LAYOUT.titleY, "MP3播放/老虎一体机🎤🎰", {
               fontSize: "30px",
               fontStyle: "bold",
-              color: "#ffd700",
+              fontFamily: 'Georgia, "Songti SC", "STSong", serif',
+              color: "#e7d39a",
             })
             .setOrigin(0.5);
 
@@ -1599,18 +1654,19 @@
             titleObj.width,
             0,
           );
-          gradient.addColorStop(0, "#fff3b0");
-          gradient.addColorStop(0.5, "#ffd700");
-          gradient.addColorStop(1, "#b8860b");
+          gradient.addColorStop(0, "#f4e6bc");
+          gradient.addColorStop(0.5, "#d2b36a");
+          gradient.addColorStop(1, "#8d6f32");
           titleObj.setColor(gradient);
 
           this.add
             .text(480, LAYOUT.subtitleY, "TP制作🐈⭐️", {
               fontSize: "17px",
               fontStyle: "bold",
-              color: "#ffe9a6",
-              stroke: "#000000",
-              strokeThickness: 4,
+              fontFamily: 'Arial, "Microsoft YaHei", sans-serif',
+              color: "#d8caa6",
+              stroke: "#090b0b",
+              strokeThickness: 1,
             })
             .setOrigin(0.5);
 
@@ -1631,9 +1687,11 @@
               {
                 fontSize: "21px",
                 fontStyle: "bold",
-                color: "#ffd700",
-                stroke: "#000000",
-                strokeThickness: 4,
+                fontFamily: 'Arial, sans-serif',
+                color: "#f0d58a",
+                stroke: "#090b0b",
+                strokeThickness: 1,
+                shadow: { offsetX: 0, offsetY: 1, color: "#9b7a3e", blur: 6, fill: true },
               },
             )
             .setOrigin(0.5);
@@ -1676,7 +1734,7 @@
               fontStyle: "bold",
               color: "#ffd700",
               stroke: "#000000",
-              strokeThickness: 4,
+              strokeThickness: 1,
               shadow: {
                 offsetX: 0,
                 offsetY: 0,
@@ -1696,7 +1754,7 @@
               fontStyle: "bold",
               color: "#ffd700",
               stroke: "#000000",
-              strokeThickness: 4,
+              strokeThickness: 1,
               align: "center",
             })
             .setOrigin(0.5);
@@ -1707,7 +1765,7 @@
               fontStyle: "bold",
               color: "#ffd700",
               stroke: "#000000",
-              strokeThickness: 4,
+              strokeThickness: 1,
               align: "center",
             })
             .setOrigin(0.5);
@@ -1817,9 +1875,9 @@
               LAYOUT.machineY,
               LAYOUT.machineOuterW,
               LAYOUT.machineOuterH,
-              0x1a0208,
+              0x101714,
             )
-            .setStrokeStyle(6, UI.gold);
+            .setStrokeStyle(3, UI.goldDim);
 
           this.add
             .rectangle(
@@ -1829,7 +1887,7 @@
               LAYOUT.machineInnerH,
               UI.panelDeep,
             )
-            .setStrokeStyle(3, UI.goldBright);
+            .setStrokeStyle(2, UI.goldDim);
 
           this.add
             .rectangle(LAYOUT.machineX, LAYOUT.machineY, 452, 170, 0x12000a)
@@ -1840,8 +1898,8 @@
             LAYOUT.machineY - 43,
             452,
             3,
-            0xffd700,
-            0.35,
+            UI.goldDim,
+            0.24,
           );
 
           this.paylineMiddle = this.add.rectangle(
@@ -1849,8 +1907,8 @@
             LAYOUT.machineY,
             452,
             4,
-            0xffd700,
-            0.95,
+            UI.gold,
+            0.72,
           );
 
           this.paylineBottom = this.add.rectangle(
@@ -1858,8 +1916,8 @@
             LAYOUT.machineY + 43,
             452,
             3,
-            0xffd700,
-            0.35,
+            UI.goldDim,
+            0.24,
           );
 
           this.add
@@ -1868,7 +1926,7 @@
               fontStyle: "bold",
               color: UI.cream,
               stroke: "#000000",
-              strokeThickness: 4,
+              strokeThickness: 1,
             })
             .setOrigin(0.5);
 
@@ -1878,30 +1936,10 @@
               fontStyle: "bold",
               color: UI.cream,
               stroke: "#000000",
-              strokeThickness: 4,
+              strokeThickness: 1,
             })
             .setOrigin(0.5);
 
-          // 消息提示条面板（视觉背景框，本体已渲染，无需保留实例引用）
-          this.createPanel(
-            LAYOUT.messageX,
-            LAYOUT.messageY,
-            LAYOUT.messageW,
-            LAYOUT.messageH,
-            0x180006,
-            0.96,
-          );
-
-          this.messageText = this.add
-            .text(LAYOUT.messageX, LAYOUT.messageY, "Pull Lever or Press SPIN", {
-              fontSize: "20px",
-              fontStyle: "bold",
-              color: "#ffe9a6",
-              stroke: "#000000",
-              strokeThickness: 4,
-              align: "center",
-            })
-            .setOrigin(0.5);
         }
 
         createReels() {
@@ -1915,7 +1953,7 @@
                 0xffffff,
                 0.05,
               )
-              .setStrokeStyle(4, 0xffd700);
+              .setStrokeStyle(2, UI.goldDim);
 
             const maskShape = this.add.graphics();
             maskShape.fillStyle(0xffffff);
@@ -1944,8 +1982,9 @@
                   fontSize: symbol.label.length > 1 ? "42px" : "52px",
                   fontStyle: "bold",
                   color: symbol.color,
-                  stroke: "#000000",
-                  strokeThickness: 5,
+                  stroke: "#090b0b",
+                  strokeThickness: 2,
+                  shadow: { offsetX: 0, offsetY: 2, color: symbol.color, blur: 5, fill: true },
                 })
                 .setOrigin(0.5);
 
@@ -1966,128 +2005,72 @@
         }
 
         createBottomPanels() {
-          this.createPanel(
-            LAYOUT.balanceX,
-            LAYOUT.balanceY,
-            LAYOUT.balanceW,
-            LAYOUT.balanceH,
-            UI.panel,
-            0.96,
-          );
+          // ========== 四分播报屏：余额 / 播报 / 播报 / 上次获胜 ==========
+          const totalW = LAYOUT.messageW;
+          const gap = 3;
+          const cellW = (totalW - gap * 3) / 4;
+          const startX = LAYOUT.messageX - totalW / 2 + cellW / 2;
+          const xs = [0, 1, 2, 3].map((i) => startX + i * (cellW + gap));
+          const makeDisplayCell = (x) =>
+            this.createPanel(x, LAYOUT.messageY, cellW, LAYOUT.messageH, UI.panel, 0.94);
+
+          xs.forEach(makeDisplayCell);
 
           this.add
-            .text(LAYOUT.balanceX, LAYOUT.balanceY - 12, "余额", {
-              fontSize: "13px",
+            .text(xs[0], LAYOUT.messageY - 10, "BALANCE", {
+              fontSize: "10px",
               fontStyle: "bold",
               color: UI.cream,
+              letterSpacing: 1,
             })
             .setOrigin(0.5);
-
           this.balanceValue = this.add
-            .text(
-              LAYOUT.balanceX,
-              LAYOUT.balanceY + 11,
-              this.formatMoney(this.balance),
-              {
-                fontSize: "20px",
-                fontStyle: "bold",
-                color: "#ffffff",
-              },
-            )
+            .text(xs[0], LAYOUT.messageY + 10, this.formatMoney(this.balance), {
+              fontSize: "17px",
+              fontStyle: "bold",
+              color: "#f4ead0",
+            })
             .setOrigin(0.5);
 
-          this.createPanel(
-            LAYOUT.betX,
-            LAYOUT.betY,
-            LAYOUT.betW,
-            LAYOUT.betH,
-            UI.panel,
-            0.96,
-          );
+          // 中间两格合并成一个视觉播报区，英文播报保持简洁。
+          this.messageText = this.add
+            .text((xs[1] + xs[2]) / 2, LAYOUT.messageY, "READY TO SPIN", {
+              fontSize: "16px",
+              fontStyle: "bold",
+              color: "#e8dfc8",
+              align: "center",
+              wordWrap: { width: cellW * 2 + gap - 14 },
+            })
+            .setOrigin(0.5);
 
           this.add
-            .text(LAYOUT.betX, LAYOUT.betY - 12, "投注", {
-              fontSize: "13px",
+            .text(xs[3], LAYOUT.messageY - 10, "LAST WIN", {
+              fontSize: "10px",
               fontStyle: "bold",
               color: UI.cream,
+              letterSpacing: 1,
             })
             .setOrigin(0.5);
-
-          this.betMinus = this.add
-            .circle(LAYOUT.betX - 58, LAYOUT.betY + 10, 13, UI.danger)
-            .setStrokeStyle(2, UI.gold)
-            .setInteractive({ useHandCursor: true });
-
-          this.betMinusText = this.add
-            .text(LAYOUT.betX - 58, LAYOUT.betY + 10, "-", {
-              fontSize: "19px",
+          this.lastWinValue = this.add
+            .text(xs[3], LAYOUT.messageY + 10, this.formatMoney(this.lastWin), {
+              fontSize: "17px",
               fontStyle: "bold",
-              color: "#ffd700",
+              color: "#f4ead0",
             })
             .setOrigin(0.5);
 
-          this.betPlus = this.add
-            .circle(LAYOUT.betX + 58, LAYOUT.betY + 10, 13, UI.danger)
-            .setStrokeStyle(2, UI.gold)
-            .setInteractive({ useHandCursor: true });
-
-          this.betPlusText = this.add
-            .text(LAYOUT.betX + 58, LAYOUT.betY + 9, "+", {
-              fontSize: "18px",
-              fontStyle: "bold",
-              color: "#ffd700",
-            })
-            .setOrigin(0.5);
-
-          this.betValue = this.add
-            .text(LAYOUT.betX, LAYOUT.betY + 10, this.formatMoney(this.bet), {
-              fontSize: "19px",
-              fontStyle: "bold",
-              color: "#ffffff",
-            })
-            .setOrigin(0.5);
-
-          this.betMinus.on("pointerdown", () => this.changeBet(-this.betStep));
-          this.betPlus.on("pointerdown", () => this.changeBet(this.betStep));
+          // 兼容旧逻辑：投注值现在由控制弹窗中的 BET 行承载。
         }
 
         createLastWinPanel() {
-          this.createPanel(
-            LAYOUT.lastWinX,
-            LAYOUT.lastWinY,
-            LAYOUT.lastWinW,
-            LAYOUT.lastWinH,
-            UI.panel,
-            0.96,
-          );
-
-          this.add
-            .text(LAYOUT.lastWinX, LAYOUT.lastWinY - 14, "上次获胜", {
-              fontSize: "13px",
-              fontStyle: "bold",
-              color: UI.cream,
-            })
-            .setOrigin(0.5);
-
-          this.lastWinValue = this.add
-            .text(
-              LAYOUT.lastWinX,
-              LAYOUT.lastWinY + 13,
-              this.formatMoney(this.lastWin),
-              {
-                fontSize: "21px",
-                fontStyle: "bold",
-                color: "#ffffff",
-              },
-            )
-            .setOrigin(0.5);
+          // 上次获胜已并入四分播报屏，由 createBottomPanels() 统一创建。
         }
 
         createRightControls() {
           const lx = LAYOUT.rightPanelX;
           const pivotY = 400;
 
-          this.createPanel(lx, 338, 150, 180, UI.panel, 0.96);
+          // 拉杆改为悬浮式机械组件，不再使用长方形外框。
 
           // 拉杆底座 / 金属槽
           this.add
@@ -2215,7 +2198,7 @@
               fontStyle: "bold",
               color: "#ffe9a6",
               stroke: "#000000",
-              strokeThickness: 3,
+              strokeThickness: 1,
             })
             .setOrigin(0.5);
 
@@ -2284,7 +2267,7 @@
               fontStyle: "bold",
               color: "#2a1a00",
               stroke: "#ffe9a6",
-              strokeThickness: 3,
+              strokeThickness: 1,
             })
             .setOrigin(0.5)
             .setDepth(9);
@@ -2339,49 +2322,8 @@
             this.spinBtnRim.setStrokeStyle(2, 0xffe566);
           });
 
-          // ========== 金色圆环按钮：买入/提出筹码（SPIN 按键上方）==========
+          // ========== 🏦 资金按钮：买入 / 提出合并为一个入口，放在 SPIN 上方 ==========
           this.createCoinButton(spinBtnX, spinBtnY);
-
-          // ========== 拉杆面板下方居中 🏦（买入/提出飞入飞出动画基准点）==========
-          this.createCashIcon(lx);
-        }
-
-        // 拉杆面板底部居中的现金图标：呼吸浮动 + 光晕，买入/提出时的动画基准点
-        createCashIcon(lx) {
-          const cx = lx;
-          const cy = 428 + 32; // 拉杆面板底部(338 + 90) + 间距
-
-          this.cashIconX = cx;
-          this.cashIconY = cy;
-
-          this.cashIconGlow = this.add
-            .circle(cx, cy, 40, 0x2f7d32, 0.18)
-            .setDepth(4);
-
-          this.tweens.add({
-            targets: this.cashIconGlow,
-            scale: 1.25,
-            alpha: 0.06,
-            duration: 1300,
-            yoyo: true,
-            repeat: -1,
-            ease: "Sine.easeInOut",
-          });
-
-          // 🏦 图标（约 54px）
-          this.cashIcon = this.add
-            .text(cx, cy, "🏦", { fontSize: "54px" })
-            .setOrigin(0.5)
-            .setDepth(7);
-
-          this.tweens.add({
-            targets: this.cashIcon,
-            y: cy - 5,
-            duration: 1000,
-            yoyo: true,
-            repeat: -1,
-            ease: "Sine.easeInOut",
-          });
         }
 
         // direction: "out" = 买入（金币从 🏦 飞出）；"in" = 提出（金币飞入 🏦）
@@ -2480,9 +2422,9 @@
           // 内圈深色底
           this.add.circle(cx, cy, 20, 0x3a2400).setDepth(6);
 
-          // 💰 图标
+          // 🏦 图标：买入 / 提出统一入口
           this.coinBtnIcon = this.add
-            .text(cx, cy, "💰", { fontSize: "26px" })
+            .text(cx, cy, "🏦", { fontSize: "28px" })
             .setOrigin(0.5)
             .setDepth(7);
 
@@ -2496,8 +2438,13 @@
             this.coinBtnRing.setStrokeStyle(4, 0xfff6b0);
           });
           this.coinBtnHit.on("pointerout", () => {
-            this.coinBtnRing.setStrokeStyle(4, 0xffd700);
+            this.coinBtnRing.setStrokeStyle(2, UI.goldDim);
           });
+          // 资金动画统一以 🏦 为汇聚 / 发散基准点
+          this.cashIconX = cx;
+          this.cashIconY = cy;
+          this.cashIcon = this.coinBtnIcon;
+
           this.coinBtnHit.on("pointerdown", () => {
             this.sfx.click();
             this.tweens.add({
@@ -2534,12 +2481,12 @@
             .setStrokeStyle(3, 0xffd700);
 
           const title = this.add
-            .text(cx, cy - 70, "💰 筹码操作", {
+            .text(cx, cy - 70, "🏦 资金操作", {
               fontSize: "20px",
               fontStyle: "bold",
               color: "#ffd700",
               stroke: "#000000",
-              strokeThickness: 3,
+              strokeThickness: 1,
             })
             .setOrigin(0.5);
 
@@ -2790,8 +2737,8 @@
         createSettingsModal() {
           const cx = GAME_WIDTH / 2;
           const cy = GAME_HEIGHT / 2;
-          const panelW = 680;
-          const panelH = 340; // 去掉音量滑杆后收紧高度
+          const panelW = 640;
+          const panelH = 330; // 紧凑双栏：赔率 + 控制 + 投注
           const top = cy - panelH / 2;
 
           this.settingsModalGroup = this.add
@@ -2820,12 +2767,12 @@
           children.push(panel);
 
           const title = this.add
-            .text(cx, top + 24, "赔率与设置", {
+            .text(cx, top + 24, "赔率  /  控制", {
               fontSize: "22px",
               fontStyle: "bold",
               color: "#ffd700",
               stroke: "#000000",
-              strokeThickness: 3,
+              strokeThickness: 1,
             })
             .setOrigin(0.5);
           children.push(title);
@@ -2881,7 +2828,7 @@
                   fontStyle: "bold",
                   color: symbol.color,
                   stroke: "#000000",
-                  strokeThickness: 3,
+                  strokeThickness: 1,
                 },
               )
               .setOrigin(0, 0.5);
@@ -2916,11 +2863,11 @@
           children.push(pairSymText, pairMultText);
 
           // ---------- 右栏：设置选项 ----------
-          const optBtnW = 70;
+          const optBtnW = 68;
           const optBtnH = 28;
           const rowLabelX = dividerX + 22;
           const optAX = rowLabelX + 128;
-          const optBX = optAX + 78;
+          const optBX = optAX + 74;
 
           const makeOptionButton = (x, y, label) => {
             const bg = this.add
@@ -2977,7 +2924,7 @@
           this.updateSpeedButtons();
 
           // ---------- 自动五次：是 / 否 ----------
-          const autoRowY = speedRowY + 42;
+          const autoRowY = speedRowY + 38;
           const autoLabel = this.add
             .text(rowLabelX, autoRowY, "自动五次", {
               fontSize: "15px",
@@ -3010,7 +2957,7 @@
           this.updateAutoOptionButtons();
 
           // ---------- 音效：开启 / 关闭 ----------
-          const soundRowY = autoRowY + 42;
+          const soundRowY = autoRowY + 38;
           const soundLabel = this.add
             .text(rowLabelX, soundRowY, "音效", {
               fontSize: "15px",
@@ -3044,7 +2991,7 @@
           this.updateSoundOptionButtons();
 
           // ---------- 音乐：开启 / 关闭 ----------
-          const musicRowY = soundRowY + 42;
+          const musicRowY = soundRowY + 38;
           const musicLabel = this.add
             .text(rowLabelX, musicRowY, "音乐", {
               fontSize: "15px",
@@ -3081,7 +3028,7 @@
           this.updateMusicOptionButtons();
 
           // ---------- 播放模式：顺序播放 / 随机播放 ----------
-          const shuffleRowY = musicRowY + 40;
+          const shuffleRowY = musicRowY + 38;
           const shuffleLabel = this.add
             .text(rowLabelX, shuffleRowY, "播放模式", {
               fontSize: "15px",
@@ -3115,9 +3062,64 @@
 
           this.updatePlayModeButtons();
 
+          // ---------- 投注：紧跟播放模式，集中在控制栏 ----------
+          const betRowY = shuffleRowY + 40;
+          const betLabel = this.add
+            .text(rowLabelX, betRowY, "投注", {
+              fontSize: "15px",
+              fontStyle: "bold",
+              color: UI.cream,
+            })
+            .setOrigin(0, 0.5);
+          children.push(betLabel);
+
+          const betBtnW = 46;
+          const betBtnH = 28;
+          const betMinusX = optAX;
+          const betValueX = optAX + 78;
+          const betPlusX = optBX;
+          const makeBetButton = (x, label) => {
+            const bg = this.add
+              .rectangle(x, betRowY, betBtnW, betBtnH, UI.panelDeep, 0.96)
+              .setStrokeStyle(1, UI.goldDim)
+              .setInteractive({ useHandCursor: true });
+            const txt = this.add
+              .text(x, betRowY, label, {
+                fontSize: "16px",
+                fontStyle: "bold",
+                color: UI.cream,
+              })
+              .setOrigin(0.5);
+            children.push(bg, txt);
+            return { bg, txt };
+          };
+          const betMinus = makeBetButton(betMinusX, "−");
+          const betPlus = makeBetButton(betPlusX, "+");
+          this.betMinus = betMinus.bg;
+          this.betPlus = betPlus.bg;
+          this.betMinusText = betMinus.txt;
+          this.betPlusText = betPlus.txt;
+          this.betValue = this.add
+            .text(betValueX, betRowY, this.formatMoney(this.bet), {
+              fontSize: "15px",
+              fontStyle: "bold",
+              color: "#f4ead0",
+            })
+            .setOrigin(0.5);
+          children.push(this.betValue);
+
+          betMinus.bg.on("pointerdown", (pointer, lx, ly, event) => {
+            event.stopPropagation();
+            this.changeBet(-this.betStep);
+          });
+          betPlus.bg.on("pointerdown", (pointer, lx, ly, event) => {
+            event.stopPropagation();
+            this.changeBet(this.betStep);
+          });
+
           // ---------- 左右两栏之间的竖分隔线（按实际内容高度绘制）----------
           const vDividerTop = contentTop - 14;
-          const vDividerBottom = shuffleRowY + 24;
+          const vDividerBottom = betRowY + 24;
           const vDivider = this.add
             .rectangle(
               dividerX,
@@ -3342,33 +3344,28 @@
         }
 
         createAmbientAnimations() {
-          this.tweens.add({
-            targets: this.machineGlow,
-            alpha: 0.22,
-            duration: 1300,
-            yoyo: true,
-            repeat: -1,
-          });
-
-          [this.paylineTop, this.paylineMiddle, this.paylineBottom].forEach(
-            (line, index) => {
-              this.tweens.add({
-                targets: line,
-                alpha: index === 1 ? 1 : 0.55,
-                duration: 900,
-                yoyo: true,
-                repeat: -1,
-              });
-            },
-          );
+          // 签名动效：一条极慢、极淡的金属高光扫过横屏界面。
+          // 其余常驻呼吸/跳动全部收掉；中奖时再由专门动画接管注意力。
+          this.signatureSheen = this.add
+            .rectangle(-120, 270, 72, 760, UI.champagne, 0.035)
+            .setAngle(18)
+            .setDepth(50);
 
           this.tweens.add({
-            targets: this.jackpotText,
-            scale: 1.04,
-            duration: 1000,
-            yoyo: true,
+            targets: this.signatureSheen,
+            x: GAME_WIDTH + 120,
+            duration: 7600,
+            delay: 1200,
             repeat: -1,
+            repeatDelay: 5200,
+            ease: "Sine.easeInOut",
+            onRepeat: () => this.signatureSheen.setX(-120),
           });
+
+          this.machineGlow.setAlpha(0.09);
+          this.paylineTop.setAlpha(0.24);
+          this.paylineMiddle.setAlpha(0.72);
+          this.paylineBottom.setAlpha(0.24);
         }
 
         updateDisplay() {
@@ -3383,9 +3380,9 @@
           fitTextToBox(
             this.betValue,
             this.formatMoney(this.bet),
-            LAYOUT.betW - 95,
-            20,
-            12,
+            78,
+            15,
+            10,
           );
 
           fitTextToBox(
@@ -3421,9 +3418,9 @@
           fitTextToBox(
             this.betValue,
             this.formatMoney(this.bet),
-            LAYOUT.betW - 95,
-            20,
-            12,
+            78,
+            15,
+            10,
           );
 
           // 连续快速点击 +/- 时，先停掉上一次未播完的缩放动画，避免叠加抖动
@@ -3742,7 +3739,7 @@
             yoyo: true,
           });
 
-          reel.frame.setStrokeStyle(4, 0xffd700);
+          reel.frame.setStrokeStyle(2, UI.goldDim);
 
           this.stoppedReelsCount++;
 
@@ -3818,7 +3815,7 @@
           }
 
           this.updateDisplay();
-          this.setMessage("未中奖，再试一次！");
+          this.setMessage("NO WIN — TRY AGAIN");
           this.sfx.lose();
           this.scheduleAutoPlay();
         }
@@ -3978,7 +3975,7 @@
                       fontSize: `${Phaser.Math.Between(18, 30)}px`,
                       color: "#ffd700",
                       stroke: "#7a3b00",
-                      strokeThickness: 3,
+                      strokeThickness: 1,
                     },
                   )
                   .setOrigin(0.5);
@@ -4006,7 +4003,7 @@
         width: GAME_WIDTH,
         height: GAME_HEIGHT,
         parent: "game",
-        backgroundColor: "#070006",
+        backgroundColor: "#090b0b",
         banner: false,
         scale: {
           mode: Phaser.Scale.FIT,
