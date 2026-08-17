@@ -1635,6 +1635,7 @@
           this.createKeyboardControls();
           this.createAmbientAnimations();
           this.setupFocusModeToggle(); // 长按 JACKPOT：隐藏左侧面板，老虎机+下方播报屏整体放大115%
+          this.toggleFocusMode(true); // 默认即为长按放大后的效果，无需再手动长按
           this.updateDisplay();
         }
 
@@ -1744,15 +1745,9 @@
         }
 
         createHeader() {
-          // 标题句子已移除；奖池条上移填补空出的头部空间
-          this.jackpotPanel = this.createPanel(
-            480,
-            LAYOUT.jackpotY,
-            350,
-            38,
-            0x170006,
-            0.96,
-          );
+          // 标题句子已移除；奖池条上移填补空出的头部空间。
+          // 取消边框与背景，原背景处改为随机闪烁的星光效果。
+          this.createJackpotSparkle(480, LAYOUT.jackpotY, 350, 38);
 
           this.jackpotText = this.add
             .text(
@@ -1760,7 +1755,7 @@
               LAYOUT.jackpotY,
               `💎 JACKPOT ${this.formatMoney(this.jackpotValue)}`,
               {
-                fontSize: "21px",
+                fontSize: "25px",
                 fontStyle: "bold",
                 fontFamily: 'Arial, sans-serif',
                 color: "#f0d58a",
@@ -1773,13 +1768,48 @@
 
         }
 
+        // 奖池条背景：随机撒点小星星，各自独立节奏地忽明忽暗闪烁（叠加发光混合模式）
+        // 星星尺寸放大 150%
+        createJackpotSparkle(cx, cy, w, h) {
+          const count = 16;
+          this.jackpotStars = [];
+          for (let i = 0; i < count; i++) {
+            const sx = cx - w / 2 + Phaser.Math.Between(8, w - 8);
+            const sy = cy - h / 2 + Phaser.Math.Between(4, h - 4);
+            const points = Phaser.Math.RND.pick([4, 4, 5]);
+            const outerR = Phaser.Math.Between(3, 6);
+            const star = this.add
+              .star(sx, sy, points, Math.max(1, outerR - 3), outerR, 0xfff3c4, 0.9)
+              .setBlendMode(Phaser.BlendModes.ADD)
+              .setDepth(0);
+            this.jackpotStars.push(star);
+            this.twinkleStar(star);
+          }
+        }
+
+        twinkleStar(star) {
+          const delay = Phaser.Math.Between(0, 2200);
+          const duration = Phaser.Math.Between(650, 1500);
+          this.time.delayedCall(delay, () => {
+            if (!star.active) return;
+            this.tweens.add({
+              targets: star,
+              alpha: { from: 0.9, to: Phaser.Math.FloatBetween(0.1, 0.3) },
+              scale: { from: 1, to: Phaser.Math.FloatBetween(0.5, 1.6) },
+              duration,
+              yoyo: true,
+              repeat: -1,
+              ease: "Sine.easeInOut",
+            });
+          });
+        }
+
         updateLiveClock() {
-          if (!this.clockText) return;
+          if (!this.rightClockText) return;
           const now = new Date();
           const hh = String(now.getHours()).padStart(2, "0");
           const mm = String(now.getMinutes()).padStart(2, "0");
-          const ss = String(now.getSeconds()).padStart(2, "0");
-          this.clockText.setText(`${hh}:${mm}:${ss}`);
+          this.rightClockText.setText(`${hh}:${mm}`);
 
           // 每个整 15 分钟响一次：00 / 15 / 30 / 45
           const quarterKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}-${now.getHours()}-${Math.floor(now.getMinutes() / 15)}`;
@@ -1801,19 +1831,8 @@
 
           this.createPanel(x, y, w, h, 0x0c0a08, 0.96, this.focusHideGroup);
 
-          // 上方时钟
-          this.clockText = this.add
-            .text(x, y - 166, "--:--:--", {
-              fontSize: "20px",
-              fontStyle: "bold",
-              color: "#ffd700",
-              stroke: "#000000",
-              strokeThickness: 1,
-            })
-            .setOrigin(0.5);
           this.updateLiveClock();
           this.clockTimer = setInterval(() => this.updateLiveClock(), 250);
-          this.focusHideGroup.push(this.clockText);
 
           // 麦克风（放大 218%，位置下移 8px，与面板顶部保持足够间距，确保完整露出、不被遮挡）
           const micY = y - h / 2 + 84 + 8;
@@ -2207,6 +2226,9 @@
           const lx = LAYOUT.rightPanelX;
           const pivotY = 355;
 
+          // 拉杆上方空地：时间显示 + 简/繁切换（原长按 JACKPOT 的彩蛋功能移到这里）
+          this.createRightClockToggle(lx);
+
           // 拉杆改为悬浮式机械组件，不再使用长方形外框。
 
           // 拉杆底座 / 金属槽
@@ -2321,16 +2343,6 @@
             .rectangle(lx, 295, 120, 150, 0x000000, 0.01)
             .setInteractive({ useHandCursor: true });
 
-          this.spinHint = this.add
-            .text(lx, 210, "Pull to Spin", {
-              fontSize: "11px",
-              fontStyle: "bold",
-              color: "#ffe9a6",
-              stroke: "#000000",
-              strokeThickness: 1,
-            })
-            .setOrigin(0.5);
-
           // 拉杆 / SPIN / 空格 统一：一点即转，转动中再点急停
           this.leverHit.on("pointerdown", () => {
             this.sfx.init();
@@ -2359,63 +2371,131 @@
           // leverHand 是靠绝对世界坐标做“伸手拉杆”动画的独立元素，同样不参与分组变换。
         }
 
-        // ========== 隐藏功能：长按 JACKPOT ==========
-        // 触发后：左侧唱片面板隐藏；老虎机机身 + 下方四分播报屏作为一个整体一起放大 115%；
-        // JACKPOT 与拉杆均保持原地不动、不参与缩放。再次长按恢复原状。
-        setupFocusModeToggle() {
-          const HOLD_MS = 600;
-          let pressTimer = null;
+        // ========== 拉杆上方：时间显示 + 简/繁切换 ==========
+        // 上：时:分；下："简🕹️繁"，当前状态高亮。长按此处切换 简（默认放大）/ 繁（原始完整布局）。
+        // 时间/切换控件本身固定不动、不参与缩放，也不随简/繁切换隐藏。
+        // 拉杆上方空地：时间 + 简/繁切换按键（原长按 JACKPOT 的彩蛋功能移到这里，改为点击）
+        // 细金色正方形边框 + 暗色底，模拟实体按键质感；点按有轻微按下回弹反馈。
+        createRightClockToggle(lx) {
+          const btnSize = 70;
+          const cy = 165;
+          const clockY = cy - 16;
+          const modeY = cy + 14;
 
+          this.rightClockToggleBg = this.add
+            .rectangle(lx, cy, btnSize, btnSize, 0x1a140c, 0.92)
+            .setStrokeStyle(1, UI.gold);
+
+          this.rightClockText = this.add
+            .text(lx, clockY, "--:--", {
+              fontSize: "17px",
+              fontStyle: "bold",
+              color: "#ffd700",
+              stroke: "#000000",
+              strokeThickness: 1,
+            })
+            .setOrigin(0.5);
+
+          this.modeLabelSimple = this.add
+            .text(lx - 20, modeY, "简", {
+              fontSize: "12px",
+              fontStyle: "bold",
+              stroke: "#000000",
+              strokeThickness: 1,
+            })
+            .setOrigin(0.5);
+
+          this.modeLabelIcon = this.add
+            .text(lx, modeY, "🕹️", { fontSize: "13px" })
+            .setOrigin(0.5);
+
+          this.modeLabelComplex = this.add
+            .text(lx + 20, modeY, "繁", {
+              fontSize: "12px",
+              fontStyle: "bold",
+              stroke: "#000000",
+              strokeThickness: 1,
+            })
+            .setOrigin(0.5);
+
+          this.refreshModeLabel();
+
+          this.rightClockToggleHit = this.add
+            .rectangle(lx, cy, btnSize, btnSize, 0x000000, 0.01)
+            .setInteractive({ useHandCursor: true });
+
+          this.rightClockToggleHit.on("pointerover", () => {
+            this.rightClockToggleBg.setStrokeStyle(1.5, 0xffe566);
+          });
+          this.rightClockToggleHit.on("pointerout", () => {
+            this.rightClockToggleBg.setStrokeStyle(1, UI.gold);
+          });
+          this.rightClockToggleHit.on("pointerdown", () => {
+            this.tweens.add({
+              targets: this.rightClockToggleBg,
+              scaleX: 0.92,
+              scaleY: 0.92,
+              duration: 80,
+              yoyo: true,
+              ease: "Sine.easeInOut",
+            });
+            this.toggleFocusMode();
+          });
+        }
+
+        // 依据 focusMode 高亮当前状态：简（放大态，默认）/ 繁（完整态）
+        refreshModeLabel() {
+          if (!this.modeLabelSimple) return;
+          const activeColor = "#ffd700";
+          const dimColor = "#6a6a6a";
+          this.modeLabelSimple.setColor(this.focusMode ? activeColor : dimColor);
+          this.modeLabelComplex.setColor(this.focusMode ? dimColor : activeColor);
+        }
+
+        // ========== 隐藏功能（原：长按 JACKPOT，已移至拉杆上方的时间/简繁按键，改为点击）==========
+        // 触发后：左侧唱片面板隐藏；老虎机机身 + 下方四分播报屏作为一个整体一起放大 115%；
+        // 时间/简繁按键与拉杆均保持原地不动、不参与缩放。再次点击恢复原状。
+        setupFocusModeToggle() {
           // 缩放锚点：老虎机机身的视觉中心，放大时以此为基准，位置不会跑偏
-          // （拉杆与 JACKPOT 均已从放大分组中移除，不参与缩放，始终原地不动）
           this.machineScaleAnchor = {
             x: LAYOUT.machineX,
             y: LAYOUT.machineY,
           };
-
-          const panel = this.jackpotPanel;
-          if (!panel) return;
-          panel.setInteractive({ useHandCursor: true });
-
-          const cancelHold = () => {
-            if (pressTimer) {
-              pressTimer.remove(false);
-              pressTimer = null;
-            }
-          };
-
-          panel.on("pointerdown", () => {
-            cancelHold();
-            pressTimer = this.time.delayedCall(HOLD_MS, () => {
-              pressTimer = null;
-              this.toggleFocusMode();
-            });
-          });
-          panel.on("pointerup", cancelHold);
-          panel.on("pointerout", cancelHold);
-          panel.on("pointerupoutside", cancelHold);
         }
 
-        toggleFocusMode() {
+        // silent: 初始化时直接应用默认放大态，不出声、不播放过渡动画
+        toggleFocusMode(silent) {
           this.focusMode = !this.focusMode;
-          this.sfx.click();
+          if (!silent) this.sfx.click();
 
           this.focusHideGroup.forEach((obj) => {
             if (obj) obj.setVisible(!this.focusMode);
           });
+          this.refreshModeLabel();
 
           const scale = this.focusMode ? 1.15 : 1;
           const cx = this.machineScaleAnchor.x;
           const cy = this.machineScaleAnchor.y;
-          this.tweens.add({
-            targets: this.machineScaleGroup,
+          const targetProps = {
             scaleX: scale,
             scaleY: scale,
             x: cx * (1 - scale),
             y: cy * (1 - scale),
-            duration: 260,
-            ease: "Sine.easeInOut",
-          });
+          };
+          if (silent) {
+            this.machineScaleGroup.setScale(scale, scale);
+            this.machineScaleGroup.setPosition(
+              targetProps.x,
+              targetProps.y
+            );
+          } else {
+            this.tweens.add({
+              targets: this.machineScaleGroup,
+              ...targetProps,
+              duration: 260,
+              ease: "Sine.easeInOut",
+            });
+          }
         }
 
         // direction: "out" = 买入（金币从 💰 飞出）；"in" = 提出（金币飞入 💰）
@@ -2671,7 +2751,6 @@
           if (this.leverState === "down") return;
 
           this.leverState = "down";
-          this.spinHint.setText("Click to Stop");
           this.sfx.leverGrip();
 
           this.tweens.killTweensOf(this.leverHand);
@@ -2783,7 +2862,6 @@
 
         resetLever() {
           this.leverState = "up";
-          this.spinHint.setText("Pull to Spin");
           this.sfx.leverReset();
 
           this.tweens.killTweensOf(this.leverHand);
@@ -2876,7 +2954,7 @@
           const rightX = cx + panelW / 2 - pad;
           const dividerX = cx - 28;
 
-          // 左：赔率表（无列标题，直接从顶部留白后开始）
+          // 左：赔率表（无列标题，直接从顶部留白后开始）；图标放大 125%，行距相应放宽
           const payRows = [
             ["7️⃣7️⃣7️⃣", "×50"],
             ["🌸🌸🌸", "×20"],
@@ -2887,14 +2965,14 @@
             ["🍄🍄🍄", "×4"],
             ["任意一对", "×2"],
           ];
-          const payStart = top + 26;
-          const paySpacing = 44;
+          const payStart = top + 28;
+          const paySpacing = 46;
           payRows.forEach((row, i) => {
             const ry = payStart + i * paySpacing;
             children.push(
               this.add
                 .text(leftX + 7, ry, row[0], {
-                  fontSize: "14px",
+                  fontSize: "18px",
                   color: "#e8dcc0",
                 })
                 .setOrigin(0, 0.5),
@@ -3025,6 +3103,7 @@
           soundOffOpt.bg.on("pointerdown", (p, lx, ly, e) => {
             e.stopPropagation();
             if (this.sfx.enabled) {
+              this.sfx.click();
               this.sfx.enabled = false;
               this.updateSoundOptionButtons();
               this.saveGameState();
@@ -3039,34 +3118,35 @@
               .setOrigin(0.5),
           );
 
-          // 投注
-          rowY += 60;
+          // 投注：文字标签 / 数值框 / +− 按钮均放大 125%，并整体右移一点、加宽行距，避免与左侧标签、面板边缘拥挤
+          rowY += 64;
           children.push(
             this.add
-              .text(rowLabelX, rowY, "投注", {
-                fontSize: "14px",
+              .text(rowLabelX, rowY, "BET", {
+                fontSize: "18px",
                 fontStyle: "bold",
                 color: "#ffd700",
               })
               .setOrigin(0, 0.5),
           );
-          const betBoxX = boxCenterX;
+          const bigBoxCenterX = boxCenterX + 34;
+          const betBoxX = bigBoxCenterX;
           children.push(
             this.add
-              .rectangle(betBoxX, rowY, 124, 30, 0x0a0806, 0.95)
+              .rectangle(betBoxX, rowY, 155, 38, 0x0a0806, 0.95)
               .setStrokeStyle(1, UI.goldDim),
           );
           const betMinus = this.add
-            .text(betBoxX - 44, rowY, "−", {
-              fontSize: "18px",
+            .text(betBoxX - 55, rowY, "−", {
+              fontSize: "22px",
               color: "#ffd700",
               fontStyle: "bold",
             })
             .setOrigin(0.5)
             .setInteractive({ useHandCursor: true });
           const betPlus = this.add
-            .text(betBoxX + 44, rowY, "+", {
-              fontSize: "18px",
+            .text(betBoxX + 55, rowY, "+", {
+              fontSize: "22px",
               color: "#ffd700",
               fontStyle: "bold",
             })
@@ -3074,7 +3154,7 @@
             .setInteractive({ useHandCursor: true });
           this.modalBetValue = this.add
             .text(betBoxX, rowY, this.formatInt(this.bet), {
-              fontSize: "15px",
+              fontSize: "19px",
               color: "#ffe9a6",
               fontStyle: "bold",
             })
@@ -3093,12 +3173,12 @@
           });
           children.push(betMinus, betPlus, this.modalBetValue);
 
-          // 筹码
-          rowY += 60;
+          // 筹码：与投注同比例放大 125%，行距加宽避免与投注框拥挤
+          rowY += 58;
           children.push(
             this.add
-              .text(rowLabelX, rowY, "筹码", {
-                fontSize: "14px",
+              .text(rowLabelX, rowY, "CHIPS", {
+                fontSize: "18px",
                 fontStyle: "bold",
                 color: "#ffd700",
               })
@@ -3106,20 +3186,20 @@
           );
           children.push(
             this.add
-              .rectangle(betBoxX, rowY, 136, 30, 0x0a0806, 0.95)
+              .rectangle(betBoxX, rowY, 170, 38, 0x0a0806, 0.95)
               .setStrokeStyle(1, UI.goldDim),
           );
           const chipMinus = this.add
-            .text(betBoxX - 51, rowY, "−", {
-              fontSize: "18px",
+            .text(betBoxX - 64, rowY, "−", {
+              fontSize: "22px",
               color: "#ffd700",
               fontStyle: "bold",
             })
             .setOrigin(0.5)
             .setInteractive({ useHandCursor: true });
           const chipPlus = this.add
-            .text(betBoxX + 51, rowY, "+", {
-              fontSize: "18px",
+            .text(betBoxX + 64, rowY, "+", {
+              fontSize: "22px",
               color: "#ffd700",
               fontStyle: "bold",
             })
@@ -3128,7 +3208,7 @@
           children.push(
             this.add
               .text(betBoxX, rowY, "1000", {
-                fontSize: "15px",
+                fontSize: "19px",
                 color: "#ffe9a6",
                 fontStyle: "bold",
               })
@@ -3139,19 +3219,19 @@
             this.sfx.coinChime("out");
             this.balance = Math.round(this.balance + 1000);
             this.updateDisplay();
-            this.setMessage("筹码 +1000");
+            this.setMessage("CHIPS +1000");
           });
           chipMinus.on("pointerdown", (p, lx, ly, e) => {
             e.stopPropagation();
             if (this.balance < 1000) {
-              this.setMessage("筹码不足");
+              this.setMessage("INSUFFICIENT CHIPS");
               this.sfx.lose();
               return;
             }
             this.sfx.coinChime("in");
             this.balance = Math.round(this.balance - 1000);
             this.updateDisplay();
-            this.setMessage("筹码 −1000");
+            this.setMessage("CHIPS -1000");
           });
           children.push(chipMinus, chipPlus);
 
@@ -3160,9 +3240,10 @@
           this.orderPlayButton = null;
           this.shufflePlayButton = null;
 
+          // 关闭按钮：放大至 200%，并相应调整位置与外层微光留出的边距保持协调
           const closeBtn = this.add
-            .text(cx + panelW / 2 - 19, top + 16, "✕", {
-              fontSize: "16px",
+            .text(cx + panelW / 2 - 28, top + 24, "✕", {
+              fontSize: "32px",
               fontStyle: "bold",
               color: "#c9a227",
             })
@@ -3172,6 +3253,7 @@
           closeBtn.on("pointerout", () => closeBtn.setColor("#c9a227"));
           closeBtn.on("pointerdown", (pointer, lx, ly, event) => {
             event.stopPropagation();
+            this.sfx.click();
             this.toggleSettingsModal(false);
           });
           children.push(closeBtn);
@@ -3538,7 +3620,7 @@
           if (!this.isSpinning || this.stopRequested) return;
 
           this.stopRequested = true;
-          this.setMessage("正在急停...");
+          this.setMessage("STOPPING...");
 
           this.reels.forEach((reel, index) => {
             if (!reel.stopped && !reel.forceStopScheduled) {
@@ -3565,7 +3647,6 @@
           // 自动模式等非手动拉杆路径：若拉杆未下，补一段简短甩下动画
           if (this.leverState !== "down") {
             this.leverState = "down";
-            this.spinHint.setText("Click to Stop");
             this.sfx.leverPull();
             this.leverHand.setText("✊");
             this.leverHand.setAlpha(1);
@@ -3614,8 +3695,8 @@
               18,
             );
           } else {
-            const modeLabel = this.mode === "FAST" ? "加速" : "正常";
-            this.setMessage(`${modeLabel} 转动中 • 空格急停`, 17);
+            const modeLabel = this.mode === "FAST" ? "FAST" : "NORMAL";
+            this.setMessage(`${modeLabel} SPIN • SPACE TO STOP`, 17);
           }
 
           this.reels.forEach((reel, index) => {
@@ -3946,12 +4027,25 @@
           this.flashLines();
 
           this.tweens.add({
-            targets: this.jackpotPanel,
+            targets: this.jackpotText,
             scale: 1.12,
             duration: 180,
             yoyo: true,
             repeat: 7,
           });
+
+          if (this.jackpotStars && this.jackpotStars.length) {
+            this.jackpotStars.forEach((star) => {
+              this.tweens.add({
+                targets: star,
+                scale: Phaser.Math.FloatBetween(1.8, 2.6),
+                alpha: 1,
+                duration: 150,
+                yoyo: true,
+                repeat: 7,
+              });
+            });
+          }
 
           this.showWinText("JACKPOT!", "#ffd700");
           this.coinExplosion(90);
