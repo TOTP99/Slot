@@ -1815,10 +1815,10 @@
           this.clockTimer = setInterval(() => this.updateLiveClock(), 250);
           this.focusHideGroup.push(this.clockText);
 
-          // 麦克风（放大 268%，与面板顶部保持足够间距，确保完整露出、不被遮挡）
-          const micY = y - h / 2 + 84;
+          // 麦克风（放大 218%，位置下移 8px，与面板顶部保持足够间距，确保完整露出、不被遮挡）
+          const micY = y - h / 2 + 84 + 8;
           const micIcon = this.add
-            .text(x, micY, "🎙️", { fontSize: "139px" })
+            .text(x, micY, "🎷", { fontSize: "98px" })
             .setOrigin(0.5);
           this.focusHideGroup.push(micIcon);
 
