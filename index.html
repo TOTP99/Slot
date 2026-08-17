@@ -862,7 +862,7 @@
         paytableX: 112,
         paytableY: 280,
         paytableW: 170,
-        paytableH: 248,
+        paytableH: 306,
 
         machineX: 470,
         machineY: 270,
@@ -939,7 +939,7 @@
       // 放进和 index.html 同一个目录即可，以后无需再改这里的代码。
       // 播放时按数字从小到大依次尝试；如果某个编号的文件缺失，会自动跳过找下一个，
       // 直到编号 BG_MUSIC_MAX 结束后循环回到 1。
-      const BG_MUSIC_MAX = 36; // 支持的最大编号（对应 1.mp3 ~ 36.mp3），全部 36 首参与循环播放
+      const BG_MUSIC_MAX = 56; // 支持的最大编号（对应 1.mp3 ~ 56.mp3），全部 56 首参与循环播放
 
       // ---------- 音效（Web Audio） ----------
       class SoundFX {
@@ -1596,8 +1596,9 @@
           this.sfx = new SoundFX();
 
           // 隐藏功能（长按 JACKPOT 触发）：
-          // focusHideGroup 收集左侧唱片面板 + 底部四分播报屏的所有元素，触发时整体隐藏；
-          // machineScaleGroup 收集老虎机机身 + 拉杆的所有元素，触发时整体放大 10%。
+          // focusHideGroup 收集左侧唱片面板的所有元素，触发时整体隐藏；
+          // machineScaleGroup 收集老虎机机身 + 下方四分播报屏的所有元素，
+          // 触发时两者作为一个整体一起放大 115%（拉杆与 JACKPOT 不参与，始终原地不动）。
           this.focusMode = false;
           this.focusHideGroup = [];
           this.machineScaleGroup = null;
@@ -1633,7 +1634,7 @@
           this.createSettingsModal(); // 赔率 + 速度 / 自动五次 / 音效 设置弹窗
           this.createKeyboardControls();
           this.createAmbientAnimations();
-          this.setupFocusModeToggle(); // 长按 JACKPOT：隐藏两侧面板，老虎机+拉杆放大10%
+          this.setupFocusModeToggle(); // 长按 JACKPOT：隐藏左侧面板，老虎机+下方播报屏整体放大115%
           this.updateDisplay();
         }
 
@@ -1707,7 +1708,7 @@
           // 画面背景现在完全由 Phaser 游戏配置的 backgroundColor 承担。
         }
 
-        createPanel(x, y, width, height, fill = UI.panel, alpha = 0.96, hideGroup = null) {
+        createPanel(x, y, width, height, fill = UI.panel, alpha = 0.96, hideGroup = null, scaleGroup = null) {
           // 不使用玻璃/透视效果：面板改为完全不透明的实色层。
           const outer = this.add
             .rectangle(x, y, width + 6, height + 6, UI.goldDim, 1)
@@ -1726,6 +1727,7 @@
             .setOrigin(0.5);
 
           if (hideGroup) hideGroup.push(outer, panel, lineTop, lineBottom);
+          if (scaleGroup) scaleGroup.add([outer, panel, lineTop, lineBottom]);
 
           return panel;
         }
@@ -1813,15 +1815,15 @@
           this.clockTimer = setInterval(() => this.updateLiveClock(), 250);
           this.focusHideGroup.push(this.clockText);
 
-          // 麦克风
-          const micY = y - h / 2 + 44;
+          // 麦克风（放大 268%，与面板顶部保持足够间距，确保完整露出、不被遮挡）
+          const micY = y - h / 2 + 84;
           const micIcon = this.add
-            .text(x, micY, "🎙️", { fontSize: "52px" })
+            .text(x, micY, "🎙️", { fontSize: "139px" })
             .setOrigin(0.5);
           this.focusHideGroup.push(micIcon);
 
-          // 上排：⏮️ ▶️ ⏭️（无金框）
-          const tY = micY + 52;
+          // 播放控制：⏮️ ▶️ ⏭️（保留，放大 168%；⏸️ 🔢 🔀 已按需求删除）
+          const tY = micY + 104;
           const topKeys = [
             { lab: "⏮️", act: () => bgMusic.skipPrev() },
             {
@@ -1832,11 +1834,11 @@
             },
             { lab: "⏭️", act: () => bgMusic.skipNext() },
           ];
-          const gap = 40;
+          const gap = 54;
           topKeys.forEach((item, i) => {
             const bx = x + (i - 1) * gap;
             const btn = this.add
-              .text(bx, tY, item.lab, { fontSize: "20px" })
+              .text(bx, tY, item.lab, { fontSize: "34px" })
               .setOrigin(0.5)
               .setInteractive({ useHandCursor: true });
             btn.on("pointerdown", () => {
@@ -1845,60 +1847,15 @@
               this.saveGameState();
               this.refreshTrackLabel();
             });
-            btn.on("pointerover", () => btn.setScale(1.15));
+            btn.on("pointerover", () => btn.setScale(1.1));
             btn.on("pointerout", () => btn.setScale(1));
             this.focusHideGroup.push(btn);
           });
 
-          // 下排：⏸️ 🔢 🔀（无金框）
-          const bY = tY + 40;
-          const bottomKeys = [
-            {
-              lab: "⏸️",
-              act: () => {
-                if (bgMusic.isPlaying()) bgMusic.pause();
-              },
-            },
-            {
-              lab: "🔢",
-              act: () => {
-                bgMusic.setPlayMode("order");
-                this.updateMusicModeButtons();
-              },
-            },
-            {
-              lab: "🔀",
-              act: () => {
-                bgMusic.setPlayMode("shuffle");
-                this.updateMusicModeButtons();
-              },
-            },
-          ];
-          this.musicModeBtns = {};
-          bottomKeys.forEach((item, i) => {
-            const bx = x + (i - 1) * gap;
-            const btn = this.add
-              .text(bx, bY, item.lab, { fontSize: "20px" })
-              .setOrigin(0.5)
-              .setInteractive({ useHandCursor: true });
-            btn.on("pointerdown", () => {
-              this.sfx.click();
-              item.act();
-              this.saveGameState();
-              this.refreshTrackLabel();
-            });
-            btn.on("pointerover", () => btn.setScale(1.15));
-            btn.on("pointerout", () => btn.setScale(1));
-            if (item.lab === "🔢") this.musicModeBtns.order = btn;
-            if (item.lab === "🔀") this.musicModeBtns.shuffle = btn;
-            this.focusHideGroup.push(btn);
-          });
-          this.updateMusicModeButtons();
-
-          // 曲号
-          const trackY = bY + 34;
+          // 曲号（如遇位置不够可删除；当前面板高度留有空间，予以保留）
+          const trackY = tY + 42;
           this.sideTrackLabel = this.add
-            .text(x, trackY, "01 / 36", {
+            .text(x, trackY, "01 / 56", {
               fontSize: "13px",
               fontStyle: "bold",
               color: "#ffe9a6",
@@ -1907,8 +1864,8 @@
           this.refreshTrackLabel();
           this.focusHideGroup.push(this.sideTrackLabel);
 
-          // 🏧🈵⚙️ 一体金框按键 → 打开控制页
-          const ctrlY = trackY + 48;
+          // 底部一体金框按键（沿用原金框尺寸/位置逻辑）→ 打开赔率*设置弹窗
+          const ctrlY = trackY + 45;
           const frameW = w - 28;
           const frameH = 40;
           const frame = this.add
@@ -1916,8 +1873,10 @@
             .setStrokeStyle(1, UI.gold)
             .setInteractive({ useHandCursor: true });
           const ctrlLabel = this.add
-            .text(x, ctrlY, "🏧  🈵  ⚙️", {
-              fontSize: "18px",
+            .text(x, ctrlY, "赔率*设置", {
+              fontSize: "24px",
+              fontStyle: "bold",
+              color: "#ffe9a6",
             })
             .setOrigin(0.5);
           const openCtrl = () => {
@@ -1945,6 +1904,7 @@
           this._eqAcc = 0;
           this.sideBetValue = null;
           this.musicPanelGroup = null;
+          this.musicModeBtns = null;
         }
 
         refreshTrackLabel() {
@@ -2078,7 +2038,7 @@
             })
             .setOrigin(0.5);
 
-          // 老虎机机身整体收进放大分组：长按 JACKPOT 触发彩蛋时随分组一起放大 10%
+          // 老虎机机身整体收进放大分组：长按 JACKPOT 触发彩蛋时随分组一起放大 115%
           this.machineScaleGroup.add([
             this.machineGlow,
             outerShell,
@@ -2167,7 +2127,7 @@
           const startX = LAYOUT.messageX - totalW / 2 + cellW / 2;
           const xs = [0, 1, 2, 3].map((i) => startX + i * (cellW + gap));
           const makeDisplayCell = (x) =>
-            this.createPanel(x, LAYOUT.messageY, cellW, LAYOUT.messageH, UI.panel, 0.94, this.focusHideGroup);
+            this.createPanel(x, LAYOUT.messageY, cellW, LAYOUT.messageH, UI.panel, 0.94, null, this.machineScaleGroup);
 
           // 左（BALANCE）、右（LAST WIN）各自独立卡片；中间播报区合并为一整块，不再有分隔缝
           makeDisplayCell(xs[0]);
@@ -2179,7 +2139,8 @@
             LAYOUT.messageH,
             UI.panel,
             0.94,
-            this.focusHideGroup,
+            null,
+            this.machineScaleGroup,
           );
 
           const balanceLabel = this.add
@@ -2225,13 +2186,15 @@
             })
             .setOrigin(0.5);
 
-          this.focusHideGroup.push(
+          // 长按 JACKPOT 时，老虎机机身 + 下方四分播报屏作为一个整体一起放大，
+          // 因此这些元素收进 machineScaleGroup，而不是 focusHideGroup（不再隐藏）。
+          this.machineScaleGroup.add([
             balanceLabel,
             this.balanceValue,
             this.messageText,
             lastWinLabel,
             this.lastWinValue,
-          );
+          ]);
 
           // 兼容旧逻辑：投注值现在由控制弹窗中的 BET 行承载。
         }
@@ -2391,33 +2354,22 @@
 
           // 筹码 +/- 已并入左侧面板，不再在机身旁放 💰 入口
 
-          // 拉杆整体（底座、槽、轴、杆身、热区、提示文字）收进放大分组；
-          // leverHand 是靠绝对世界坐标做“伸手拉杆”动画的独立元素，不参与分组变换。
-          this.machineScaleGroup.add([
-            grooveOuter,
-            grooveShadow,
-            grooveSlot,
-            grooveHighlight,
-            pivotRing,
-            pivotGold,
-            pivotCore,
-            pivotShine,
-            this.leverContainer,
-            this.leverHit,
-            this.spinHint,
-          ]);
+          // 拉杆整体（底座、槽、轴、杆身、热区、提示文字）不加入放大分组，
+          // 长按 JACKPOT 触发彩蛋时拉杆保持原地不动、不参与缩放。
+          // leverHand 是靠绝对世界坐标做“伸手拉杆”动画的独立元素，同样不参与分组变换。
         }
 
         // ========== 隐藏功能：长按 JACKPOT ==========
-        // 触发后：左侧唱片面板 + 底部四分播报屏全部隐藏，屏幕上只剩老虎机机身和拉杆；
-        // 除 JACKPOT 本身外，机身+拉杆整体放大 10%。再次长按恢复原状。
+        // 触发后：左侧唱片面板隐藏；老虎机机身 + 下方四分播报屏作为一个整体一起放大 115%；
+        // JACKPOT 与拉杆均保持原地不动、不参与缩放。再次长按恢复原状。
         setupFocusModeToggle() {
           const HOLD_MS = 600;
           let pressTimer = null;
 
-          // 缩放锚点：老虎机与拉杆的视觉中心，放大时以此为基准，位置不会跑偏
+          // 缩放锚点：老虎机机身的视觉中心，放大时以此为基准，位置不会跑偏
+          // （拉杆与 JACKPOT 均已从放大分组中移除，不参与缩放，始终原地不动）
           this.machineScaleAnchor = {
-            x: (LAYOUT.machineX + LAYOUT.rightPanelX) / 2,
+            x: LAYOUT.machineX,
             y: LAYOUT.machineY,
           };
 
@@ -2452,7 +2404,7 @@
             if (obj) obj.setVisible(!this.focusMode);
           });
 
-          const scale = this.focusMode ? 1.1 : 1;
+          const scale = this.focusMode ? 1.15 : 1;
           const cx = this.machineScaleAnchor.x;
           const cy = this.machineScaleAnchor.y;
           this.tweens.add({
@@ -2879,11 +2831,14 @@
 
         // 赔率弹窗 + 速度 / 自动五次 / 音效 设置（点击"赔率"键弹出）
         // 左右两栏布局：左边赔率表，右边游戏设置，紧凑横向排列
+        // 赔率弹窗 + 速度 / 自动五次 / 音效 设置（点击"赔率*设置"键弹出）
+        // 已去掉"控制中心/赔率/设置"文字标签与顶部分隔线；所有图标/字体/方框在原基础上放大 115%，
+        // 面板本身也相应放大，尽量利用面板内的空间，避免大片空白。
         createSettingsModal() {
           const cx = GAME_WIDTH / 2;
           const cy = GAME_HEIGHT / 2;
-          const panelW = 480;
-          const panelH = 300;
+          const panelW = 560;
+          const panelH = 370;
           const top = cy - panelH / 2;
 
           this.settingsModalGroup = this.add
@@ -2903,51 +2858,25 @@
           // 外层微光
           children.push(
             this.add
-              .rectangle(cx, cy, panelW + 8, panelH + 8, UI.gold, 0.08)
+              .rectangle(cx, cy, panelW + 9, panelH + 9, UI.gold, 0.08)
               .setStrokeStyle(1, UI.goldDim),
           );
 
           const panel = this.add
             .rectangle(cx, cy, panelW, panelH, 0x0e0a06, 0.98)
-            .setStrokeStyle(1.5, UI.gold)
+            .setStrokeStyle(2, UI.gold)
             .setInteractive();
           panel.on("pointerdown", (pointer, lx, ly, event) => {
             event.stopPropagation();
           });
           children.push(panel);
 
-          children.push(
-            this.add
-              .text(cx, top + 18, "控制中心", {
-                fontSize: "17px",
-                fontStyle: "bold",
-                color: "#ffd700",
-              })
-              .setOrigin(0.5),
-          );
-          children.push(
-            this.add
-              .rectangle(cx, top + 32, panelW - 36, 1, UI.gold, 0.28)
-              .setOrigin(0.5),
-          );
-
-          const pad = 18;
+          const pad = 21;
           const leftX = cx - panelW / 2 + pad;
           const rightX = cx + panelW / 2 - pad;
-          const dividerX = cx - 24;
+          const dividerX = cx - 28;
 
-          // 左：赔率
-          children.push(
-            this.add
-              .text((leftX + dividerX) / 2, top + 48, "赔率", {
-                fontSize: "12px",
-                fontStyle: "bold",
-                color: "#c9a227",
-                letterSpacing: 2,
-              })
-              .setOrigin(0.5),
-          );
-
+          // 左：赔率表（无列标题，直接从顶部留白后开始）
           const payRows = [
             ["7️⃣7️⃣7️⃣", "×50"],
             ["🌸🌸🌸", "×20"],
@@ -2958,20 +2887,22 @@
             ["🍄🍄🍄", "×4"],
             ["任意一对", "×2"],
           ];
+          const payStart = top + 26;
+          const paySpacing = 44;
           payRows.forEach((row, i) => {
-            const ry = top + 68 + i * 22;
+            const ry = payStart + i * paySpacing;
             children.push(
               this.add
-                .text(leftX + 6, ry, row[0], {
-                  fontSize: "12px",
+                .text(leftX + 7, ry, row[0], {
+                  fontSize: "14px",
                   color: "#e8dcc0",
                 })
                 .setOrigin(0, 0.5),
             );
             children.push(
               this.add
-                .text(dividerX - 10, ry, row[1], {
-                  fontSize: "12px",
+                .text(dividerX - 12, ry, row[1], {
+                  fontSize: "14px",
                   fontStyle: "bold",
                   color: "#ffd700",
                 })
@@ -2981,30 +2912,19 @@
 
           children.push(
             this.add
-              .rectangle(dividerX, cy + 8, 1, panelH - 56, UI.gold, 0.22)
+              .rectangle(dividerX, cy, 1, panelH - 40, UI.gold, 0.22)
               .setOrigin(0.5),
           );
 
-          // 右：设置
-          children.push(
-            this.add
-              .text((dividerX + rightX) / 2, top + 48, "设置", {
-                fontSize: "12px",
-                fontStyle: "bold",
-                color: "#c9a227",
-                letterSpacing: 2,
-              })
-              .setOrigin(0.5),
-          );
-
+          // 右：设置（无列标题）
           const makeOptionButton = (bx, by, label) => {
             const bg = this.add
-              .rectangle(bx, by, 50, 24, 0x1a140c, 0.95)
+              .rectangle(bx, by, 58, 28, 0x1a140c, 0.95)
               .setStrokeStyle(1, UI.goldDim)
               .setInteractive({ useHandCursor: true });
             const txt = this.add
               .text(bx, by, label, {
-                fontSize: "11px",
+                fontSize: "13px",
                 color: "#e8dcc0",
               })
               .setOrigin(0.5);
@@ -3012,15 +2932,16 @@
             return { bg, txt };
           };
 
-          const rowLabelX = dividerX + 12;
-          const optAX = rightX - 84;
-          const optBX = rightX - 26;
+          const rowLabelX = dividerX + 16;
+          const optAX = cx + 66;
+          const optBX = cx + 146;
+          const boxCenterX = cx + 106;
 
-          let rowY = top + 78;
+          let rowY = payStart;
           children.push(
             this.add
               .text(rowLabelX, rowY, "速度", {
-                fontSize: "12px",
+                fontSize: "14px",
                 fontStyle: "bold",
                 color: "#ffd700",
               })
@@ -3048,11 +2969,11 @@
           });
           this.updateSpeedButtons();
 
-          rowY += 32;
+          rowY += 60;
           children.push(
             this.add
               .text(rowLabelX, rowY, "自动", {
-                fontSize: "12px",
+                fontSize: "14px",
                 fontStyle: "bold",
                 color: "#ffd700",
               })
@@ -3078,11 +2999,11 @@
           });
           this.updateAutoOptionButtons();
 
-          rowY += 32;
+          rowY += 60;
           children.push(
             this.add
               .text(rowLabelX, rowY, "音效", {
-                fontSize: "12px",
+                fontSize: "14px",
                 fontStyle: "bold",
                 color: "#ffd700",
               })
@@ -3111,41 +3032,41 @@
           });
           this.updateSoundOptionButtons();
 
-          rowY += 24;
+          rowY += 60;
           children.push(
             this.add
-              .rectangle((dividerX + rightX) / 2, rowY, rightX - dividerX - 8, 1, UI.gold, 0.22)
+              .rectangle(boxCenterX, rowY, rightX - dividerX - 10, 1, UI.gold, 0.22)
               .setOrigin(0.5),
           );
 
           // 投注
-          rowY += 26;
+          rowY += 60;
           children.push(
             this.add
               .text(rowLabelX, rowY, "投注", {
-                fontSize: "12px",
+                fontSize: "14px",
                 fontStyle: "bold",
                 color: "#ffd700",
               })
               .setOrigin(0, 0.5),
           );
-          const betBoxX = (optAX + optBX) / 2;
+          const betBoxX = boxCenterX;
           children.push(
             this.add
-              .rectangle(betBoxX, rowY, 108, 26, 0x0a0806, 0.95)
+              .rectangle(betBoxX, rowY, 124, 30, 0x0a0806, 0.95)
               .setStrokeStyle(1, UI.goldDim),
           );
           const betMinus = this.add
-            .text(betBoxX - 38, rowY, "−", {
-              fontSize: "16px",
+            .text(betBoxX - 44, rowY, "−", {
+              fontSize: "18px",
               color: "#ffd700",
               fontStyle: "bold",
             })
             .setOrigin(0.5)
             .setInteractive({ useHandCursor: true });
           const betPlus = this.add
-            .text(betBoxX + 38, rowY, "+", {
-              fontSize: "16px",
+            .text(betBoxX + 44, rowY, "+", {
+              fontSize: "18px",
               color: "#ffd700",
               fontStyle: "bold",
             })
@@ -3153,7 +3074,7 @@
             .setInteractive({ useHandCursor: true });
           this.modalBetValue = this.add
             .text(betBoxX, rowY, this.formatInt(this.bet), {
-              fontSize: "13px",
+              fontSize: "15px",
               color: "#ffe9a6",
               fontStyle: "bold",
             })
@@ -3173,11 +3094,11 @@
           children.push(betMinus, betPlus, this.modalBetValue);
 
           // 筹码
-          rowY += 32;
+          rowY += 60;
           children.push(
             this.add
               .text(rowLabelX, rowY, "筹码", {
-                fontSize: "12px",
+                fontSize: "14px",
                 fontStyle: "bold",
                 color: "#ffd700",
               })
@@ -3185,20 +3106,20 @@
           );
           children.push(
             this.add
-              .rectangle(betBoxX, rowY, 118, 26, 0x0a0806, 0.95)
+              .rectangle(betBoxX, rowY, 136, 30, 0x0a0806, 0.95)
               .setStrokeStyle(1, UI.goldDim),
           );
           const chipMinus = this.add
-            .text(betBoxX - 44, rowY, "−", {
-              fontSize: "16px",
+            .text(betBoxX - 51, rowY, "−", {
+              fontSize: "18px",
               color: "#ffd700",
               fontStyle: "bold",
             })
             .setOrigin(0.5)
             .setInteractive({ useHandCursor: true });
           const chipPlus = this.add
-            .text(betBoxX + 44, rowY, "+", {
-              fontSize: "16px",
+            .text(betBoxX + 51, rowY, "+", {
+              fontSize: "18px",
               color: "#ffd700",
               fontStyle: "bold",
             })
@@ -3207,7 +3128,7 @@
           children.push(
             this.add
               .text(betBoxX, rowY, "1000", {
-                fontSize: "13px",
+                fontSize: "15px",
                 color: "#ffe9a6",
                 fontStyle: "bold",
               })
@@ -3240,8 +3161,8 @@
           this.shufflePlayButton = null;
 
           const closeBtn = this.add
-            .text(cx + panelW / 2 - 16, top + 14, "✕", {
-              fontSize: "14px",
+            .text(cx + panelW / 2 - 19, top + 16, "✕", {
+              fontSize: "16px",
               fontStyle: "bold",
               color: "#c9a227",
             })
@@ -3453,24 +3374,7 @@
         }
 
         createAmbientAnimations() {
-          // 签名动效：一条极慢、极淡的金属高光扫过横屏界面。
-          // 其余常驻呼吸/跳动全部收掉；中奖时再由专门动画接管注意力。
-          this.signatureSheen = this.add
-            .rectangle(-120, 270, 72, 760, UI.champagne, 0.035)
-            .setAngle(18)
-            .setDepth(50);
-
-          this.tweens.add({
-            targets: this.signatureSheen,
-            x: GAME_WIDTH + 120,
-            duration: 7600,
-            delay: 1200,
-            repeat: -1,
-            repeatDelay: 5200,
-            ease: "Sine.easeInOut",
-            onRepeat: () => this.signatureSheen.setX(-120),
-          });
-
+          // 签名扫光动效已按需求移除。
           this.machineGlow.setAlpha(0.07);
           if (this.paylineTop) this.paylineTop.setAlpha(0.7);
           if (this.paylineMiddle) this.paylineMiddle.setAlpha(0.88);
