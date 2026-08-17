@@ -1595,6 +1595,14 @@
           this.stoppedReelsCount = 0;
           this.sfx = new SoundFX();
 
+          // 隐藏功能（长按 JACKPOT 触发）：
+          // focusHideGroup 收集左侧唱片面板 + 底部四分播报屏的所有元素，触发时整体隐藏；
+          // machineScaleGroup 收集老虎机机身 + 拉杆的所有元素，触发时整体放大 10%。
+          this.focusMode = false;
+          this.focusHideGroup = [];
+          this.machineScaleGroup = null;
+          this.machineScaleAnchor = { x: 0, y: 0 };
+
           this.speedSettings = {
             NORMAL: { duration: 1700, interval: 40, step: 18 },
             FAST: { duration: 1000, interval: 22, step: 20 },
@@ -1607,6 +1615,9 @@
 
         create() {
           window.__slotGameScene = this;
+          // 老虎机机身 + 拉杆的放大分组：先建好容器，createMachine/createReels/
+          // createRightControls 会把各自的显示对象塞进来。
+          this.machineScaleGroup = this.add.container(0, 0);
           this.createLuxuryBackground();
           this.createHeader();
           this.loadGameState(); // 读取本机浏览器存档：余额 / 下注 / 奖池
@@ -1616,9 +1627,13 @@
           this.createBottomPanels();
           this.createLastWinPanel();
           this.createRightControls();
+          // Container 不像 Scene 那样自动按 depth 排序子元素——它只按加入顺序渲染。
+          // 卷轴是在三线之后才加入 machineScaleGroup 的，若不手动排序会把三线盖住。
+          this.machineScaleGroup.sort("depth");
           this.createSettingsModal(); // 赔率 + 速度 / 自动五次 / 音效 设置弹窗
           this.createKeyboardControls();
           this.createAmbientAnimations();
+          this.setupFocusModeToggle(); // 长按 JACKPOT：隐藏两侧面板，老虎机+拉杆放大10%
           this.updateDisplay();
         }
 
@@ -1692,7 +1707,7 @@
           // 画面背景现在完全由 Phaser 游戏配置的 backgroundColor 承担。
         }
 
-        createPanel(x, y, width, height, fill = UI.panel, alpha = 0.96) {
+        createPanel(x, y, width, height, fill = UI.panel, alpha = 0.96, hideGroup = null) {
           // 不使用玻璃/透视效果：面板改为完全不透明的实色层。
           const outer = this.add
             .rectangle(x, y, width + 6, height + 6, UI.goldDim, 1)
@@ -1702,13 +1717,15 @@
             .rectangle(x, y, width, height, fill, 1)
             .setStrokeStyle(1, UI.gold);
 
-          this.add
+          const lineTop = this.add
             .rectangle(x, y - height / 2 + 2, width - 14, 1, UI.champagne, 1)
             .setOrigin(0.5);
 
-          this.add
+          const lineBottom = this.add
             .rectangle(x, y + height / 2 - 2, width - 14, 1, 0x050706, 1)
             .setOrigin(0.5);
+
+          if (hideGroup) hideGroup.push(outer, panel, lineTop, lineBottom);
 
           return panel;
         }
@@ -1780,7 +1797,7 @@
           const w = LAYOUT.paytableW;
           const h = LAYOUT.paytableH;
 
-          this.createPanel(x, y, w, h, 0x0c0a08, 0.96);
+          this.createPanel(x, y, w, h, 0x0c0a08, 0.96, this.focusHideGroup);
 
           // 上方时钟
           this.clockText = this.add
@@ -1794,12 +1811,14 @@
             .setOrigin(0.5);
           this.updateLiveClock();
           this.clockTimer = setInterval(() => this.updateLiveClock(), 250);
+          this.focusHideGroup.push(this.clockText);
 
           // 麦克风
           const micY = y - h / 2 + 44;
-          this.add
+          const micIcon = this.add
             .text(x, micY, "🎙️", { fontSize: "52px" })
             .setOrigin(0.5);
+          this.focusHideGroup.push(micIcon);
 
           // 上排：⏮️ ▶️ ⏭️（无金框）
           const tY = micY + 52;
@@ -1828,6 +1847,7 @@
             });
             btn.on("pointerover", () => btn.setScale(1.15));
             btn.on("pointerout", () => btn.setScale(1));
+            this.focusHideGroup.push(btn);
           });
 
           // 下排：⏸️ 🔢 🔀（无金框）
@@ -1871,6 +1891,7 @@
             btn.on("pointerout", () => btn.setScale(1));
             if (item.lab === "🔢") this.musicModeBtns.order = btn;
             if (item.lab === "🔀") this.musicModeBtns.shuffle = btn;
+            this.focusHideGroup.push(btn);
           });
           this.updateMusicModeButtons();
 
@@ -1884,6 +1905,7 @@
             })
             .setOrigin(0.5);
           this.refreshTrackLabel();
+          this.focusHideGroup.push(this.sideTrackLabel);
 
           // 🏧🈵⚙️ 一体金框按键 → 打开控制页
           const ctrlY = trackY + 48;
@@ -1913,6 +1935,7 @@
           });
           ctrlLabel.setInteractive({ useHandCursor: true });
           ctrlLabel.on("pointerdown", openCtrl);
+          this.focusHideGroup.push(frame, ctrlLabel);
 
           // 兼容
           this.eqBars = null;
@@ -1964,7 +1987,7 @@
           );
 
           // 厚重金边机壳
-          this.add
+          const outerShell = this.add
             .rectangle(
               LAYOUT.machineX,
               LAYOUT.machineY,
@@ -1975,7 +1998,7 @@
             )
             .setStrokeStyle(2, UI.gold);
 
-          this.add
+          const darkShell = this.add
             .rectangle(
               LAYOUT.machineX,
               LAYOUT.machineY,
@@ -1985,7 +2008,7 @@
             )
             .setStrokeStyle(3, UI.goldDim);
 
-          this.add
+          const innerPanel = this.add
             .rectangle(
               LAYOUT.machineX,
               LAYOUT.machineY,
@@ -1996,7 +2019,7 @@
             .setStrokeStyle(2, UI.goldDim);
 
           // 深色转轮窗：去掉粉红/酒红描边，保持传统赌场深色窗框
-          this.add
+          const reelWindow = this.add
             .rectangle(LAYOUT.machineX, LAYOUT.machineY, 452, 170, 0x0a0a0c)
             .setStrokeStyle(2, UI.goldDim);
 
@@ -2009,7 +2032,7 @@
               448,
               2,
               UI.goldDim,
-              0.55,
+              0.7,
             )
             .setDepth(5);
 
@@ -2020,7 +2043,7 @@
               448,
               5,
               UI.gold,
-              0.7,
+              0.88,
             )
             .setDepth(5);
 
@@ -2031,11 +2054,11 @@
               448,
               2,
               UI.goldDim,
-              0.55,
+              0.7,
             )
             .setDepth(5);
 
-          this.add
+          const lineLabelLeft = this.add
             .text(226, LAYOUT.machineY, "三线", {
               fontSize: "14px",
               fontStyle: "bold",
@@ -2045,7 +2068,7 @@
             })
             .setOrigin(0.5);
 
-          this.add
+          const lineLabelRight = this.add
             .text(714, LAYOUT.machineY, "三线", {
               fontSize: "14px",
               fontStyle: "bold",
@@ -2055,6 +2078,19 @@
             })
             .setOrigin(0.5);
 
+          // 老虎机机身整体收进放大分组：长按 JACKPOT 触发彩蛋时随分组一起放大 10%
+          this.machineScaleGroup.add([
+            this.machineGlow,
+            outerShell,
+            darkShell,
+            innerPanel,
+            reelWindow,
+            this.paylineTop,
+            this.paylineMiddle,
+            this.paylineBottom,
+            lineLabelLeft,
+            lineLabelRight,
+          ]);
         }
 
         createReels() {
@@ -2085,6 +2121,9 @@
 
             const container = this.add.container(x, LAYOUT.reelY).setDepth(3);
             container.setMask(mask);
+
+            // 边框、遮罩图形、符号容器三者要保持同一父级变换，放大/隐藏时遮罩才不会错位
+            this.machineScaleGroup.add([frame, maskShape, container]);
 
             const items = [];
 
@@ -2128,7 +2167,7 @@
           const startX = LAYOUT.messageX - totalW / 2 + cellW / 2;
           const xs = [0, 1, 2, 3].map((i) => startX + i * (cellW + gap));
           const makeDisplayCell = (x) =>
-            this.createPanel(x, LAYOUT.messageY, cellW, LAYOUT.messageH, UI.panel, 0.94);
+            this.createPanel(x, LAYOUT.messageY, cellW, LAYOUT.messageH, UI.panel, 0.94, this.focusHideGroup);
 
           // 左（BALANCE）、右（LAST WIN）各自独立卡片；中间播报区合并为一整块，不再有分隔缝
           makeDisplayCell(xs[0]);
@@ -2140,9 +2179,10 @@
             LAYOUT.messageH,
             UI.panel,
             0.94,
+            this.focusHideGroup,
           );
 
-          this.add
+          const balanceLabel = this.add
             .text(xs[0], LAYOUT.messageY - 10, "BALANCE", {
               fontSize: "10px",
               fontStyle: "bold",
@@ -2169,7 +2209,7 @@
             })
             .setOrigin(0.5);
 
-          this.add
+          const lastWinLabel = this.add
             .text(xs[3], LAYOUT.messageY - 10, "LAST WIN", {
               fontSize: "10px",
               fontStyle: "bold",
@@ -2185,6 +2225,14 @@
             })
             .setOrigin(0.5);
 
+          this.focusHideGroup.push(
+            balanceLabel,
+            this.balanceValue,
+            this.messageText,
+            lastWinLabel,
+            this.lastWinValue,
+          );
+
           // 兼容旧逻辑：投注值现在由控制弹窗中的 BET 行承载。
         }
 
@@ -2199,28 +2247,28 @@
           // 拉杆改为悬浮式机械组件，不再使用长方形外框。
 
           // 拉杆底座 / 金属槽
-          this.add
+          const grooveOuter = this.add
             .rectangle(lx, 315, 32, 114, 0x2a2a2a)
             .setStrokeStyle(3, 0xc0c0c0);
 
-          this.add
+          const grooveShadow = this.add
             .rectangle(lx - 6, 315, 6, 108, 0x555555)
             .setAlpha(0.7);
 
-          this.add
+          const grooveSlot = this.add
             .rectangle(lx, 315, 12, 102, 0x111111)
             .setStrokeStyle(1, 0x666666);
 
           // 槽口高光边
-          this.add
+          const grooveHighlight = this.add
             .rectangle(lx + 8, 315, 3, 100, 0xe8e8e8)
             .setAlpha(0.35);
 
           // 底部固定轴（金属环）
-          this.add.circle(lx, pivotY, 18, 0x3a3a3a).setStrokeStyle(2, 0xaaaaaa);
-          this.add.circle(lx, pivotY, 14, 0x1a1a1a).setStrokeStyle(3, 0xffd700);
-          this.add.circle(lx, pivotY, 8, 0x888888);
-          this.add.circle(lx - 2, pivotY - 2, 3, 0xffffff, 0.55); // 轴心高光
+          const pivotRing = this.add.circle(lx, pivotY, 18, 0x3a3a3a).setStrokeStyle(2, 0xaaaaaa);
+          const pivotGold = this.add.circle(lx, pivotY, 14, 0x1a1a1a).setStrokeStyle(3, 0xffd700);
+          const pivotCore = this.add.circle(lx, pivotY, 8, 0x888888);
+          const pivotShine = this.add.circle(lx - 2, pivotY - 2, 3, 0xffffff, 0.55); // 轴心高光
 
           // 拉杆容器（绕底部轴旋转）
           this.leverContainer = this.add.container(lx, pivotY);
@@ -2342,6 +2390,80 @@
           });
 
           // 筹码 +/- 已并入左侧面板，不再在机身旁放 💰 入口
+
+          // 拉杆整体（底座、槽、轴、杆身、热区、提示文字）收进放大分组；
+          // leverHand 是靠绝对世界坐标做“伸手拉杆”动画的独立元素，不参与分组变换。
+          this.machineScaleGroup.add([
+            grooveOuter,
+            grooveShadow,
+            grooveSlot,
+            grooveHighlight,
+            pivotRing,
+            pivotGold,
+            pivotCore,
+            pivotShine,
+            this.leverContainer,
+            this.leverHit,
+            this.spinHint,
+          ]);
+        }
+
+        // ========== 隐藏功能：长按 JACKPOT ==========
+        // 触发后：左侧唱片面板 + 底部四分播报屏全部隐藏，屏幕上只剩老虎机机身和拉杆；
+        // 除 JACKPOT 本身外，机身+拉杆整体放大 10%。再次长按恢复原状。
+        setupFocusModeToggle() {
+          const HOLD_MS = 600;
+          let pressTimer = null;
+
+          // 缩放锚点：老虎机与拉杆的视觉中心，放大时以此为基准，位置不会跑偏
+          this.machineScaleAnchor = {
+            x: (LAYOUT.machineX + LAYOUT.rightPanelX) / 2,
+            y: LAYOUT.machineY,
+          };
+
+          const panel = this.jackpotPanel;
+          if (!panel) return;
+          panel.setInteractive({ useHandCursor: true });
+
+          const cancelHold = () => {
+            if (pressTimer) {
+              pressTimer.remove(false);
+              pressTimer = null;
+            }
+          };
+
+          panel.on("pointerdown", () => {
+            cancelHold();
+            pressTimer = this.time.delayedCall(HOLD_MS, () => {
+              pressTimer = null;
+              this.toggleFocusMode();
+            });
+          });
+          panel.on("pointerup", cancelHold);
+          panel.on("pointerout", cancelHold);
+          panel.on("pointerupoutside", cancelHold);
+        }
+
+        toggleFocusMode() {
+          this.focusMode = !this.focusMode;
+          this.sfx.click();
+
+          this.focusHideGroup.forEach((obj) => {
+            if (obj) obj.setVisible(!this.focusMode);
+          });
+
+          const scale = this.focusMode ? 1.1 : 1;
+          const cx = this.machineScaleAnchor.x;
+          const cy = this.machineScaleAnchor.y;
+          this.tweens.add({
+            targets: this.machineScaleGroup,
+            scaleX: scale,
+            scaleY: scale,
+            x: cx * (1 - scale),
+            y: cy * (1 - scale),
+            duration: 260,
+            ease: "Sine.easeInOut",
+          });
         }
 
         // direction: "out" = 买入（金币从 💰 飞出）；"in" = 提出（金币飞入 💰）
@@ -3350,9 +3472,9 @@
           });
 
           this.machineGlow.setAlpha(0.07);
-          if (this.paylineTop) this.paylineTop.setAlpha(0.55);
-          if (this.paylineMiddle) this.paylineMiddle.setAlpha(0.7);
-          if (this.paylineBottom) this.paylineBottom.setAlpha(0.55);
+          if (this.paylineTop) this.paylineTop.setAlpha(0.7);
+          if (this.paylineMiddle) this.paylineMiddle.setAlpha(0.88);
+          if (this.paylineBottom) this.paylineBottom.setAlpha(0.7);
         }
 
         updateDisplay() {
