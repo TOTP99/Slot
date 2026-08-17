@@ -2000,17 +2000,18 @@
             .rectangle(LAYOUT.machineX, LAYOUT.machineY, 452, 170, 0x0a0a0c)
             .setStrokeStyle(2, UI.goldDim);
 
-          // 传统三线：中间粗、上下细；放在图标下方，不压住符号，更干净
+          // 传统三线：中间粗、上下细，对齐符号行距(64px)，压在卷轴容器之上，
+          // 半透明穿过图标背景，符号仍清晰可见——这才是传统老虎机支付线的样子。
           this.paylineTop = this.add
             .rectangle(
               LAYOUT.machineX,
-              LAYOUT.machineY - 43,
+              LAYOUT.machineY - 64,
               448,
               2,
               UI.goldDim,
-              0.4,
+              0.55,
             )
-            .setDepth(1);
+            .setDepth(5);
 
           this.paylineMiddle = this.add
             .rectangle(
@@ -2019,20 +2020,20 @@
               448,
               5,
               UI.gold,
-              0.55,
+              0.7,
             )
-            .setDepth(1);
+            .setDepth(5);
 
           this.paylineBottom = this.add
             .rectangle(
               LAYOUT.machineX,
-              LAYOUT.machineY + 43,
+              LAYOUT.machineY + 64,
               448,
               2,
               UI.goldDim,
-              0.4,
+              0.55,
             )
-            .setDepth(1);
+            .setDepth(5);
 
           this.add
             .text(226, LAYOUT.machineY, "三线", {
@@ -2099,7 +2100,7 @@
                   color: symbol.color,
                   stroke: "#090b0b",
                   strokeThickness: 2,
-                  shadow: { offsetX: 0, offsetY: 2, color: symbol.color, blur: 5, fill: true },
+                  shadow: { offsetX: 0, offsetY: 2, color: "#000000", blur: 3, fill: true },
                 })
                 .setOrigin(0.5);
 
@@ -3349,9 +3350,9 @@
           });
 
           this.machineGlow.setAlpha(0.07);
-          if (this.paylineTop) this.paylineTop.setAlpha(0.4);
-          if (this.paylineMiddle) this.paylineMiddle.setAlpha(0.55);
-          if (this.paylineBottom) this.paylineBottom.setAlpha(0.4);
+          if (this.paylineTop) this.paylineTop.setAlpha(0.55);
+          if (this.paylineMiddle) this.paylineMiddle.setAlpha(0.7);
+          if (this.paylineBottom) this.paylineBottom.setAlpha(0.55);
         }
 
         updateDisplay() {
@@ -4309,29 +4310,26 @@
               var sampleBass = bass < 0 ? 0 : bass > 1 ? 1 : bass;
               var sampleBody = body < 0 ? 0 : body > 1 ? 1 : body;
 
-              var amp =
-                18 +
-                sampleEnergy * 48 +
-                sampleBass * 52 +
-                transient * 70;
+              // 振幅动态范围拉大：让波峰波谷的强弱对比非常明显
+              var amp = 14 + sampleEnergy * 56 + sampleBass * 62 + transient * 88;
 
-              specPhase += 0.055 + sampleBass * 0.09 + sampleBody * 0.03;
+              // 频率刻意放低：同样宽度内波浪数量更少，避免像弹簧一样拥挤
+              specPhase += 0.018 + sampleBass * 0.05 + sampleBody * 0.016;
 
-              var carrier = Math.sin(specPhase);
-              var swell = Math.sin(specPhase * 0.5 + 0.4) * 0.35;
-              var punch = (transient * 3.5 > 1 ? 1 : transient * 3.5) * 0.45;
+              // 相位扭曲：前陡后缓，模拟被风推着走的海浪式不对称尖峰
+              var skewed = specPhase + 0.32 * Math.sin(specPhase);
+              // 三角波代替正弦：折角尖锐，而不是圆润的弧线
+              var tri = (2 / Math.PI) * Math.asin(Math.sin(skewed));
 
-              var sample =
-                (carrier * 0.75 +
-                  swell * 0.25 +
-                  punch * (carrier < 0 ? -1 : 1)) *
-                amp;
+              // 缓慢包络：大浪、小浪交替的呼吸感，让线条更飘逸
+              var swell = 0.6 + 0.4 * Math.max(0, Math.sin(specPhase * 0.22 + 0.4));
+              var punch = transient * 3.5 > 1 ? 1 : transient * 3.5;
 
+              var sample = tri * amp * (swell + punch * 0.5);
+
+              // 只做很轻的单次平滑：既不抖动，又保留三角波的尖锐折角
               if (specHistory.length > 0) {
-                sample = sample * 0.35 + specHistory[specHistory.length - 1] * 0.65;
-              }
-              if (specHistory.length > 1) {
-                sample = sample * 0.7 + specHistory[specHistory.length - 2] * 0.3;
+                sample = sample * 0.82 + specHistory[specHistory.length - 1] * 0.18;
               }
 
               specHistory.push(sample);
