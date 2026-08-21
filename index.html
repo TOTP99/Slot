@@ -14,6 +14,10 @@
       /* 统一金色：全站唯一的金色取值来源，减少重复定义 */
       :root {
         --gold: #ffd700;
+        /* .ph-btn 的 hover/on 状态原先引用了这两个未声明的变量，样式会静默失效；
+           这里显式声明并与 JS 侧 UI.champagne / UI.goldBright（均等于 GOLD）保持一致 */
+        --champagne: var(--gold);
+        --gold-bright: var(--gold);
       }
 
       * {
@@ -903,6 +907,101 @@
         { key: "mushroom", label: "🍄", color: "#c77dff", multiplier: 4 },
       ];
 
+      // ---------- 中奖概率表（结果导向，横屏主游戏 / 竖屏迷你机共用）----------
+      // 说明：三个轮子若各自独立均匀随机（原实现），"任意两个相同"的概率会被
+      // 组合数学自动放大到 ~37%，加上固定 25800 的 JACKPOT，实测综合期望回报率
+      // (RTP) 超过 200%，余额会持续暴涨。这里改为「先按目标概率决定这一把的
+      // 结果类型，再倒推三个轮子该显示什么符号」，回报率可控、且不影响任何
+      // 动画/UI/存档结构：调用方拿到的仍然是 3 个 SYMBOLS 条目，接口不变。
+      const SPIN_TABLE_TOTAL = 1000000;
+      const THREE_OF_KIND_WEIGHTS = {
+        blossom: 900,
+        hibiscus: 1300,
+        grape: 2200,
+        strawberry: 3000,
+        cherry: 4200,
+        mushroom: 6000,
+      };
+      const JACKPOT_WEIGHT = 350; // 约 1/2857 把出一次三连 7️⃣
+      const PAIR_WEIGHT = 280000; // 28% 出对子
+      // 综合模拟 RTP ≈ 93%：约 70% 空手、28% 中对子(2x)、~1.8% 中三连(4x~20x)、
+      // ~0.035% 中 JACKPOT（金额随每把下注的 5% 持续累积，命中后回落到基础值）。
+
+      function buildSpinOutcomeTable() {
+        const table = [{ type: "pair", weight: PAIR_WEIGHT }];
+        Object.keys(THREE_OF_KIND_WEIGHTS).forEach((key) => {
+          table.push({ type: "three", key, weight: THREE_OF_KIND_WEIGHTS[key] });
+        });
+        table.push({ type: "jackpot", key: "seven", weight: JACKPOT_WEIGHT });
+        const used = table.reduce((sum, item) => sum + item.weight, 0);
+        table.push({ type: "none", weight: Math.max(0, SPIN_TABLE_TOTAL - used) });
+        return table;
+      }
+      const SPIN_OUTCOME_TABLE = buildSpinOutcomeTable();
+
+      function pickWeighted(table) {
+        const total = table.reduce((sum, item) => sum + item.weight, 0);
+        let roll = Math.random() * total;
+        for (let i = 0; i < table.length; i++) {
+          roll -= table[i].weight;
+          if (roll <= 0) return table[i];
+        }
+        return table[table.length - 1];
+      }
+
+      function symbolByKey(key) {
+        return SYMBOLS.find((s) => s.key === key) || SYMBOLS[0];
+      }
+
+      // 根据本节点抽中的结果类型，倒推三个轮子应显示的符号（数组顺序=轮子顺序）
+      function rollSpinResult() {
+        const outcome = pickWeighted(SPIN_OUTCOME_TABLE);
+
+        if (outcome.type === "jackpot" || outcome.type === "three") {
+          const s = symbolByKey(outcome.key);
+          return [s, s, s];
+        }
+
+        if (outcome.type === "pair") {
+          const pairSymbol = Phaser.Utils.Array.GetRandom(SYMBOLS);
+          let oddSymbol = Phaser.Utils.Array.GetRandom(SYMBOLS);
+          while (oddSymbol.key === pairSymbol.key) {
+            oddSymbol = Phaser.Utils.Array.GetRandom(SYMBOLS);
+          }
+          const arrangements = [
+            [pairSymbol, pairSymbol, oddSymbol],
+            [pairSymbol, oddSymbol, pairSymbol],
+            [oddSymbol, pairSymbol, pairSymbol],
+          ];
+          return Phaser.Utils.Array.GetRandom(arrangements);
+        }
+
+        // none：三个互不相同的符号
+        const shuffled = Phaser.Utils.Array.Shuffle(SYMBOLS.slice());
+        return [shuffled[0], shuffled[1], shuffled[2]];
+      }
+
+      // 判定三个轮子结果的中奖类型与金额：横屏 checkWin() 与竖屏迷你机共用同一份逻辑，
+      // 避免赔率表/判定条件各写一份、以后改一处忘改另一处
+      function evaluateSpinResult(a, b, c, bet, jackpotValue) {
+        const isThreeOfAKind = a.key === b.key && b.key === c.key;
+        const isJackpot = isThreeOfAKind && a.key === "seven";
+        const isPair =
+          !isThreeOfAKind && (a.key === b.key || a.key === c.key || b.key === c.key);
+
+        if (isJackpot) {
+          return { type: "jackpot", win: jackpotValue, symbol: a };
+        }
+        if (isThreeOfAKind) {
+          return { type: "three", win: bet * a.multiplier, symbol: a };
+        }
+        if (isPair) {
+          const pairSymbol = a.key === b.key || a.key === c.key ? a : b;
+          return { type: "pair", win: bet * 2, symbol: pairSymbol };
+        }
+        return { type: "none", win: 0, symbol: null };
+      }
+
       // ---------- 布局坐标 ----------
       const LAYOUT = {
         jackpotY: 70,
@@ -947,6 +1046,9 @@
       // 与页面 CSS 变量 --gold 保持同一数值，避免多处各自定义、互相不一致。
       const GOLD = 0xffd700;
       const GOLD_CSS = "#ffd700";
+      // 拉杆手柄外圈的"待机"填充色：hover 高亮和松开复位都要用这同一个值，
+      // 否则第一次 hover 后手柄会永久停在 hover 用的过渡色上，回不到真正的默认色
+      const LEVER_HANDLE_IDLE_FILL = 0x5c4010;
       const UI = {
         bg: 0x090b0b,
         bgWine: 0x16070d,
@@ -2335,94 +2437,147 @@
           // 拉杆上方空地：时间显示 + 简/繁切换（原长按 JACKPOT 的彩蛋功能移到这里）
           this.createRightClockToggle(lx);
 
-          // 拉杆改为悬浮式机械组件，不再使用长方形外框。
-
-          // 拉杆底座 / 金属槽
+          // 拉杆：赌场风机械组件（金边底座 + 抛光金属杆 + 红宝石球头）
+          // 槽体：暗金托板 + 深槽 + 双侧铆钉
+          const plate = this.add
+            .rectangle(lx, 318, 44, 128, 0x1a1408)
+            .setStrokeStyle(2, 0xc9a227);
+          const plateInner = this.add
+            .rectangle(lx, 318, 36, 118, 0x0c0a06)
+            .setStrokeStyle(1, 0x5c4818);
           const grooveOuter = this.add
-            .rectangle(lx, 315, 32, 114, 0x2a2a2a)
-            .setStrokeStyle(3, 0xc0c0c0);
-
-          const grooveShadow = this.add
-            .rectangle(lx - 6, 315, 6, 108, 0x555555)
-            .setAlpha(0.7);
-
+            .rectangle(lx, 315, 18, 108, 0x2a2210)
+            .setStrokeStyle(1, 0x8a7040);
           const grooveSlot = this.add
-            .rectangle(lx, 315, 12, 102, 0x111111)
-            .setStrokeStyle(1, 0x666666);
-
-          // 槽口高光边
+            .rectangle(lx, 315, 8, 100, 0x050403)
+            .setStrokeStyle(1, 0x3a3010);
           const grooveHighlight = this.add
-            .rectangle(lx + 8, 315, 3, 100, 0xe8e8e8)
-            .setAlpha(0.35);
+            .rectangle(lx + 5, 315, 2, 96, 0xffe8a0)
+            .setAlpha(0.28);
+          // 槽两侧装饰铆钉
+          [[lx - 14, 270], [lx + 14, 270], [lx - 14, 360], [lx + 14, 360]].forEach(([rx, ry]) => {
+            this.add.circle(rx, ry, 3.5, 0x3a3010).setStrokeStyle(1, 0xd4af37);
+            this.add.circle(rx - 0.8, ry - 0.8, 1.2, 0xffe8a0, 0.45);
+          });
 
-          // 底部固定轴（金属环）
-          const pivotRing = this.add.circle(lx, pivotY, 18, 0x3a3a3a).setStrokeStyle(2, 0xaaaaaa);
-          const pivotGold = this.add.circle(lx, pivotY, 14, 0x1a1a1a).setStrokeStyle(3, 0xffd700);
-          const pivotCore = this.add.circle(lx, pivotY, 8, 0x888888);
-          const pivotShine = this.add.circle(lx - 2, pivotY - 2, 3, 0xffffff, 0.55); // 轴心高光
+          // 底部固定轴：多层金属环 + 中心螺钉感
+          this.add.circle(lx, pivotY, 22, 0x2a2210).setStrokeStyle(2, 0x8a7040);
+          this.add.circle(lx, pivotY, 17, 0x1a1a1a).setStrokeStyle(2, 0xffd700);
+          this.add.circle(lx, pivotY, 11, 0x4a4a4a).setStrokeStyle(1, 0xc0c0c0);
+          this.add.circle(lx, pivotY, 6, 0x222222).setStrokeStyle(1, 0xffd700);
+          this.add.circle(lx - 1.5, pivotY - 1.5, 2, 0xffffff, 0.5);
 
-          // 拉杆容器（绕底部轴旋转）
+          // 拉杆容器（绕底部轴旋转）——动画逻辑不变
           this.leverContainer = this.add.container(lx, pivotY);
 
-          // 杆身：深金属底
+          // 杆身阴影（偏右下，增强立体）
           const armShadow = this.add
-            .rectangle(1, -48, 14, 98, 0x1a1a1a)
+            .rectangle(2.5, -46, 16, 100, 0x000000, 0.45)
             .setOrigin(0.5);
 
-          // 杆身：主金属
+          // 杆身外金边
+          const armRim = this.add
+            .rectangle(0, -48, 14, 98, 0xc9a227)
+            .setOrigin(0.5);
+
+          // 杆身主金属
           const arm = this.add
-            .rectangle(0, -48, 12, 96, 0x6a6a6a)
-            .setStrokeStyle(2, 0xd4af37)
+            .rectangle(0, -48, 11, 94, 0x6e6e72)
             .setOrigin(0.5);
 
-          // 杆身中轴高光条（金属光泽）
+          // 杆身渐层高光 / 暗边
           const armShine = this.add
-            .rectangle(-2, -48, 3, 90, 0xf0f0f0)
+            .rectangle(-2.5, -48, 3.5, 88, 0xf5f5f7)
             .setOrigin(0.5)
             .setAlpha(0.55);
-
-          // 杆身侧面暗部
           const armEdge = this.add
-            .rectangle(4, -48, 2, 92, 0x222222)
+            .rectangle(3.5, -48, 2.5, 90, 0x2a2a2e)
             .setOrigin(0.5)
-            .setAlpha(0.6);
+            .setAlpha(0.65);
 
-          // 手柄球：外圈金边金属
+          // 杆身金色环箍（三道，更像真赌场拉杆）
+          const collarYs = [-18, -48, -78];
+          const collars = collarYs.map((cy) => {
+            const outer = this.add
+              .rectangle(0, cy, 18, 7, 0x8a7040)
+              .setOrigin(0.5)
+              .setStrokeStyle(1, 0xffd700);
+            const inner = this.add
+              .rectangle(0, cy, 16, 3, 0xffe566)
+              .setOrigin(0.5)
+              .setAlpha(0.55);
+            return [outer, inner];
+          });
+
+          // 球头：外金环 → 深红金属 → 亮红芯 → 多层高光
+          // （外金环的默认色也是 hover/离开热区时的"复位色"，务必和下方
+          //  leverHit 的 pointerout 处理保持一致，避免第一次 hover 后颜色回不去）
           this.leverHandle = this.add
-            .circle(0, -100, 24, 0xb8860b)
-            .setStrokeStyle(3, 0xffd700);
+            .circle(0, -100, 26, LEVER_HANDLE_IDLE_FILL)
+            .setStrokeStyle(2, 0xffd700);
 
-          // 手柄球：主色（深红金属）
-          const handleBody = this.add.circle(0, -100, 18, 0x8b0000);
+          const handleGoldRing = this.add
+            .circle(0, -100, 22, 0xb8860b)
+            .setStrokeStyle(1.5, 0xffe566);
 
-          // 手柄球：内圈
-          this.leverHandleInner = this.add.circle(0, -100, 10, 0xce0023);
+          const handleBody = this.add.circle(0, -100, 18, 0x6b0000);
 
-          // 手柄高光（光泽点）
+          this.leverHandleInner = this.add.circle(0, -100, 12, 0xb00018);
+
+          const handleCore = this.add.circle(0, -100, 6, 0xe01830);
+
+          // 主高光（左上）
           const handleHighlight = this.add
-            .circle(-6, -107, 6, 0xffffff, 0.7);
-
+            .circle(-7, -108, 7, 0xffffff, 0.75);
+          // 次高光
           const handleHighlight2 = this.add
-            .circle(5, -94, 3, 0xffe8a0, 0.4);
+            .circle(6, -94, 3.5, 0xffe8a0, 0.4);
+          // 底部反光
+          const handleBounce = this.add
+            .circle(2, -90, 5, 0xff6b6b, 0.22);
 
-          this.leverContainer.add([
+          // 球头底部与杆身衔接的小金颈
+          const neck = this.add
+            .rectangle(0, -84, 12, 10, 0xc9a227)
+            .setOrigin(0.5);
+          const neckInner = this.add
+            .rectangle(0, -84, 8, 6, 0x5c4010)
+            .setOrigin(0.5);
+
+          const leverParts = [
             armShadow,
+            armRim,
             arm,
             armShine,
             armEdge,
+            neck,
+            neckInner,
             this.leverHandle,
+            handleGoldRing,
             handleBody,
             this.leverHandleInner,
+            handleCore,
             handleHighlight,
             handleHighlight2,
-          ]);
+            handleBounce,
+          ];
+          collars.forEach(([o, i]) => leverParts.push(o, i));
+          this.leverContainer.add(leverParts);
           this.leverContainer.setAngle(-18); // 略微倾斜的“待拉”姿态
 
-          // 手柄缓慢呼吸光泽
+          // 手柄高光缓慢呼吸
           this.tweens.add({
             targets: handleHighlight,
             alpha: 0.35,
-            duration: 900,
+            duration: 1100,
+            yoyo: true,
+            repeat: -1,
+            ease: "Sine.easeInOut",
+          });
+          this.tweens.add({
+            targets: handleCore,
+            alpha: 0.75,
+            duration: 1400,
             yoyo: true,
             repeat: -1,
             ease: "Sine.easeInOut",
@@ -2465,8 +2620,8 @@
 
           this.leverHit.on("pointerout", () => {
             if (this.leverState !== "down") {
-              this.leverHandle.setFillStyle(0xb8860b);
-              this.leverHandle.setStrokeStyle(3, 0xffd700);
+              this.leverHandle.setFillStyle(LEVER_HANDLE_IDLE_FILL);
+              this.leverHandle.setStrokeStyle(2, 0xffd700);
             }
           });
 
@@ -3046,8 +3201,8 @@
             ease: "Back.easeOut",
           });
 
-          this.leverHandle.setFillStyle(0xb8860b);
-          this.leverHandle.setStrokeStyle(3, 0xffd700);
+          this.leverHandle.setFillStyle(LEVER_HANDLE_IDLE_FILL);
+          this.leverHandle.setStrokeStyle(2, 0xffd700);
         }
 
         // 赔率弹窗 + 速度 / 自动五次 / 音效 设置（点击"赔率"键弹出）
@@ -3839,6 +3994,11 @@
           this.stoppedReelsCount = 0;
           this.setBetButtonsEnabled(false);
 
+          // 这一把三个轮子最终该停在什么符号，在起转时就一次性按概率表决定好，
+          // 之后每个轮子各自停止时（stopReel -> getControlledResult）只是取用，
+          // 不再各自独立随机——这样才能让"对子/三连/JACKPOT"的概率真正可控
+          this.pendingSpinResult = rollSpinResult();
+
           this.animateBalanceDecrease(this.bet);
 
           this.jackpotValue += Math.max(1, Math.round(this.bet * 0.05));
@@ -4023,8 +4183,13 @@
           }
         }
 
-        // 每个转轮停止时的最终结果：完全随机（当前未做加权/控制概率，预留 index 供未来分轮控制）
+        // 每个转轮停止时的最终结果：取用 startSpin() 时已按概率表决定好的这一把结果
+        // （this.pendingSpinResult），而不是每个轮子各自独立随机
         getControlledResult(index) {
+          if (this.pendingSpinResult && this.pendingSpinResult[index]) {
+            return this.pendingSpinResult[index];
+          }
+          // 兜底：理论上不会走到这里（除非 startSpin 未正常执行）
           return Phaser.Utils.Array.GetRandom(SYMBOLS);
         }
 
@@ -4034,32 +4199,26 @@
             return center.symbol || reel.value;
           });
 
-          const isThreeOfAKind = a.key === b.key && b.key === c.key;
-          const isPair = a.key === b.key || a.key === c.key || b.key === c.key;
-          const isJackpot = isThreeOfAKind && a.key === "seven";
+          const result = evaluateSpinResult(a, b, c, this.bet, this.jackpotValue);
 
-          if (isJackpot) {
-            const win = this.jackpotValue;
-
-            this.balance += win;
-            this.lastWin = win;
+          if (result.type === "jackpot") {
+            this.balance += result.win;
+            this.lastWin = result.win;
             this.updateDisplay();
 
-            this.setMessage(`JACKPOT! +${this.formatMoney(win)}`, 18);
+            this.setMessage(`JACKPOT! +${this.formatMoney(result.win)}`, 18);
             this.playJackpot();
             this.scheduleAutoPlay();
             return;
           }
 
-          if (isThreeOfAKind) {
-            const win = this.bet * a.multiplier;
-
-            this.balance += win;
-            this.lastWin = win;
+          if (result.type === "three") {
+            this.balance += result.win;
+            this.lastWin = result.win;
             this.updateDisplay();
 
             this.setMessage(
-              `${a.label}${a.label}${a.label} WIN +${this.formatMoney(win)}`,
+              `${a.label}${a.label}${a.label} WIN +${this.formatMoney(result.win)}`,
               18,
             );
             this.playBigWin();
@@ -4067,16 +4226,13 @@
             return;
           }
 
-          if (isPair) {
-            const pairSymbol = this.getPairSymbol(a, b, c);
-            const win = this.bet * 2;
-
-            this.balance += win;
-            this.lastWin = win;
+          if (result.type === "pair") {
+            this.balance += result.win;
+            this.lastWin = result.win;
             this.updateDisplay();
 
             this.setMessage(
-              `PAIR ${pairSymbol.label}${pairSymbol.label} +${this.formatMoney(win)}`,
+              `PAIR ${result.symbol.label}${result.symbol.label} +${this.formatMoney(result.win)}`,
               18,
             );
             this.playSmallWin();
@@ -4088,14 +4244,6 @@
           this.setMessage("NO WIN — TRY AGAIN");
           this.sfx.lose();
           this.scheduleAutoPlay();
-        }
-
-        getPairSymbol(a, b, c) {
-          if (a.key === b.key) return a;
-          if (a.key === c.key) return a;
-          if (b.key === c.key) return b;
-
-          return a;
         }
 
         scheduleAutoPlay() {
@@ -4788,19 +4936,13 @@
           });
         }
 
-        // 迷你三格：与横屏共用余额存档；符号表与主游戏一致
-        var MINI_SYMBOLS = [
-          { label: "7️⃣", mult: 50 },
-          { label: "🌸", mult: 20 },
-          { label: "🌺", mult: 15 },
-          { label: "🍇", mult: 10 },
-          { label: "🍓", mult: 8 },
-          { label: "🍒", mult: 6 },
-          { label: "🍄", mult: 4 },
-        ];
+        // 迷你三格：与横屏共用余额存档、共用符号表(SYMBOLS)和判定逻辑(rollSpinResult /
+        // evaluateSpinResult)，不再各自维护一份容易脱节的赔率表
+        var DEFAULT_BASE_JACKPOT = 25000;
+        var DEFAULT_JACKPOT = 25800;
 
         function randSym() {
-          return MINI_SYMBOLS[(Math.random() * MINI_SYMBOLS.length) | 0];
+          return SYMBOLS[(Math.random() * SYMBOLS.length) | 0];
         }
 
         function setReel(el, sym) {
@@ -4814,6 +4956,7 @@
           // 按下不再触发音效：竖屏场景下用户多在听歌，SPIN 音效会打断播放体验
           var bet = sc ? sc.bet : 50;
           var bal = sc ? sc.balance : 1000;
+          var jackpotValue = sc ? sc.jackpotValue : DEFAULT_JACKPOT;
           try {
             if (!sc) {
               var raw = localStorage.getItem("wanjin_slot_save");
@@ -4821,6 +4964,7 @@
                 var s = JSON.parse(raw);
                 if (typeof s.balance === "number") bal = s.balance;
                 if (typeof s.bet === "number") bet = s.bet;
+                if (typeof s.jackpotValue === "number") jackpotValue = s.jackpotValue;
               }
             }
           } catch (e) {}
@@ -4831,8 +4975,11 @@
           miniSpinning = true;
           spinBtn.disabled = true;
           bal -= bet;
+          // 与横屏一致：每转一次，JACKPOT 池累积当前下注的 5%
+          jackpotValue += Math.max(1, Math.round(bet * 0.05));
           if (sc) {
             sc.balance = bal;
+            sc.jackpotValue = jackpotValue;
             if (sc.updateDisplay) sc.updateDisplay();
             else if (sc.saveGameState) sc.saveGameState();
           } else {
@@ -4840,13 +4987,19 @@
               var payload = JSON.stringify({
                 balance: bal,
                 bet: bet,
-                jackpotValue: 25800,
+                jackpotValue: jackpotValue,
               });
               localStorage.setItem("wanjin_slot_save", payload);
             } catch (e) {}
           }
           syncWallet();
           setMsg("");
+
+          // 起转时就按概率表一次性决定这一把的结果，动画只是把它"演"出来
+          var finalResult = rollSpinResult();
+          var a = finalResult[0];
+          var b = finalResult[1];
+          var c = finalResult[2];
 
           var ticks = 0;
           var timer = setInterval(function () {
@@ -4856,30 +5009,34 @@
             ticks++;
             if (ticks > 12) {
               clearInterval(timer);
-              var a = randSym();
-              var b = randSym();
-              var c = randSym();
               setReel(reelEls[0], a);
               setReel(reelEls[1], b);
               setReel(reelEls[2], c);
-              var win = 0;
-              if (a.label === b.label && b.label === c.label) {
-                win = bet * a.mult;
+
+              var evalResult = evaluateSpinResult(a, b, c, bet, jackpotValue);
+              var win = evalResult.win;
+
+              if (evalResult.type === "jackpot") {
+                setMsg("💎 JACKPOT +" + win);
+              } else if (evalResult.type === "three") {
                 setMsg(a.label + a.label + a.label + " +" + win);
-              } else if (
-                a.label === b.label ||
-                a.label === c.label ||
-                b.label === c.label
-              ) {
-                win = bet * 2;
+              } else if (evalResult.type === "pair") {
                 setMsg("一对 +" + win);
               } else {
                 setMsg("");
               }
+
               if (win > 0) {
                 bal += win;
+                if (evalResult.type === "jackpot") {
+                  var base = sc && typeof sc.baseJackpotValue === "number"
+                    ? sc.baseJackpotValue
+                    : DEFAULT_BASE_JACKPOT;
+                  jackpotValue = base + 250 + Math.round(Math.random() * 1000);
+                }
                 if (sc) {
                   sc.balance = bal;
+                  sc.jackpotValue = jackpotValue;
                   sc.lastWin = win;
                   if (sc.updateDisplay) sc.updateDisplay();
                   else if (sc.saveGameState) sc.saveGameState();
@@ -4890,11 +5047,22 @@
                       JSON.stringify({
                         balance: bal,
                         bet: bet,
-                        jackpotValue: 25800,
+                        jackpotValue: jackpotValue,
                       }),
                     );
                   } catch (e) {}
                 }
+              } else if (sc) {
+                // 没中奖也要把本局新累积的 jackpotValue 写回去
+                sc.jackpotValue = jackpotValue;
+                if (sc.saveGameState) sc.saveGameState();
+              } else {
+                try {
+                  localStorage.setItem(
+                    "wanjin_slot_save",
+                    JSON.stringify({ balance: bal, bet: bet, jackpotValue: jackpotValue }),
+                  );
+                } catch (e) {}
               }
               syncWallet();
               miniSpinning = false;
