@@ -81,6 +81,10 @@ body {
     margin-left: 14px;
     font-size: clamp(18px, 5vw, 24px);
   }
+  .ph-pdf-link {
+    margin-left: 12px;
+    font-size: clamp(18px, 5vw, 24px);
+  }
   .ph-track-info {
     margin-left: auto;
     margin-right: 8px;
@@ -345,6 +349,16 @@ body {
   opacity: 0.9;
 }
 .ph-mp4-link:active { opacity: 1; transform: scale(0.92); }
+/* PDF 入口：👉📽️ 后再留一点空隙，同目录打开 anne-of-green-gables.pdf */
+.ph-pdf-link {
+  margin-left: 10px;
+  font-size: 16px;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  opacity: 0.9;
+}
+.ph-pdf-link:active { opacity: 1; transform: scale(0.92); }
 @-webkit-keyframes horn-sway {
   0%, 100% { transform: rotate(-16deg) translateY(0); }
   50% { transform: rotate(-12deg) translateY(-2px); }
