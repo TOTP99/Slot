@@ -51,8 +51,8 @@
             <circle cx="7.2" cy="51.2" r="1" fill="#fff2b8" opacity="0.6"/>
           </svg>
         </div>
-          <a class="ph-mp4-link" href="https://totp99.github.io/mp4-player/" target="_blank" rel="noopener noreferrer" title="打开 MP4 播放器" aria-label="打开 MP4 播放器">👉📽️</a>
-          <a class="ph-pdf-link" href="anne-of-green-gables.pdf" target="_blank" rel="noopener noreferrer" title="阅读 Anne of Green Gables" aria-label="阅读 Anne of Green Gables PDF">📖</a>
+          <a class="ph-mp4-link" href="https://totp99.github.io/mp4-player/" target="_blank" rel="noopener noreferrer" title="打开 MP4 播放器" aria-label="打开 MP4 播放器">📽️</a>
+          <button type="button" class="ph-pdf-link" id="ph-book-btn" title="打开书架" aria-label="打开书架">📖</button>
         </div>
         </div>
         <div class="ph-track-info">
@@ -111,11 +111,246 @@
       </div>
       </div>
     </div>
+
+    <!-- 竖屏书架 + 加载进度 -->
+    <div id="ph-book-overlay" class="ph-book-overlay" hidden aria-hidden="true">
+      <div class="ph-book-panel" role="dialog" aria-labelledby="ph-book-title">
+        <div class="ph-book-head">
+          <span id="ph-book-title">📚 书架</span>
+          <button type="button" class="ph-book-close" id="ph-book-close" aria-label="关闭">✕</button>
+        </div>
+        <ul class="ph-book-list" id="ph-book-list">
+          <!-- 由脚本填充；缺文件自动跳过 -->
+        </ul>
+        <div class="ph-book-loading" id="ph-book-loading" hidden>
+          <div class="ph-book-loading-label" id="ph-book-loading-label">正在加载…</div>
+          <div class="ph-book-progress-track">
+            <div class="ph-book-progress-bar" id="ph-book-progress-bar"></div>
+          </div>
+          <div class="ph-book-progress-pct" id="ph-book-progress-pct">0%</div>
+        </div>
+        <div class="ph-book-empty" id="ph-book-empty" hidden>暂无可用书籍</div>
+      </div>
+    </div>
     <div id="game-wrapper">
       <div id="game"></div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
     <script src="game.js"></script>
+  
+    <script>
+(function setupBookShelf() {
+  var BOOKS = [
+    { file: "anne-of-green-gables.pdf", title: "Anne of Green Gables", sub: "绿山墙的安妮" },
+    { file: "outlaws_of_the_marsh.pdf", title: "Outlaws of the Marsh", sub: "水浒传" },
+    { file: "jourwest.pdf", title: "Journey to the West", sub: "西游记" },
+    { file: "4.pdf", title: "Book 4", sub: "4.pdf" },
+    { file: "5.pdf", title: "Book 5", sub: "5.pdf" },
+    { file: "6.pdf", title: "Book 6", sub: "6.pdf" },
+    { file: "7.pdf", title: "Book 7", sub: "7.pdf" }
+  ];
+
+  var overlay = document.getElementById("ph-book-overlay");
+  var listEl = document.getElementById("ph-book-list");
+  var emptyEl = document.getElementById("ph-book-empty");
+  var loadingEl = document.getElementById("ph-book-loading");
+  var labelEl = document.getElementById("ph-book-loading-label");
+  var barEl = document.getElementById("ph-book-progress-bar");
+  var pctEl = document.getElementById("ph-book-progress-pct");
+  var btn = document.getElementById("ph-book-btn");
+  var closeBtn = document.getElementById("ph-book-close");
+  if (!overlay || !btn) return;
+
+  var available = null; // null = not probed yet
+  var probing = false;
+  var loading = false;
+
+  function setProgress(p) {
+    p = Math.max(0, Math.min(100, p | 0));
+    if (barEl) barEl.style.width = p + "%";
+    if (pctEl) pctEl.textContent = p + "%";
+  }
+
+  function showOverlay() {
+    overlay.hidden = false;
+    overlay.setAttribute("aria-hidden", "false");
+    overlay.classList.add("show");
+  }
+
+  function hideOverlay() {
+    if (loading) return;
+    overlay.classList.remove("show");
+    overlay.hidden = true;
+    overlay.setAttribute("aria-hidden", "true");
+    if (loadingEl) loadingEl.hidden = true;
+    if (listEl) listEl.hidden = false;
+  }
+
+  function probeBook(book) {
+    return new Promise(function (resolve) {
+      var xhr = new XMLHttpRequest();
+      xhr.open("HEAD", book.file, true);
+      xhr.timeout = 8000;
+      xhr.onload = function () {
+        // 2xx / 3xx 视为存在；部分静态服对 HEAD 回 405，再试轻量 GET
+        if (xhr.status >= 200 && xhr.status < 400) {
+          resolve(true);
+        } else if (xhr.status === 405 || xhr.status === 501) {
+          var g = new XMLHttpRequest();
+          g.open("GET", book.file, true);
+          g.timeout = 8000;
+          g.onprogress = function (e) {
+            if (e.loaded > 0) {
+              g.abort();
+              resolve(true);
+            }
+          };
+          g.onload = function () {
+            resolve(g.status >= 200 && g.status < 400);
+          };
+          g.onerror = g.ontimeout = function () {
+            resolve(false);
+          };
+          g.send();
+        } else {
+          resolve(false);
+        }
+      };
+      xhr.onerror = xhr.ontimeout = function () {
+        resolve(false);
+      };
+      xhr.send();
+    });
+  }
+
+  function renderList(items) {
+    listEl.innerHTML = "";
+    if (!items.length) {
+      emptyEl.hidden = false;
+      listEl.hidden = true;
+      return;
+    }
+    emptyEl.hidden = true;
+    listEl.hidden = false;
+    items.forEach(function (book) {
+      var li = document.createElement("li");
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "ph-book-item";
+      b.innerHTML =
+        '<span class="ph-book-item-icon">📖</span>' +
+        '<span class="ph-book-item-text">' +
+        '<span class="ph-book-item-title"></span>' +
+        '<span class="ph-book-item-sub"></span>' +
+        "</span>";
+      b.querySelector(".ph-book-item-title").textContent = book.title;
+      b.querySelector(".ph-book-item-sub").textContent = book.sub;
+      b.addEventListener("click", function () {
+        openBook(book);
+      });
+      li.appendChild(b);
+      listEl.appendChild(li);
+    });
+  }
+
+  function probeAll() {
+    if (probing) return Promise.resolve(available || []);
+    if (available) return Promise.resolve(available);
+    probing = true;
+    listEl.innerHTML = '<li class="ph-book-scanning">正在扫描可用书籍…</li>';
+    emptyEl.hidden = true;
+    listEl.hidden = false;
+    return Promise.all(
+      BOOKS.map(function (book) {
+        return probeBook(book).then(function (ok) {
+          return ok ? book : null;
+        });
+      })
+    ).then(function (results) {
+      available = results.filter(Boolean);
+      probing = false;
+      renderList(available);
+      return available;
+    });
+  }
+
+  function openBook(book) {
+    if (loading) return;
+    loading = true;
+    listEl.hidden = true;
+    emptyEl.hidden = true;
+    loadingEl.hidden = false;
+    labelEl.textContent = "正在加载「" + book.title + "」…";
+    setProgress(0);
+
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", book.file, true);
+    xhr.responseType = "blob";
+    xhr.onprogress = function (e) {
+      if (e.lengthComputable && e.total > 0) {
+        setProgress(Math.floor((e.loaded / e.total) * 100));
+      } else if (e.loaded > 0) {
+        // 未知总长：缓慢爬升到 90%
+        var fake = Math.min(90, 10 + Math.floor(e.loaded / 50000));
+        setProgress(fake);
+      }
+    };
+    xhr.onload = function () {
+      if (xhr.status < 200 || xhr.status >= 400) {
+        labelEl.textContent = "加载失败（" + xhr.status + "）";
+        setProgress(0);
+        loading = false;
+        setTimeout(function () {
+          loadingEl.hidden = true;
+          renderList(available || []);
+        }, 1200);
+        return;
+      }
+      setProgress(100);
+      labelEl.textContent = "打开中…";
+      var blob = xhr.response;
+      var url = URL.createObjectURL(blob);
+      // 新标签打开 PDF，浏览器内置阅读器
+      var w = window.open(url, "_blank");
+      if (!w) {
+        // 弹窗被拦：同页跳转
+        location.href = url;
+      }
+      setTimeout(function () {
+        loading = false;
+        hideOverlay();
+        // 稍后释放 blob（给新标签时间加载）
+        setTimeout(function () {
+          try {
+            URL.revokeObjectURL(url);
+          } catch (e) {}
+        }, 60000);
+      }, 400);
+    };
+    xhr.onerror = function () {
+      labelEl.textContent = "网络错误，请稍后重试";
+      setProgress(0);
+      loading = false;
+      setTimeout(function () {
+        loadingEl.hidden = true;
+        renderList(available || []);
+      }, 1200);
+    };
+    xhr.send();
+  }
+
+  btn.addEventListener("click", function (e) {
+    e.preventDefault();
+    showOverlay();
+    probeAll();
+  });
+  closeBtn.addEventListener("click", hideOverlay);
+  overlay.addEventListener("click", function (e) {
+    if (e.target === overlay) hideOverlay();
+  });
+})();
+    </script>
+
   </body>
 </html>
