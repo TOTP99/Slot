@@ -191,6 +191,14 @@ body {
     border-radius: 9px;
     font-size: 19px;
   }
+  .ph-media-links {
+    margin-top: 8px;
+    gap: 20px;
+  }
+  .ph-media-links .ph-mp4-link,
+  .ph-media-links .ph-pdf-link {
+    font-size: clamp(20px, 5.5vw, 26px);
+  }
 }
 
 @media (orientation: portrait) and (max-height: 700px) {
@@ -790,160 +798,4 @@ body {
 #game.dimmed {
   opacity: 0;
   pointer-events: none;
-}
-
-/* ===== 竖屏书架弹层 ===== */
-.ph-book-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 10050;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: max(12px, env(safe-area-inset-top)) 14px max(12px, env(safe-area-inset-bottom));
-  background: rgba(0, 0, 0, 0.72);
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition: opacity 0.28s ease, visibility 0.28s ease;
-}
-.ph-book-overlay.show {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-}
-.ph-book-panel {
-  width: min(100%, 360px);
-  max-height: min(78vh, 520px);
-  overflow: auto;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 215, 0, 0.45);
-  background: linear-gradient(180deg, #1a1208 0%, #0c0604 55%, #050203 100%);
-  box-shadow:
-    0 0 0 1px rgba(255, 215, 0, 0.08),
-    0 16px 40px rgba(0, 0, 0, 0.55),
-    inset 0 1px 0 rgba(255, 215, 0, 0.1);
-  color: var(--gold);
-  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", Arial, sans-serif;
-  padding: 12px 12px 14px;
-  box-sizing: border-box;
-}
-.ph-book-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 1px;
-}
-.ph-book-close {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 215, 0, 0.35);
-  background: rgba(0, 0, 0, 0.25);
-  color: var(--gold);
-  font-size: 16px;
-  line-height: 1;
-  cursor: pointer;
-}
-.ph-book-close:active { transform: scale(0.92); opacity: 0.85; }
-.ph-book-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.ph-book-scanning {
-  text-align: center;
-  font-size: 12px;
-  opacity: 0.75;
-  padding: 18px 8px;
-}
-.ph-book-item {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 215, 0, 0.28);
-  background: linear-gradient(180deg, rgba(40, 28, 10, 0.9), rgba(12, 6, 4, 0.95));
-  color: var(--gold);
-  text-align: left;
-  cursor: pointer;
-  font-family: inherit;
-  box-sizing: border-box;
-}
-.ph-book-item:active {
-  transform: scale(0.98);
-  border-color: rgba(255, 215, 0, 0.55);
-  background: rgba(255, 215, 0, 0.08);
-}
-.ph-book-item-icon {
-  font-size: 22px;
-  line-height: 1;
-  flex-shrink: 0;
-}
-.ph-book-item-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.ph-book-item-title {
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.ph-book-item-sub {
-  font-size: 11px;
-  opacity: 0.72;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.ph-book-empty {
-  text-align: center;
-  font-size: 13px;
-  opacity: 0.75;
-  padding: 28px 10px;
-}
-.ph-book-loading {
-  padding: 18px 8px 10px;
-  text-align: center;
-}
-.ph-book-loading-label {
-  font-size: 12px;
-  margin-bottom: 12px;
-  opacity: 0.9;
-}
-.ph-book-progress-track {
-  height: 10px;
-  border-radius: 999px;
-  background: rgba(255, 215, 0, 0.12);
-  border: 1px solid rgba(255, 215, 0, 0.28);
-  overflow: hidden;
-}
-.ph-book-progress-bar {
-  height: 100%;
-  width: 0%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #c9971f, #ffd700 55%, #fff2b8);
-  box-shadow: 0 0 10px rgba(255, 215, 0, 0.35);
-  transition: width 0.15s linear;
-}
-.ph-book-progress-pct {
-  margin-top: 8px;
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  letter-spacing: 0.5px;
 }
