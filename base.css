@@ -1,0 +1,51 @@
+      /* 统一金色：全站唯一的金色取值来源，减少重复定义 */
+      :root {
+        --gold: #ffd700;
+        /* .ph-btn 的 hover/on 状态原先引用了这两个未声明的变量，样式会静默失效；
+           这里显式声明并与 JS 侧 UI.champagne / UI.goldBright（均等于 GOLD）保持一致 */
+        --champagne: var(--gold);
+        --gold-bright: var(--gold);
+      }
+
+      * {
+        -webkit-box-sizing: border-box;
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        background: #070006;
+        overflow: hidden;
+        touch-action: none;
+        -ms-touch-action: none;
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+      }
+
+      body {
+        display: -webkit-flex;
+        display: flex;
+        -webkit-justify-content: center;
+        justify-content: center;
+        -webkit-align-items: center;
+        align-items: center;
+      }
+
+      #game-wrapper {
+        width: 100vw;
+        height: 100vh;
+        height: 100dvh;
+        display: -webkit-flex;
+        display: flex;
+        -webkit-justify-content: center;
+        justify-content: center;
+        -webkit-align-items: center;
+        align-items: center;
+        background: #070006;
+        overflow: hidden;
+      }
+
