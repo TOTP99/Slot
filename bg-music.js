@@ -3,7 +3,8 @@
       // 放进和 index.html 同一个目录即可，以后无需再改这里的代码。
       // 播放时按数字从小到大依次尝试；如果某个编号的文件缺失，会自动跳过找下一个，
       // 直到编号 BG_MUSIC_MAX 结束后循环回到 1。
-      const BG_MUSIC_MAX = 56; // 支持的最大编号（对应 1.mp3 ~ 56.mp3），全部 56 首参与循环播放
+      const BG_MUSIC_MAX = 99; // 支持的最大编号（对应 1.mp3 ~ 99.mp3），全部 99 首参与循环播放
+      const BG_MUSIC_BASE = "https://totp99.github.io/source/mp3/"; // mp3 取歌来源
 
       class BGMusic {
         constructor() {
@@ -277,7 +278,7 @@
           try {
             localStorage.setItem("bgMusicCurrentNum", String(num));
           } catch (e) {}
-          this.audio.src = new URL(`${num}.mp3`, document.baseURI).href;
+          this.audio.src = new URL(`${num}.mp3`, BG_MUSIC_BASE).href;
           this.audio.loop = this.playMode === "single";
           this._notifyTrackChange();
         }
