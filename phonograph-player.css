@@ -73,16 +73,6 @@
         animation: horn-sway 3.2s ease-in-out infinite;
         filter: drop-shadow(0 2px 6px rgba(255, 215, 0, 0.12));
       }
-      /* MP3 标题 + 喇叭 后面的 mp4-player 入口按键：与喇叭之间留出额外间距 */
-      .ph-mp4-link {
-        margin-left: 12px;
-        font-size: 16px;
-        line-height: 1;
-        text-decoration: none;
-        white-space: nowrap;
-        opacity: 0.9;
-      }
-      .ph-mp4-link:active { opacity: 1; transform: scale(0.92); }
       @-webkit-keyframes horn-sway {
         0%, 100% { transform: rotate(-16deg) translateY(0); }
         50% { transform: rotate(-12deg) translateY(-2px); }
@@ -302,4 +292,3 @@
           0 0 4px rgba(255, 215, 0, 0.22),
           0 2px 4px rgba(0, 0, 0, 0.45);
       }
-
