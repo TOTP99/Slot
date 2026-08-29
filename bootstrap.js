@@ -61,12 +61,14 @@
         }
       });
 
-      function fitGameCanvas() {
-        var canvas = document.querySelector("#game canvas");
-        if (!canvas) return;
-        canvas.style.width = "100%";
-        canvas.style.height = "100%";
-      }
+      // 注：canvas 的尺寸/居中完全交给上面 scale.mode = Phaser.Scale.FIT 处理。
+      // 之前这里还有一个 fitGameCanvas()，在 resize/orientationchange 时把
+      // canvas 的 style.width/height 强行改成 "100%"，这会在 Phaser 自己算完
+      // letterbox 尺寸之后又把它覆盖掉；如果 #game/#game-wrapper 的尺寸又依赖
+      // canvas 撑开，就会出现「Phaser 算尺寸 → 被强行改成 100% → 容器尺寸变化
+      // → 又触发一次 resize → Phaser 再算 → 又被覆盖……」的抖动/死循环，这正是
+      // 横竖屏来回切换时页面卡死、必须刷新才能恢复的根因。已删除该函数与它绑定
+      // 的 resize / orientationchange 监听，不再和 Scale.FIT 抢控制权。
 
       window.addEventListener("beforeunload", function () {
         try {
@@ -74,11 +76,4 @@
             clearInterval(window.__slotGameScene.clockTimer);
           }
         } catch (e) {}
-      });
-
-      window.addEventListener("resize", function () {
-        setTimeout(fitGameCanvas, 50);
-      });
-      window.addEventListener("orientationchange", function () {
-        setTimeout(fitGameCanvas, 120);
       });
