@@ -1,4 +1,4 @@
-/* 万锦老虎机：横屏游戏 + 竖屏 iframe 留声机 */
+/* 万锦老虎机：横竖屏同一套 Phaser 界面（不再嵌竖屏 iframe） */
 
 :root {
   --gold: #ffd700;
@@ -46,20 +46,19 @@ body {
   overflow: hidden;
 }
 
+/* 横屏：按 16:9 尽量铺满；竖屏：按宽度铺满，上下留黑边（游戏内部仍是 960×540） */
 #game {
-  width: min(100vw, calc(100vh * 16 / 9));
-  width: min(100vw, calc(100dvh * 16 / 9));
-  height: min(100vh, calc(100vw * 9 / 16));
-  height: min(100dvh, calc(100vw * 9 / 16));
-  aspect-ratio: 16 / 9;
+  width: 100%;
+  height: 100%;
+  max-width: 100vw;
+  max-height: 100vh;
+  max-height: 100dvh;
   display: -webkit-flex;
   display: flex;
   -webkit-justify-content: center;
   justify-content: center;
   -webkit-align-items: center;
   align-items: center;
-  -webkit-transition: opacity 0.35s ease;
-  transition: opacity 0.35s ease;
 }
 
 #game canvas {
@@ -68,37 +67,22 @@ body {
   display: block;
   -webkit-user-select: none;
   user-select: none;
+  object-fit: contain;
 }
 
-#game.dimmed {
-  opacity: 0;
-  pointer-events: none;
+/* 竖屏时用宽度撑满，高度按 16:9 比例，垂直居中 */
+@media (orientation: portrait) {
+  #game {
+    width: 100vw;
+    height: min(100dvh, calc(100vw * 9 / 16));
+    max-height: 100dvh;
+  }
 }
 
-#rotate-tip {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  display: -webkit-flex;
-  display: flex;
-  background: #070006;
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  -webkit-transition: opacity 0.35s ease, visibility 0.35s ease;
-  transition: opacity 0.35s ease, visibility 0.35s ease;
-}
-
-#rotate-tip.show {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-}
-
-#mp3-frame {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border: 0;
-  background: #070006;
+@media (orientation: landscape) {
+  #game {
+    width: min(100vw, calc(100dvh * 16 / 9));
+    height: min(100dvh, calc(100vw * 9 / 16));
+    aspect-ratio: 16 / 9;
+  }
 }
