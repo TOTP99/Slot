@@ -84,39 +84,70 @@ class SlotGame extends Phaser.Scene {
 
 /* 万锦老虎机 - 自动拆分自单文件版 */
 
+        // 颜色调亮/调暗：percent>0 变亮，<0 变暗。用于从单一 fill 色推出
+        // 渐变的上下两级色阶，不需要每个调用点都手写一套配色。
+        SlotGame.prototype.shadeColor = function(hex, percent) {
+          const c = Phaser.Display.Color.ValueToColor(hex).clone();
+          if (percent >= 0) c.brighten(percent);
+          else c.darken(-percent);
+          return c.color;
+        };
+
+
+        // 圆角 + 竖向渐变面板的底层绘制：外发光环 → 渐变主体 → 顶部玻璃高光。
+        // gfx 需已 setPosition 到面板中心，绘制以 (0,0) 为中心展开。
+        SlotGame.prototype.drawGradientPanel = function(gfx, w, h, radius, topColor, bottomColor, fillAlpha, strokeColor, strokeWidth) {
+          gfx.clear();
+          gfx.fillGradientStyle(topColor, topColor, bottomColor, bottomColor, fillAlpha);
+          gfx.fillRoundedRect(-w / 2, -h / 2, w, h, radius);
+          if (strokeColor !== null && strokeWidth > 0) {
+            gfx.lineStyle(strokeWidth, strokeColor, 0.95);
+            gfx.strokeRoundedRect(-w / 2, -h / 2, w, h, radius);
+          }
+        };
+
+
         SlotGame.prototype.createPanel = function(x, y, width, height, fill = UI.panel, alpha = 0.96, hideGroup = null, scaleGroup = null) {
-          // 不使用玻璃/透视效果：面板改为完全不透明的实色层。
-          const outer = this.add
-            .rectangle(x, y, width + 6, height + 6, UI.goldDim, 1)
-            .setStrokeStyle(1, UI.goldDim);
+          const radius = Math.min(PANEL_RADIUS, height / 2, width / 2);
+          const topColor = this.shadeColor(fill, 22);
+          const bottomColor = this.shadeColor(fill, -16);
 
-          const panel = this.add
-            .rectangle(x, y, width, height, fill, 1)
-            .setStrokeStyle(1, UI.gold);
+          // 外发光环：柔化边缘，替代原来死板的等宽描边矩形
+          const glow = this.add.graphics().setPosition(x, y);
+          glow.fillStyle(UI.goldDim, 0.12);
+          glow.fillRoundedRect(-(width + 8) / 2, -(height + 8) / 2, width + 8, height + 8, radius + 4);
 
-          const lineTop = this.add
-            .rectangle(x, y - height / 2 + 2, width - 14, 1, UI.champagne, 1)
-            .setOrigin(0.5);
+          const panel = this.add.graphics().setPosition(x, y);
+          this.drawGradientPanel(panel, width, height, radius, topColor, bottomColor, alpha, UI.gold, 1.4);
 
-          const lineBottom = this.add
-            .rectangle(x, y + height / 2 - 2, width - 14, 1, 0x050706, 1)
-            .setOrigin(0.5);
+          // 玻璃感顶部高光：一条弧形亮带，让平面看起来有反光曲面
+          const highlight = this.add.graphics().setPosition(x, y);
+          highlight.fillStyle(0xffffff, 0.05);
+          highlight.fillRoundedRect(
+            -width / 2 + 3,
+            -height / 2 + 2,
+            width - 6,
+            Math.max(4, height * 0.34),
+            Math.max(2, radius * 0.55),
+          );
 
-          if (hideGroup) hideGroup.push(outer, panel, lineTop, lineBottom);
-          if (scaleGroup) scaleGroup.add([outer, panel, lineTop, lineBottom]);
+          if (hideGroup) hideGroup.push(glow, panel, highlight);
+          if (scaleGroup) scaleGroup.add([glow, panel, highlight]);
 
           return panel;
         };
 
 
         SlotGame.prototype.setControlActive = function(bg, txt, active) {
-          if (active) {
-            bg.setFillStyle(UI.activeFill);
-            txt.setColor(UI.textDark);
-          } else {
-            bg.setFillStyle(UI.panelDeep);
-            txt.setColor(UI.cream);
-          }
+          // bg 现在是圆角渐变 Graphics，没有 setFillStyle 可改，改为整体重绘
+          const fill = active ? UI.activeFill : 0x1a140c;
+          const top = this.shadeColor(fill, active ? 16 : 10);
+          const bottom = this.shadeColor(fill, active ? -8 : -8);
+          const stroke = active ? UI.gold : UI.goldDim;
+          const w = bg._btnW || 58;
+          const h = bg._btnH || 28;
+          this.drawGradientPanel(bg, w, h, 8, top, bottom, 0.95, stroke, active ? 1.5 : 1);
+          txt.setColor(active ? UI.textDark : UI.cream);
         };
 
 /* 万锦老虎机 - 自动拆分自单文件版 */
@@ -125,6 +156,22 @@ class SlotGame extends Phaser.Scene {
           // 标题句子已移除；奖池条上移填补空出的头部空间。
           // 取消边框与背景，原背景处改为随机闪烁的星光效果。
           this.createJackpotSparkle(480, LAYOUT.jackpotY, 350, 38);
+
+          // JACKPOT 底下叠一层柔和的金色光晕，持续呼吸缩放，
+          // 让整条奖池信息看起来"发光"而不是死板的静态文字。
+          this.jackpotGlow = this.add
+            .ellipse(480, LAYOUT.jackpotY, 300, 46, UI.gold, 0.14)
+            .setBlendMode(Phaser.BlendModes.ADD);
+          this.tweens.add({
+            targets: this.jackpotGlow,
+            scaleX: 1.12,
+            scaleY: 1.3,
+            alpha: 0.28,
+            duration: 1600,
+            yoyo: true,
+            repeat: -1,
+            ease: "Sine.easeInOut",
+          });
 
           this.jackpotText = this.add
             .text(
@@ -143,6 +190,15 @@ class SlotGame extends Phaser.Scene {
             )
             .setOrigin(0.5);
 
+          // 文字本身也轻微呼吸缩放，与底光呼吸错开节奏，避免死板地贴死在原地
+          this.tweens.add({
+            targets: this.jackpotText,
+            scale: 1.035,
+            duration: 1350,
+            yoyo: true,
+            repeat: -1,
+            ease: "Sine.easeInOut",
+          });
         };
 
 
@@ -207,107 +263,119 @@ class SlotGame extends Phaser.Scene {
 /* 万锦老虎机 - 自动拆分自单文件版 */
 
         SlotGame.prototype.createMachine = function() {
-          // 外层柔光
+          const mx = LAYOUT.machineX;
+          const my = LAYOUT.machineY;
+          const shellRadius = 26;
+
+          // 外层柔光（呼吸动画在 createAmbientAnimations 中驱动）
           this.machineGlow = this.add.rectangle(
-            LAYOUT.machineX,
-            LAYOUT.machineY,
+            mx,
+            my,
             LAYOUT.machineOuterW + 14,
             LAYOUT.machineOuterH + 10,
             UI.gold,
             0.1,
           );
 
-          // 厚重金边机壳
-          const outerShell = this.add
-            .rectangle(
-              LAYOUT.machineX,
-              LAYOUT.machineY,
-              LAYOUT.machineOuterW + 6,
-              LAYOUT.machineOuterH + 6,
-              UI.goldDim,
-              0.7,
-            )
-            .setStrokeStyle(2, UI.gold);
+          // 厚重金边机壳：圆角 + 竖向渐变，替代原来的死板直角平色矩形
+          const outerShell = this.add.graphics().setPosition(mx, my);
+          this.drawGradientPanel(
+            outerShell,
+            LAYOUT.machineOuterW + 6,
+            LAYOUT.machineOuterH + 6,
+            shellRadius,
+            this.shadeColor(UI.goldDim, -10),
+            this.shadeColor(UI.goldDim, -55),
+            0.85,
+            UI.gold,
+            2.5,
+          );
 
-          const darkShell = this.add
-            .rectangle(
-              LAYOUT.machineX,
-              LAYOUT.machineY,
-              LAYOUT.machineOuterW,
-              LAYOUT.machineOuterH,
-              0x101714,
-            )
-            .setStrokeStyle(3, UI.goldDim);
+          const darkShell = this.add.graphics().setPosition(mx, my);
+          this.drawGradientPanel(
+            darkShell,
+            LAYOUT.machineOuterW,
+            LAYOUT.machineOuterH,
+            shellRadius - 4,
+            this.shadeColor(0x101714, 12),
+            this.shadeColor(0x101714, -22),
+            1,
+            UI.goldDim,
+            2,
+          );
 
-          const innerPanel = this.add
-            .rectangle(
-              LAYOUT.machineX,
-              LAYOUT.machineY,
-              LAYOUT.machineInnerW,
-              LAYOUT.machineInnerH,
-              UI.panelDeep,
-            )
-            .setStrokeStyle(2, UI.goldDim);
+          const innerPanel = this.add.graphics().setPosition(mx, my);
+          this.drawGradientPanel(
+            innerPanel,
+            LAYOUT.machineInnerW,
+            LAYOUT.machineInnerH,
+            shellRadius - 10,
+            this.shadeColor(UI.panelDeep, 16),
+            this.shadeColor(UI.panelDeep, -12),
+            1,
+            UI.goldDim,
+            1.5,
+          );
 
-          // 深色转轮窗：去掉粉红/酒红描边，保持传统赌场深色窗框
-          const reelWindow = this.add
-            .rectangle(LAYOUT.machineX, LAYOUT.machineY, 452, 170, 0x0a0a0c)
-            .setStrokeStyle(2, UI.goldDim);
+          // 深色转轮窗：圆角凹槽 + 内阴影，让符号看起来是"从窗口里转出来"
+          // 而不是贴在平面上——顶部/底部各叠一层黑色渐变模拟凹陷纵深感。
+          const reelWindow = this.add.graphics().setPosition(mx, my);
+          this.drawGradientPanel(
+            reelWindow,
+            452,
+            170,
+            14,
+            0x000000,
+            0x141416,
+            1,
+            UI.goldDim,
+            2,
+          );
+          const reelInnerShadow = this.add.graphics().setPosition(mx, my);
+          reelInnerShadow.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0.55, 0.55, 0, 0);
+          reelInnerShadow.fillRoundedRect(-226, -85, 452, 34, { tl: 14, tr: 14, bl: 0, br: 0 });
+          reelInnerShadow.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0, 0, 0.55, 0.55);
+          reelInnerShadow.fillRoundedRect(-226, 51, 452, 34, { tl: 0, tr: 0, bl: 14, br: 14 });
 
           // 传统三线：中间粗、上下细，对齐符号行距(64px)，压在卷轴容器之上，
           // 半透明穿过图标背景，符号仍清晰可见——这才是传统老虎机支付线的样子。
           this.paylineTop = this.add
-            .rectangle(
-              LAYOUT.machineX,
-              LAYOUT.machineY - 64,
-              448,
-              2,
-              UI.goldDim,
-              0.7,
-            )
+            .rectangle(mx, my - 64, 448, 2, UI.goldDim, 0.7)
             .setDepth(5);
 
           this.paylineMiddle = this.add
-            .rectangle(
-              LAYOUT.machineX,
-              LAYOUT.machineY,
-              448,
-              5,
-              UI.gold,
-              0.88,
-            )
+            .rectangle(mx, my, 448, 5, UI.gold, 0.88)
             .setDepth(5);
 
           this.paylineBottom = this.add
-            .rectangle(
-              LAYOUT.machineX,
-              LAYOUT.machineY + 64,
-              448,
-              2,
-              UI.goldDim,
-              0.7,
-            )
+            .rectangle(mx, my + 64, 448, 2, UI.goldDim, 0.7)
             .setDepth(5);
 
-          const lineLabelLeft = this.add
-            .text(226, LAYOUT.machineY, "三线", {
-              fontSize: "14px",
-              fontStyle: "bold",
-              color: UI.cream,
-              stroke: "#000000",
-              strokeThickness: 1,
-            })
-            .setOrigin(0.5);
-
-          const lineLabelRight = this.add
-            .text(714, LAYOUT.machineY, "三线", {
-              fontSize: "14px",
-              fontStyle: "bold",
-              color: UI.cream,
-              stroke: "#000000",
-              strokeThickness: 1,
-            })
-            .setOrigin(0.5);
+          // 三线标签：加一枚宝石红圆角小徽章打底，不再是裸文字贴在机身上
+          const makeLineLabel = (lx) => {
+            const chip = this.add.graphics().setPosition(lx, my);
+            this.drawGradientPanel(
+              chip,
+              46,
+              24,
+              12,
+              this.shadeColor(UI.ruby, 20),
+              this.shadeColor(UI.rubyDim, -10),
+              0.92,
+              UI.gold,
+              1,
+            );
+            const label = this.add
+              .text(lx, my, "三线", {
+                fontSize: "13px",
+                fontStyle: "bold",
+                color: "#f4ead0",
+              })
+              .setOrigin(0.5);
+            return [chip, label];
+          };
+          const leftLabelParts = makeLineLabel(226);
+          const rightLabelParts = makeLineLabel(714);
 
           // 老虎机机身整体收进放大分组：长按 JACKPOT 触发彩蛋时随分组一起放大 115%
           this.machineScaleGroup.add([
@@ -316,28 +384,52 @@ class SlotGame extends Phaser.Scene {
             darkShell,
             innerPanel,
             reelWindow,
+            reelInnerShadow,
             this.paylineTop,
             this.paylineMiddle,
             this.paylineBottom,
-            lineLabelLeft,
-            lineLabelRight,
+            ...leftLabelParts,
+            ...rightLabelParts,
           ]);
         };
 
 
+        // 转轮边框需要在中奖时切换描边宽度/颜色做高亮闪烁（原来靠 Rectangle
+        // 的 setStrokeStyle 直接改属性）。换成圆角渐变 Graphics 后没有那个
+        // 属性，改用重绘：保留同一份填充配色，只重画描边部分。
+        SlotGame.prototype.setReelFrameStroke = function(reel, strokeWidth, strokeColor) {
+          if (!reel || !reel.frame) return;
+          this.drawGradientPanel(
+            reel.frame,
+            LAYOUT.reelFrameW,
+            LAYOUT.reelFrameH,
+            16,
+            this._reelFrameTop,
+            this._reelFrameBottom,
+            1,
+            strokeColor,
+            strokeWidth,
+          );
+        };
+
+
         SlotGame.prototype.createReels = function() {
+          this._reelFrameTop = this.shadeColor(0x090b0b, 14);
+          this._reelFrameBottom = this.shadeColor(0x090b0b, -20);
+
           LAYOUT.reelXs.forEach((x, reelIndex) => {
-            const frame = this.add
-              .rectangle(
-                x,
-                LAYOUT.reelY,
-                LAYOUT.reelFrameW,
-                LAYOUT.reelFrameH,
-                0x090b0b,
-                1,
-              )
-              .setStrokeStyle(2, UI.goldDim)
-              .setDepth(2);
+            const frame = this.add.graphics().setPosition(x, LAYOUT.reelY).setDepth(2);
+            this.drawGradientPanel(
+              frame,
+              LAYOUT.reelFrameW,
+              LAYOUT.reelFrameH,
+              16,
+              this._reelFrameTop,
+              this._reelFrameBottom,
+              1,
+              UI.goldDim,
+              2,
+            );
 
             const maskShape = this.add.graphics();
             maskShape.fillStyle(0xffffff);
@@ -561,14 +653,29 @@ class SlotGame extends Phaser.Scene {
           // 修复了此前"随机播放时曲号显示错误（停留在旧编号）"的问题
           bgMusic.onTrackChange(() => this.refreshTrackLabel());
 
-          // 底部一体金框按键（沿用原金框尺寸/位置逻辑）→ 打开赔率*设置弹窗
+          // 底部一体金框按键（圆角渐变）→ 打开赔率*设置弹窗
           const ctrlY = trackY + 45;
           const frameW = w - 28;
           const frameH = 40;
-          const frame = this.add
-            .rectangle(x, ctrlY, frameW, frameH, 0x120a04, 0.92)
-            .setStrokeStyle(1, UI.gold)
-            .setInteractive({ useHandCursor: true });
+          const frame = this.add.graphics().setPosition(x, ctrlY);
+          const drawCtrlFrame = (strokeWidth, strokeColor) =>
+            this.drawGradientPanel(
+              frame,
+              frameW,
+              frameH,
+              12,
+              this.shadeColor(0x120a04, 14),
+              this.shadeColor(0x120a04, -8),
+              0.92,
+              strokeColor,
+              strokeWidth,
+            );
+          drawCtrlFrame(1, UI.gold);
+          frame.setInteractive(
+            new Phaser.Geom.Rectangle(-frameW / 2, -frameH / 2, frameW, frameH),
+            Phaser.Geom.Rectangle.Contains,
+          );
+          if (frame.input) frame.input.cursor = "pointer";
           const ctrlLabel = this.add
             .text(x, ctrlY, "赔率*设置", {
               fontSize: "24px",
@@ -582,11 +689,11 @@ class SlotGame extends Phaser.Scene {
           };
           frame.on("pointerdown", openCtrl);
           frame.on("pointerover", () => {
-            frame.setStrokeStyle(2, 0xffd700);
+            drawCtrlFrame(2, 0xffd700);
             ctrlLabel.setScale(1.06);
           });
           frame.on("pointerout", () => {
-            frame.setStrokeStyle(1, UI.gold);
+            drawCtrlFrame(1, UI.gold);
             ctrlLabel.setScale(1);
           });
           ctrlLabel.setInteractive({ useHandCursor: true });
@@ -943,16 +1050,32 @@ class SlotGame extends Phaser.Scene {
           overlay.on("pointerdown", () => this.toggleSettingsModal(false));
           children.push(overlay);
 
-          // 外层微光
-          children.push(
-            this.add
-              .rectangle(cx, cy, panelW + 9, panelH + 9, UI.gold, 0.08)
-              .setStrokeStyle(1, UI.goldDim),
+          // 外层微光：圆角版，呼应弹窗本体的圆角
+          const modalGlow = this.add.graphics().setPosition(cx, cy);
+          modalGlow.fillStyle(UI.gold, 0.08);
+          modalGlow.fillRoundedRect(-(panelW + 9) / 2, -(panelH + 9) / 2, panelW + 9, panelH + 9, 22);
+          modalGlow.lineStyle(1, UI.goldDim, 0.9);
+          modalGlow.strokeRoundedRect(-(panelW + 9) / 2, -(panelH + 9) / 2, panelW + 9, panelH + 9, 22);
+          children.push(modalGlow);
+
+          // 弹窗主体：圆角渐变（视觉层），叠加一个透明的矩形热区专门负责拦截点击——
+          // 圆角 Graphics 本身不支持精确的圆角点击判定，用不可见矩形兜底最省事可靠。
+          const panelVisual = this.add.graphics().setPosition(cx, cy);
+          this.drawGradientPanel(
+            panelVisual,
+            panelW,
+            panelH,
+            20,
+            this.shadeColor(0x0e0a06, 16),
+            this.shadeColor(0x0e0a06, -10),
+            0.98,
+            UI.gold,
+            2,
           );
+          children.push(panelVisual);
 
           const panel = this.add
-            .rectangle(cx, cy, panelW, panelH, 0x0e0a06, 0.98)
-            .setStrokeStyle(2, UI.gold)
+            .rectangle(cx, cy, panelW, panelH, 0x000000, 0.001)
             .setInteractive();
           panel.on("pointerdown", (pointer, lx, ly, event) => {
             event.stopPropagation();
@@ -1004,12 +1127,29 @@ class SlotGame extends Phaser.Scene {
               .setOrigin(0.5),
           );
 
-          // 右：设置（无列标题）
+          // 右：设置（无列标题）——圆角小按钮，取代原来的直角实色矩形
           const makeOptionButton = (bx, by, label) => {
-            const bg = this.add
-              .rectangle(bx, by, 58, 28, 0x1a140c, 0.95)
-              .setStrokeStyle(1, UI.goldDim)
-              .setInteractive({ useHandCursor: true });
+            const w = 58;
+            const h = 28;
+            const bg = this.add.graphics().setPosition(bx, by);
+            bg._btnW = w;
+            bg._btnH = h;
+            this.drawGradientPanel(
+              bg,
+              w,
+              h,
+              8,
+              this.shadeColor(0x1a140c, 10),
+              this.shadeColor(0x1a140c, -8),
+              0.95,
+              UI.goldDim,
+              1,
+            );
+            bg.setInteractive(
+              new Phaser.Geom.Rectangle(-w / 2, -h / 2, w, h),
+              Phaser.Geom.Rectangle.Contains,
+            );
+            if (bg.input) bg.input.cursor = "pointer";
             const txt = this.add
               .text(bx, by, label, {
                 fontSize: "13px",
@@ -1161,11 +1301,19 @@ class SlotGame extends Phaser.Scene {
           );
           const bigBoxCenterX = boxCenterX + 34;
           const betBoxX = bigBoxCenterX;
-          children.push(
-            this.add
-              .rectangle(betBoxX, betRowY, 155, 38, 0x0a0806, 0.95)
-              .setStrokeStyle(1, UI.goldDim),
+          const betBoxGfx = this.add.graphics().setPosition(betBoxX, betRowY);
+          this.drawGradientPanel(
+            betBoxGfx,
+            155,
+            38,
+            9,
+            this.shadeColor(0x0a0806, 10),
+            this.shadeColor(0x0a0806, -6),
+            0.95,
+            UI.goldDim,
+            1,
           );
+          children.push(betBoxGfx);
           const betMinus = this.add
             .text(betBoxX - 55, betRowY, "−", {
               fontSize: "22px",
@@ -1211,11 +1359,19 @@ class SlotGame extends Phaser.Scene {
               })
               .setOrigin(0, 0.5),
           );
-          children.push(
-            this.add
-              .rectangle(betBoxX, rowY, 170, 38, 0x0a0806, 0.95)
-              .setStrokeStyle(1, UI.goldDim),
+          const chipBoxGfx = this.add.graphics().setPosition(betBoxX, rowY);
+          this.drawGradientPanel(
+            chipBoxGfx,
+            170,
+            38,
+            9,
+            this.shadeColor(0x0a0806, 10),
+            this.shadeColor(0x0a0806, -6),
+            0.95,
+            UI.goldDim,
+            1,
           );
+          children.push(chipBoxGfx);
           const chipMinus = this.add
             .text(betBoxX - 64, rowY, "−", {
               fontSize: "22px",
@@ -1604,7 +1760,7 @@ class SlotGame extends Phaser.Scene {
           reel.stopped = false;
           reel.forceStopScheduled = false;
 
-          reel.frame.setStrokeStyle(3, UI.goldBright);
+          this.setReelFrameStroke(reel, 3, UI.goldBright);
 
           const stopDelay = settings.duration + index * 320;
           const decelWindow = 260; // 停止前的减速窗口（毫秒），让转轮"滑行进站"而不是硬停
@@ -1710,7 +1866,7 @@ class SlotGame extends Phaser.Scene {
             yoyo: true,
           });
 
-          reel.frame.setStrokeStyle(2, UI.goldDim);
+          this.setReelFrameStroke(reel, 2, UI.goldDim);
 
           this.stoppedReelsCount++;
 
@@ -1848,7 +2004,7 @@ class SlotGame extends Phaser.Scene {
           this.flashLines();
 
           this.reels.forEach((reel) => {
-            reel.frame.setStrokeStyle(6, 0x00ff99);
+            this.setReelFrameStroke(reel, 6, 0x00ff99);
 
             this.tweens.add({
               targets: reel.container,
@@ -1864,7 +2020,7 @@ class SlotGame extends Phaser.Scene {
 
           this.time.delayedCall(1000, () => {
             this.reels.forEach((reel) =>
-              reel.frame.setStrokeStyle(4, 0xffd700),
+              this.setReelFrameStroke(reel, 4, 0xffd700),
             );
           });
         };
@@ -2230,11 +2386,32 @@ class SlotGame extends Phaser.Scene {
 
 
         SlotGame.prototype.createAmbientAnimations = function() {
-          // 签名扫光动效已按需求移除。
+          // 注：移动式"扫光"动效之前按需求移除过，这里不恢复；
+          // 只做原地的柔和呼吸（alpha 明暗），不引入任何位移/扫过效果。
           this.machineGlow.setAlpha(0.07);
+          this.tweens.add({
+            targets: this.machineGlow,
+            alpha: 0.13,
+            duration: 2200,
+            yoyo: true,
+            repeat: -1,
+            ease: "Sine.easeInOut",
+          });
+
           if (this.paylineTop) this.paylineTop.setAlpha(0.7);
           if (this.paylineMiddle) this.paylineMiddle.setAlpha(0.88);
           if (this.paylineBottom) this.paylineBottom.setAlpha(0.7);
+
+          if (this.paylineMiddle) {
+            this.tweens.add({
+              targets: this.paylineMiddle,
+              alpha: 0.62,
+              duration: 1500,
+              yoyo: true,
+              repeat: -1,
+              ease: "Sine.easeInOut",
+            });
+          }
         };
 
 /* 万锦老虎机 - 自动拆分自单文件版 */

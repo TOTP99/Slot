@@ -58,7 +58,13 @@ const UI = {
   cream: "#e8dcc0",
   textDark: "#17120a",
   activeFill: 0x8d6f32,
+  // 点缀色：宝石红，少量用于三线标签底、聚焦光晕等，打破纯金单色
+  ruby: 0xb3122b,
+  rubyDim: 0x6e0c1c,
 };
+
+// 面板圆角半径（统一口径，避免各处各写各的数值）
+const PANEL_RADIUS = 14;
 
 // ---------- 文本适配 ----------
 // 把文本塞进一个最大宽度里：先按 baseFontSize 渲染，超宽就逐级缩小字号，
