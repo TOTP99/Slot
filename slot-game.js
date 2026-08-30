@@ -155,29 +155,14 @@ class SlotGame extends Phaser.Scene {
         SlotGame.prototype.createHeader = function() {
           // 标题句子已移除；奖池条上移填补空出的头部空间。
           // 取消边框与背景，原背景处改为随机闪烁的星光效果。
-          this.createJackpotSparkle(480, LAYOUT.jackpotY, 350, 38);
-
-          // JACKPOT 底下叠一层柔和的金色光晕，持续呼吸缩放，
-          // 让整条奖池信息看起来"发光"而不是死板的静态文字。
-          this.jackpotGlow = this.add
-            .ellipse(480, LAYOUT.jackpotY, 300, 46, UI.gold, 0.14)
-            .setBlendMode(Phaser.BlendModes.ADD);
-          this.tweens.add({
-            targets: this.jackpotGlow,
-            scaleX: 1.12,
-            scaleY: 1.3,
-            alpha: 0.28,
-            duration: 1600,
-            yoyo: true,
-            repeat: -1,
-            ease: "Sine.easeInOut",
-          });
+          // 星区相对原 350×38 加宽加高 20%，星数加密 20%。
+          this.createJackpotSparkle(480, LAYOUT.jackpotY, 420, 46);
 
           this.jackpotText = this.add
             .text(
               480,
               LAYOUT.jackpotY,
-              `💎 JACKPOT ${this.formatMoney(this.jackpotValue)}`,
+              `⚿ Jackpot ${this.formatMoney(this.jackpotValue)}`,
               {
                 fontSize: "25px",
                 fontStyle: "bold",
@@ -189,21 +174,12 @@ class SlotGame extends Phaser.Scene {
               },
             )
             .setOrigin(0.5);
-
-          // 文字本身也轻微呼吸缩放，与底光呼吸错开节奏，避免死板地贴死在原地
-          this.tweens.add({
-            targets: this.jackpotText,
-            scale: 1.035,
-            duration: 1350,
-            yoyo: true,
-            repeat: -1,
-            ease: "Sine.easeInOut",
-          });
         };
 
 
         SlotGame.prototype.createJackpotSparkle = function(cx, cy, w, h) {
-          const count = 16;
+          // 原 16 颗加密 20% → 19
+          const count = 19;
           this.jackpotStars = [];
           for (let i = 0; i < count; i++) {
             const sx = cx - w / 2 + Phaser.Math.Between(8, w - 8);
@@ -2197,7 +2173,7 @@ class SlotGame extends Phaser.Scene {
 
           fitTextToBox(
             this.jackpotText,
-            `💎 JACKPOT ${this.formatMoney(this.jackpotValue)}`,
+            `⚿ Jackpot ${this.formatMoney(this.jackpotValue)}`,
             320,
             21,
             14,
