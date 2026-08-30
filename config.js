@@ -1,8 +1,7 @@
 /* ============================================================
  * 万锦老虎机 - 游戏常量 + 中奖概率表
  * 操作：拉杆 / SPIN / 空格 一点即转；转动中再次操作急停。
- * 依赖：无（纯常量与工具函数）。rollSpinResult/evaluateSpinResult
- * 被 slot-game.js 和 phonograph.js（竖屏迷你机）共用。
+ * 依赖：无。rollSpinResult / evaluateSpinResult 供 slot-game.js 使用。
  * ============================================================ */
 
 // ---------- 画布尺寸 ----------
@@ -20,7 +19,7 @@ const SYMBOLS = [
   { key: "mushroom", label: "🍄", color: "#c77dff", multiplier: 4 },
 ];
 
-// ---------- 中奖概率表（结果导向，横屏主游戏 / 竖屏迷你机共用）----------
+// ---------- 中奖概率表（结果导向）----------
 // 说明：三个轮子若各自独立均匀随机（原实现），"任意两个相同"的概率会被
 // 组合数学自动放大到 ~37%，加上固定 25800 的 JACKPOT，实测综合期望回报率
 // (RTP) 超过 200%，余额会持续暴涨。这里改为「先按目标概率决定这一把的
@@ -46,7 +45,7 @@ const JACKPOT_WEIGHT = 320; // 约 1/3125 把出一次三连 7️⃣
 const PAIR_WEIGHT = 270000; // 27% 出对子
 // 实测 1000 万把模拟 RTP ≈ 87%：约 71.6% 空手、27% 中对子(2x)、
 // ~1.3% 中三连(4x~20x)、~0.032% 中 JACKPOT（金额随每把下注的 5% 持续
-// 累积，命中后按当前下注比例回落到基础值，见 playJackpot() / 竖屏 spin）。
+// 累积，命中后按当前下注比例回落到基础值，见 playJackpot()）。
 
 function buildSpinOutcomeTable() {
   const table = [{ type: "pair", weight: PAIR_WEIGHT }];
@@ -102,8 +101,7 @@ function rollSpinResult() {
   return [shuffled[0], shuffled[1], shuffled[2]];
 }
 
-// 判定三个轮子结果的中奖类型与金额：横屏 checkWin() 与竖屏迷你机共用同一份逻辑，
-// 避免赔率表/判定条件各写一份、以后改一处忘改另一处
+// 判定三个轮子结果的中奖类型与金额（横屏 checkWin 唯一入口）
 function evaluateSpinResult(a, b, c, bet, jackpotValue) {
   const isThreeOfAKind = a.key === b.key && b.key === c.key;
   const isJackpot = isThreeOfAKind && a.key === "seven";

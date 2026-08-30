@@ -2017,7 +2017,8 @@ class SlotGame extends Phaser.Scene {
 
 /* 万锦老虎机 - 自动拆分自单文件版 */
 
-        SlotGame.prototype.updateDisplay = function() {
+        // skipSave=true：只刷新 UI（横竖屏拉回存档时用，避免读完立刻再写）
+        SlotGame.prototype.updateDisplay = function(skipSave) {
           fitTextToBox(
             this.balanceValue,
             this.formatInt(this.balance),
@@ -2046,7 +2047,7 @@ class SlotGame extends Phaser.Scene {
             14,
           );
 
-          this.saveGameState();
+          if (!skipSave) this.saveGameState();
         };
 
 
@@ -2245,11 +2246,19 @@ class SlotGame extends Phaser.Scene {
             if (!raw) return;
 
             const saved = JSON.parse(raw);
-            if (typeof saved.balance === "number") this.balance = Math.round(saved.balance);
-            if (typeof saved.bet === "number") this.bet = Math.round(saved.bet);
-            if (typeof saved.jackpotValue === "number")
+            // 只接受有限数字，统一取整，避免脏数据/浮点污染
+            if (typeof saved.balance === "number" && Number.isFinite(saved.balance)) {
+              this.balance = Math.round(saved.balance);
+            }
+            if (typeof saved.bet === "number" && Number.isFinite(saved.bet)) {
+              this.bet = Math.round(saved.bet);
+            }
+            if (typeof saved.jackpotValue === "number" && Number.isFinite(saved.jackpotValue)) {
               this.jackpotValue = Math.round(saved.jackpotValue);
-            if (typeof saved.lastWin === "number") this.lastWin = Math.round(saved.lastWin);
+            }
+            if (typeof saved.lastWin === "number" && Number.isFinite(saved.lastWin)) {
+              this.lastWin = Math.round(saved.lastWin);
+            }
             if (saved.mode === "NORMAL" || saved.mode === "FAST") this.mode = saved.mode;
             if (typeof saved.sfxEnabled === "boolean") this.sfx.enabled = saved.sfxEnabled;
           } catch (err) {
@@ -2258,26 +2267,60 @@ class SlotGame extends Phaser.Scene {
         };
 
 
-        SlotGame.prototype.saveGameState = function() {
-          try {
-            if (typeof window === "undefined" || !window.localStorage) return;
-            const payload = JSON.stringify({
-              balance: Math.round(this.balance),
-              bet: Math.round(this.bet),
-              jackpotValue: Math.round(this.jackpotValue),
-              lastWin: Math.round(this.lastWin),
-              mode: this.mode,
-              sfxEnabled: !!this.sfx.enabled,
-              // 音乐状态同步写入，便于恢复
-              musicEnabled: !!bgMusic.enabled,
-              musicPlayMode: bgMusic.playMode,
-              musicCurrentNum: bgMusic.currentNum,
-            });
-            window.localStorage.setItem("wanjin_slot_save", payload);
-            localStorage.setItem("bgMusicEnabled", String(!!bgMusic.enabled));
-            localStorage.setItem("bgMusicPlayMode", bgMusic.playMode || "order");
-            localStorage.setItem("bgMusicCurrentNum", String(bgMusic.currentNum || 1));
-          } catch (err) {
-            // 存储空间已满或浏览器禁用了 localStorage：静默忽略，不影响游戏运行
+        /**
+         * 写入存档。
+         * @param {boolean} [immediate] 为 true 时跳过合并、立刻落盘（切竖屏前必须）
+         * 常规路径：50ms 合并，减少转轮/UI 高频刷新时的重复 setItem。
+         */
+        SlotGame.prototype.saveGameState = function(immediate) {
+          const self = this;
+          const run = function () {
+            self._saveTimer = 0;
+            try {
+              if (typeof window === "undefined" || !window.localStorage) return;
+              const bal = Math.round(Number(self.balance) || 0);
+              const bet = Math.round(Number(self.bet) || 0);
+              const jp = Math.round(Number(self.jackpotValue) || 0);
+              const lw = Math.round(Number(self.lastWin) || 0);
+              const musicEnabled = !!(typeof bgMusic !== "undefined" && bgMusic.enabled);
+              const musicPlayMode =
+                (typeof bgMusic !== "undefined" && bgMusic.playMode) || "order";
+              const musicCurrentNum =
+                (typeof bgMusic !== "undefined" && bgMusic.currentNum) || 1;
+
+              // 内容未变则跳过写入，减 I/O
+              const payload = JSON.stringify({
+                balance: bal,
+                bet: bet,
+                jackpotValue: jp,
+                lastWin: lw,
+                mode: self.mode,
+                sfxEnabled: !!(self.sfx && self.sfx.enabled),
+                musicEnabled: musicEnabled,
+                musicPlayMode: musicPlayMode,
+                musicCurrentNum: musicCurrentNum,
+              });
+              if (self._lastSavePayload === payload) return;
+              self._lastSavePayload = payload;
+
+              window.localStorage.setItem("wanjin_slot_save", payload);
+              // 独立键给外部留声机（只认 bgMusic*）读
+              localStorage.setItem("bgMusicEnabled", String(musicEnabled));
+              localStorage.setItem("bgMusicPlayMode", musicPlayMode);
+              localStorage.setItem("bgMusicCurrentNum", String(musicCurrentNum));
+            } catch (err) {
+              // 存储满 / 禁用：静默忽略
+            }
+          };
+
+          if (immediate) {
+            if (self._saveTimer) {
+              clearTimeout(self._saveTimer);
+              self._saveTimer = 0;
+            }
+            run();
+            return;
           }
+          if (self._saveTimer) return;
+          self._saveTimer = setTimeout(run, 50);
         };

@@ -1,11 +1,12 @@
 /* ============================================================
- * 应用启动 + 横竖屏切换控制
- * 依赖：Phaser、SlotGame（slot-game.js）、bgMusic（bg-music.js）、
- * window.__phonograph（phonograph.js 暴露的 start/stop/sync）。
- * 必须在以上文件之后加载，是整个页面的最后一块拼图。
+ * 应用启动 + 横竖屏切换
+ * 竖屏：iframe → https://totp99.github.io/Mp3-player/
+ * 横屏：Phaser 老虎机
+ * 状态：同源 localStorage（wanjin_slot_save + bgMusic*）
  * ============================================================ */
 
-// ---------- 启动 Phaser 游戏 ----------
+var MP3_PLAYER_URL = "https://totp99.github.io/Mp3-player/";
+
 (function bootstrapGame() {
   const config = {
     type: Phaser.AUTO,
@@ -28,33 +29,32 @@
     scene: SlotGame,
   };
 
-  const slotGame = new Phaser.Game(config);
-  window.__slotGame = slotGame;
+  window.__slotGame = new Phaser.Game(config);
 
-  // 首点解锁音频（iOS / 部分 Android 需用户手势）
   function unlockAudioOnce() {
     try {
-      // 优先唤醒游戏实际使用的 SoundFX，而不是另开一个马上关闭的 AudioContext
-      const gameScene =
+      const sc =
         window.__slotGameScene ||
-        (window.__slotGame && window.__slotGame.scene && window.__slotGame.scene.getScenes()[0]);
-      if (gameScene && gameScene.sfx) {
-        gameScene.sfx.enabled = true;
-        gameScene.sfx.init();
-        gameScene.sfx.warmup();
+        (window.__slotGame &&
+          window.__slotGame.scene &&
+          window.__slotGame.scene.getScenes()[0]);
+      if (sc && sc.sfx) {
+        sc.sfx.enabled = true;
+        sc.sfx.init();
+        sc.sfx.warmup();
       } else {
         const AC = window.AudioContext || window.webkitAudioContext;
         if (AC) {
           const ctx = new AC();
           if (ctx.state === "suspended") {
             const r = ctx.resume();
-            if (r && typeof r.catch === "function") r.catch(() => {});
+            if (r && typeof r.catch === "function") r.catch(function () {});
           }
         }
       }
     } catch (e) {}
     try {
-      bgMusic.tryPlay(); // 首次用户手势时启动背景音乐（若已开启）
+      bgMusic.tryPlay();
     } catch (e) {}
     document.removeEventListener("touchstart", unlockAudioOnce, true);
     document.removeEventListener("mousedown", unlockAudioOnce, true);
@@ -63,57 +63,116 @@
   document.addEventListener("touchstart", unlockAudioOnce, true);
   document.addEventListener("mousedown", unlockAudioOnce, true);
   document.addEventListener("keydown", unlockAudioOnce, true);
-  document.addEventListener("visibilitychange", function () {
-    if (!document.hidden) {
-      try { bgMusic.tryPlay(); } catch (e) {}
-    }
-  });
 
-  // 注：canvas 的尺寸/居中完全交给上面 scale.mode = Phaser.Scale.FIT 处理。
-  // 早期版本这里还有一个 fitGameCanvas()，在 resize/orientationchange 时把
-  // canvas 的 style.width/height 强行改成 "100%"，这会在 Phaser 自己算完
-  // letterbox 尺寸之后又把它覆盖掉；如果 #game/#game-wrapper 的尺寸又依赖
-  // canvas 撑开，就会出现「Phaser 算尺寸 → 被强行改成 100% → 容器尺寸变化
-  // → 又触发一次 resize → Phaser 再算 → 又被覆盖……」的抖动/死循环，这正是
-  // 横竖屏来回切换时页面卡死、必须刷新才能恢复的根因。已删除该函数与它绑定
-  // 的 resize / orientationchange 监听，不再和 Scale.FIT 抢控制权。
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) return;
+    try {
+      if (
+        window.matchMedia &&
+        window.matchMedia("(orientation: landscape)").matches
+      ) {
+        bgMusic.tryPlay();
+      }
+    } catch (e) {}
+  });
 
   window.addEventListener("beforeunload", function () {
     try {
-      if (window.__slotGameScene && window.__slotGameScene.clockTimer) {
-        clearInterval(window.__slotGameScene.clockTimer);
-        window.__slotGameScene.clockTimer = null;
+      const sc = window.__slotGameScene;
+      if (sc && sc.clockTimer) {
+        clearInterval(sc.clockTimer);
+        sc.clockTimer = null;
       }
+      if (sc && typeof sc.saveGameState === "function") sc.saveGameState(true);
     } catch (e) {}
   });
 })();
 
-// ---------- 横竖屏切换：竖屏留声机 / 横屏老虎机 ----------
 (function setupOrientationTransition() {
   const tip = document.getElementById("rotate-tip");
   const gameEl = document.getElementById("game");
+  const frame = document.getElementById("mp3-frame");
   if (!tip || !gameEl) return;
 
   let lastPortrait = null;
-  let switching = false; // 防止 sleep/wake 过程中被二次切入
+  let switching = false;
   let debounceTimer = 0;
+  let stabilizeTimer = 0;
+  let pendingPortrait = null;
+  let frameLoaded = false;
 
-  // 竖屏时老虎机画布被留声机盖住看不见，但如果不主动暂停，Phaser 的渲染/
-  // 更新循环（含多个 repeat:-1 的呼吸动画）会继续在后台全速跑，
-  // 和留声机自己的 requestAnimationFrame 循环叠在一起。手机上长时间
-  // 来回切横竖屏，双重循环很容易把主线程/GPU 顶到卡死。
-  // 策略：竖屏彻底挂起 Phaser 主循环 + 停掉场景外 setInterval；
-  //       横屏先停留声机 rAF，再唤醒 Phaser。同一时刻只跑一套循环。
+  const isIOS =
+    /iPad|iPhone|iPod/i.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1) ||
+    (!!navigator.vendor &&
+      navigator.vendor.indexOf("Apple") >= 0 &&
+      "ontouchend" in document);
 
   function getScene() {
     return window.__slotGameScene || null;
   }
-
   function getGame() {
     return window.__slotGame || null;
   }
 
-  /** 停掉场景里不随 game.loop.sleep 自动停的定时器（时钟 250ms） */
+  /** 同步写出：切竖屏前必须立刻落盘，不能 debounce */
+  function flushStateOut() {
+    try {
+      const sc = getScene();
+      if (sc && typeof sc.saveGameState === "function") {
+        sc.saveGameState(true);
+      }
+    } catch (e) {}
+  }
+
+  /**
+   * 从 localStorage 精确读回竖屏改过的数据。
+   * updateDisplay(true) 只刷新 UI，不再二次写入。
+   */
+  function pullStateIn() {
+    try {
+      const sc = getScene();
+      if (sc && typeof sc.loadGameState === "function") {
+        sc.loadGameState();
+        if (typeof sc.updateDisplay === "function") sc.updateDisplay(true);
+        if (typeof sc.refreshTrackLabel === "function") sc.refreshTrackLabel();
+        if (typeof sc.refreshPlayPauseIcon === "function")
+          sc.refreshPlayPauseIcon();
+      }
+    } catch (e) {}
+
+    // 曲号 / 模式：竖屏播放器可能已改写 bgMusic* 键
+    try {
+      if (typeof bgMusic === "undefined") return;
+      const n = parseInt(localStorage.getItem("bgMusicCurrentNum") || "", 10);
+      if (
+        Number.isFinite(n) &&
+        n >= 1 &&
+        n !== bgMusic.currentNum &&
+        typeof bgMusic._loadTrack === "function"
+      ) {
+        const playing = bgMusic.isPlaying();
+        bgMusic._loadTrack(n);
+        if (playing && bgMusic.enabled) bgMusic.tryPlay();
+      }
+      const mode = localStorage.getItem("bgMusicPlayMode");
+      if (
+        mode &&
+        mode !== bgMusic.playMode &&
+        typeof bgMusic.setPlayMode === "function"
+      ) {
+        bgMusic.setPlayMode(mode);
+      }
+      const en = localStorage.getItem("bgMusicEnabled");
+      if (en === "true" || en === "false") {
+        const want = en === "true";
+        if (want !== bgMusic.enabled && typeof bgMusic.setEnabled === "function") {
+          bgMusic.setEnabled(want);
+        }
+      }
+    } catch (e) {}
+  }
+
   function pauseSceneTimers() {
     try {
       const sc = getScene();
@@ -124,103 +183,153 @@
     } catch (e) {}
   }
 
-  /** 横屏恢复后重新挂上时钟定时器 */
   function resumeSceneTimers() {
     try {
       const sc = getScene();
-      if (!sc) return;
-      if (sc.clockTimer) return;
-      if (typeof sc.updateLiveClock === "function") {
-        sc.updateLiveClock();
-        sc.clockTimer = setInterval(function () {
-          try {
-            sc.updateLiveClock();
-          } catch (e) {}
-        }, 250);
-      }
+      if (!sc || sc.clockTimer) return;
+      if (typeof sc.updateLiveClock !== "function") return;
+      sc.updateLiveClock();
+      sc.clockTimer = setInterval(function () {
+        try {
+          sc.updateLiveClock();
+        } catch (e) {}
+      }, 250);
     } catch (e) {}
   }
 
   function sleepGame() {
     const g = getGame();
     if (!g) return;
-    try {
-      // 先挂起主循环（停止 rAF / step）
-      if (g.loop && !g.loop.sleeping) {
-        g.loop.sleep();
-      }
-    } catch (e) {}
-    try {
-      // Phaser 3.60+：整局 pause，进一步切断输入与部分内部调度
-      if (typeof g.pause === "function" && !g.isPaused) {
-        g.pause();
-      }
-    } catch (e) {}
-    try {
-      // 场景 sleep：不 update / 不 render，但保留对象，方便回来 wake
-      if (g.scene && typeof g.scene.sleep === "function") {
-        const scenes = g.scene.getScenes(true);
-        for (let i = 0; i < scenes.length; i++) {
-          const key = scenes[i].sys && scenes[i].sys.settings && scenes[i].sys.settings.key;
-          if (key) g.scene.sleep(key);
-        }
-      }
-    } catch (e) {}
     pauseSceneTimers();
+    try {
+      if (g.canvas) {
+        g.canvas.style.visibility = "hidden";
+        g.canvas.style.pointerEvents = "none";
+      }
+    } catch (e) {}
+    try {
+      if (typeof bgMusic !== "undefined") bgMusic.pause();
+    } catch (e) {}
+
+    // Safari：禁止 loop.sleep / game.pause，否则旋转会死锁
+    if (isIOS) {
+      try {
+        const sc = getScene();
+        if (sc && sc.sys && typeof sc.sys.pause === "function" && !sc.sys.isPaused()) {
+          sc.sys.pause();
+        }
+      } catch (e) {}
+      try {
+        if (g.scene && typeof g.scene.pause === "function") g.scene.pause("SlotGame");
+      } catch (e) {}
+      return;
+    }
+
+    try {
+      if (g.scene && typeof g.scene.sleep === "function") {
+        try {
+          g.scene.sleep("SlotGame");
+        } catch (e2) {}
+      }
+    } catch (e) {}
+    try {
+      if (g.loop && !g.loop.sleeping) g.loop.sleep();
+    } catch (e) {}
+    try {
+      if (typeof g.pause === "function" && !g.isPaused) g.pause();
+    } catch (e) {}
   }
 
   function wakeGame() {
     const g = getGame();
     if (!g) return;
+
+    if (isIOS) {
+      try {
+        if (g.scene && typeof g.scene.resume === "function") g.scene.resume("SlotGame");
+      } catch (e) {}
+      try {
+        const sc = getScene();
+        if (sc && sc.sys && typeof sc.sys.resume === "function" && sc.sys.isPaused()) {
+          sc.sys.resume();
+        }
+      } catch (e) {}
+      resumeSceneTimers();
+      setTimeout(function () {
+        try {
+          const gg = getGame();
+          if (gg && gg.canvas) {
+            gg.canvas.style.visibility = "";
+            gg.canvas.style.pointerEvents = "";
+          }
+          if (gg && gg.scale && typeof gg.scale.refresh === "function") gg.scale.refresh();
+        } catch (e) {}
+      }, 400);
+      return;
+    }
+
     try {
-      if (typeof g.resume === "function" && g.isPaused) {
-        g.resume();
-      }
+      if (typeof g.resume === "function" && g.isPaused) g.resume();
     } catch (e) {}
     try {
       if (g.scene && typeof g.scene.wake === "function") {
-        const scenes = g.scene.getScenes(false);
-        for (let i = 0; i < scenes.length; i++) {
-          const sys = scenes[i].sys;
-          if (!sys) continue;
-          const sleeping =
-            (typeof sys.isSleeping === "function" && sys.isSleeping()) ||
-            (sys.settings && sys.settings.active === false && sys.settings.visible === false);
-          if (sleeping && sys.settings && sys.settings.key) {
-            g.scene.wake(sys.settings.key);
-          }
-        }
-        // 兜底：本项目只有 SlotGame 一个场景
         try {
           g.scene.wake("SlotGame");
         } catch (e2) {}
       }
     } catch (e) {}
     try {
-      if (g.loop && g.loop.sleeping) {
-        g.loop.wake();
-      }
+      if (g.loop && g.loop.sleeping) g.loop.wake();
     } catch (e) {}
     resumeSceneTimers();
-    // 方向稳定后再让 Scale 对齐一次，避免旋转过程中半截尺寸卡住
     try {
-      if (g.scale && typeof g.scale.refresh === "function") {
-        g.scale.refresh();
+      if (g.canvas) {
+        g.canvas.style.visibility = "";
+        g.canvas.style.pointerEvents = "";
       }
     } catch (e) {}
+    setTimeout(function () {
+      try {
+        const gg = getGame();
+        if (gg && gg.scale && typeof gg.scale.refresh === "function") gg.scale.refresh();
+      } catch (e) {}
+    }, 280);
+  }
+
+  function ensureFrame() {
+    if (!frame) return;
+    // 每次进竖屏重新加载，保证读到最新 localStorage
+    frame.src = MP3_PLAYER_URL;
+    frameLoaded = true;
+  }
+
+  function unloadFrame() {
+    if (!frame) return;
+    try {
+      frame.src = "about:blank";
+    } catch (e) {}
+    frameLoaded = false;
   }
 
   function apply(portrait, animate) {
-    if (portrait === lastPortrait) return;
-    if (switching) return;
+    if (portrait === lastPortrait) {
+      pendingPortrait = null;
+      return;
+    }
+    if (switching) {
+      pendingPortrait = portrait;
+      return;
+    }
     switching = true;
+    pendingPortrait = null;
     lastPortrait = portrait;
 
     try {
       if (portrait) {
-        // 竖屏：先挂起 Phaser（含定时器），再开留声机 —— 保证不会双循环
+        flushStateOut();
         gameEl.classList.add("dimmed");
         sleepGame();
+        ensureFrame();
         if (animate && window.requestAnimationFrame) {
           requestAnimationFrame(function () {
             tip.classList.add("show");
@@ -228,26 +337,33 @@
         } else {
           tip.classList.add("show");
         }
-        if (window.__phonograph) window.__phonograph.start();
       } else {
-        // 横屏：先停留声机 rAF，再唤醒 Phaser
         tip.classList.remove("show");
-        if (window.__phonograph) window.__phonograph.stop();
+        unloadFrame();
+        pullStateIn();
         wakeGame();
         if (animate) {
           setTimeout(function () {
             gameEl.classList.remove("dimmed");
-          }, 420);
+          }, isIOS ? 450 : 360);
         } else {
           gameEl.classList.remove("dimmed");
         }
-        if (window.__phonograph) window.__phonograph.sync();
+        try {
+          if (typeof bgMusic !== "undefined" && bgMusic.enabled) bgMusic.tryPlay();
+        } catch (e) {}
       }
     } finally {
-      // 短延迟后再允许下一次切换，吞掉 orientation + resize + matchMedia 连发
       setTimeout(function () {
         switching = false;
-      }, 200);
+        if (pendingPortrait !== null && pendingPortrait !== lastPortrait) {
+          const p = pendingPortrait;
+          pendingPortrait = null;
+          apply(p, false);
+        } else {
+          pendingPortrait = null;
+        }
+      }, isIOS ? 600 : 480);
     }
   }
 
@@ -257,41 +373,49 @@
         return window.matchMedia("(orientation: portrait)").matches;
       }
     } catch (e) {}
+    if (typeof window.orientation === "number") {
+      return Math.abs(window.orientation) !== 90;
+    }
     return window.innerHeight > window.innerWidth;
   }
 
-  function check(animate) {
-    apply(isPortrait(), animate);
-  }
-
-  /** 合并 orientationchange / resize / matchMedia 的连发，只在方向真正稳定后处理一次 */
   function scheduleCheck(animate) {
     if (debounceTimer) clearTimeout(debounceTimer);
+    if (stabilizeTimer) clearTimeout(stabilizeTimer);
     debounceTimer = setTimeout(function () {
       debounceTimer = 0;
-      check(!!animate);
-    }, 120);
+      var w1 = window.innerWidth || 0;
+      var h1 = window.innerHeight || 0;
+      stabilizeTimer = setTimeout(function () {
+        stabilizeTimer = 0;
+        var w2 = window.innerWidth || 0;
+        var h2 = window.innerHeight || 0;
+        if (w1 !== w2 || h1 !== h2) {
+          scheduleCheck(animate);
+          return;
+        }
+        apply(isPortrait(), !!animate);
+      }, isIOS ? 120 : 80);
+    }, isIOS ? 220 : 180);
   }
 
-  check(false);
+  apply(isPortrait(), false);
 
-  const onChange = function () {
+  function onChange() {
+    if (switching) {
+      pendingPortrait = isPortrait();
+      return;
+    }
     scheduleCheck(true);
-  };
+  }
 
-  // 只挂必要监听：matchMedia 是方向权威来源；resize 作兜底但走 debounce
-  // orientationchange 在部分机型上比 matchMedia 更早/更晚，同样 debounce 合并
   window.addEventListener("orientationchange", onChange);
   window.addEventListener("resize", onChange);
-
   try {
     if (window.matchMedia) {
       const mql = window.matchMedia("(orientation: portrait)");
-      if (mql.addEventListener) {
-        mql.addEventListener("change", onChange);
-      } else if (mql.addListener) {
-        mql.addListener(onChange);
-      }
+      if (mql.addEventListener) mql.addEventListener("change", onChange);
+      else if (mql.addListener) mql.addListener(onChange);
     }
   } catch (e) {}
 })();
