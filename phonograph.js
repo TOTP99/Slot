@@ -323,6 +323,13 @@
         }
 
         function startPh() {
+          // 已在跑则只做一次 UI 同步，避免重复挂 rAF
+          if (phActive) {
+            updateClock();
+            syncWallet();
+            syncPlayUi();
+            return;
+          }
           phActive = true;
           updateClock();
           syncWallet();
@@ -336,8 +343,10 @@
 
         function stopPh() {
           phActive = false;
-          if (raf) cancelAnimationFrame(raf);
-          raf = 0;
+          if (raf) {
+            cancelAnimationFrame(raf);
+            raf = 0;
+          }
         }
 
         // 从后台回到前台：若竖屏留声机仍激活则恢复动画

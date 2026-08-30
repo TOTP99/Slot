@@ -82,6 +82,7 @@
     try {
       if (window.__slotGameScene && window.__slotGameScene.clockTimer) {
         clearInterval(window.__slotGameScene.clockTimer);
+        window.__slotGameScene.clockTimer = null;
       }
     } catch (e) {}
   });
@@ -90,60 +91,163 @@
 // ---------- 横竖屏切换：竖屏留声机 / 横屏老虎机 ----------
 (function setupOrientationTransition() {
   const tip = document.getElementById("rotate-tip");
-  const game = document.getElementById("game");
-  if (!tip || !game) return;
+  const gameEl = document.getElementById("game");
+  if (!tip || !gameEl) return;
 
   let lastPortrait = null;
+  let switching = false; // 防止 sleep/wake 过程中被二次切入
+  let debounceTimer = 0;
 
   // 竖屏时老虎机画布被留声机盖住看不见，但如果不主动暂停，Phaser 的渲染/
-  // 更新循环（含多个 repeat:-1 的呼吸动画、EQ 频谱采样）会继续在后台全速跑，
-  // 和留声机自己的 requestAnimationFrame 循环叠在一起，同时还各自去采样/
-  // 操作同一个 WebAudio AnalyserNode。手机上长时间来回切横竖屏，这种双重
-  // 循环叠加很容易把主线程/GPU 顶到卡死，必须刷新页面才能恢复。
-  // 用 game.loop.sleep()/wake() 彻底挂起 Phaser 的动画帧循环，
-  // 而不只是用 CSS 把画布调暗——同一时间只有一套循环在跑。
-  function sleepGame() {
+  // 更新循环（含多个 repeat:-1 的呼吸动画）会继续在后台全速跑，
+  // 和留声机自己的 requestAnimationFrame 循环叠在一起。手机上长时间
+  // 来回切横竖屏，双重循环很容易把主线程/GPU 顶到卡死。
+  // 策略：竖屏彻底挂起 Phaser 主循环 + 停掉场景外 setInterval；
+  //       横屏先停留声机 rAF，再唤醒 Phaser。同一时刻只跑一套循环。
+
+  function getScene() {
+    return window.__slotGameScene || null;
+  }
+
+  function getGame() {
+    return window.__slotGame || null;
+  }
+
+  /** 停掉场景里不随 game.loop.sleep 自动停的定时器（时钟 250ms） */
+  function pauseSceneTimers() {
     try {
-      if (window.__slotGame && window.__slotGame.loop && !window.__slotGame.loop.sleeping) {
-        window.__slotGame.loop.sleep();
+      const sc = getScene();
+      if (sc && sc.clockTimer) {
+        clearInterval(sc.clockTimer);
+        sc.clockTimer = null;
       }
     } catch (e) {}
   }
-  function wakeGame() {
+
+  /** 横屏恢复后重新挂上时钟定时器 */
+  function resumeSceneTimers() {
     try {
-      if (window.__slotGame && window.__slotGame.loop && window.__slotGame.loop.sleeping) {
-        window.__slotGame.loop.wake();
+      const sc = getScene();
+      if (!sc) return;
+      if (sc.clockTimer) return;
+      if (typeof sc.updateLiveClock === "function") {
+        sc.updateLiveClock();
+        sc.clockTimer = setInterval(function () {
+          try {
+            sc.updateLiveClock();
+          } catch (e) {}
+        }, 250);
+      }
+    } catch (e) {}
+  }
+
+  function sleepGame() {
+    const g = getGame();
+    if (!g) return;
+    try {
+      // 先挂起主循环（停止 rAF / step）
+      if (g.loop && !g.loop.sleeping) {
+        g.loop.sleep();
+      }
+    } catch (e) {}
+    try {
+      // Phaser 3.60+：整局 pause，进一步切断输入与部分内部调度
+      if (typeof g.pause === "function" && !g.isPaused) {
+        g.pause();
+      }
+    } catch (e) {}
+    try {
+      // 场景 sleep：不 update / 不 render，但保留对象，方便回来 wake
+      if (g.scene && typeof g.scene.sleep === "function") {
+        const scenes = g.scene.getScenes(true);
+        for (let i = 0; i < scenes.length; i++) {
+          const key = scenes[i].sys && scenes[i].sys.settings && scenes[i].sys.settings.key;
+          if (key) g.scene.sleep(key);
+        }
+      }
+    } catch (e) {}
+    pauseSceneTimers();
+  }
+
+  function wakeGame() {
+    const g = getGame();
+    if (!g) return;
+    try {
+      if (typeof g.resume === "function" && g.isPaused) {
+        g.resume();
+      }
+    } catch (e) {}
+    try {
+      if (g.scene && typeof g.scene.wake === "function") {
+        const scenes = g.scene.getScenes(false);
+        for (let i = 0; i < scenes.length; i++) {
+          const sys = scenes[i].sys;
+          if (!sys) continue;
+          const sleeping =
+            (typeof sys.isSleeping === "function" && sys.isSleeping()) ||
+            (sys.settings && sys.settings.active === false && sys.settings.visible === false);
+          if (sleeping && sys.settings && sys.settings.key) {
+            g.scene.wake(sys.settings.key);
+          }
+        }
+        // 兜底：本项目只有 SlotGame 一个场景
+        try {
+          g.scene.wake("SlotGame");
+        } catch (e2) {}
+      }
+    } catch (e) {}
+    try {
+      if (g.loop && g.loop.sleeping) {
+        g.loop.wake();
+      }
+    } catch (e) {}
+    resumeSceneTimers();
+    // 方向稳定后再让 Scale 对齐一次，避免旋转过程中半截尺寸卡住
+    try {
+      if (g.scale && typeof g.scale.refresh === "function") {
+        g.scale.refresh();
       }
     } catch (e) {}
   }
 
   function apply(portrait, animate) {
     if (portrait === lastPortrait) return;
+    if (switching) return;
+    switching = true;
     lastPortrait = portrait;
 
-    if (portrait) {
-      game.classList.add("dimmed");
-      if (animate && window.requestAnimationFrame) {
-        requestAnimationFrame(function () {
+    try {
+      if (portrait) {
+        // 竖屏：先挂起 Phaser（含定时器），再开留声机 —— 保证不会双循环
+        gameEl.classList.add("dimmed");
+        sleepGame();
+        if (animate && window.requestAnimationFrame) {
+          requestAnimationFrame(function () {
+            tip.classList.add("show");
+          });
+        } else {
           tip.classList.add("show");
-        });
+        }
+        if (window.__phonograph) window.__phonograph.start();
       } else {
-        tip.classList.add("show");
+        // 横屏：先停留声机 rAF，再唤醒 Phaser
+        tip.classList.remove("show");
+        if (window.__phonograph) window.__phonograph.stop();
+        wakeGame();
+        if (animate) {
+          setTimeout(function () {
+            gameEl.classList.remove("dimmed");
+          }, 420);
+        } else {
+          gameEl.classList.remove("dimmed");
+        }
+        if (window.__phonograph) window.__phonograph.sync();
       }
-      sleepGame();
-      if (window.__phonograph) window.__phonograph.start();
-    } else {
-      tip.classList.remove("show");
-      if (window.__phonograph) window.__phonograph.stop();
-      wakeGame();
-      if (animate) {
-        setTimeout(function () {
-          game.classList.remove("dimmed");
-        }, 420);
-      } else {
-        game.classList.remove("dimmed");
-      }
-      if (window.__phonograph) window.__phonograph.sync();
+    } finally {
+      // 短延迟后再允许下一次切换，吞掉 orientation + resize + matchMedia 连发
+      setTimeout(function () {
+        switching = false;
+      }, 200);
     }
   }
 
@@ -160,11 +264,23 @@
     apply(isPortrait(), animate);
   }
 
+  /** 合并 orientationchange / resize / matchMedia 的连发，只在方向真正稳定后处理一次 */
+  function scheduleCheck(animate) {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(function () {
+      debounceTimer = 0;
+      check(!!animate);
+    }, 120);
+  }
+
   check(false);
 
   const onChange = function () {
-    check(true);
+    scheduleCheck(true);
   };
+
+  // 只挂必要监听：matchMedia 是方向权威来源；resize 作兜底但走 debounce
+  // orientationchange 在部分机型上比 matchMedia 更早/更晚，同样 debounce 合并
   window.addEventListener("orientationchange", onChange);
   window.addEventListener("resize", onChange);
 
