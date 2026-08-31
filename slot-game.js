@@ -61,7 +61,9 @@ class SlotGame extends Phaser.Scene {
           // 老虎机机身 + 拉杆的放大分组：先建好容器，createMachine/createReels/
           // createRightControls 会把各自的显示对象塞进来。
           this.machineScaleGroup = this.add.container(0, 0);
-          // 画面背景完全由 Phaser 游戏配置的 backgroundColor 承担，此处无需额外绘制。
+          // 画面背景改为径向渐变 + 暗角（见 createBackdrop），
+          // 不再单纯依赖 Phaser 游戏配置的纯色 backgroundColor。
+          this.createBackdrop();
           this.createHeader();
           this.loadGameState(); // 读取本机浏览器存档：余额 / 下注 / 奖池
           this.createPaytableButton();
@@ -83,6 +85,43 @@ class SlotGame extends Phaser.Scene {
 }
 
 /* 万锦老虎机 - 自动拆分自单文件版 */
+
+        // 全屏背景：径向渐变（中心微暖 → 边缘压暗）+ 暗角（四角最暗）。
+        // 用同心圆逐层叠色近似"径向渐变"（Phaser Graphics 原生只支持
+        // 线性渐变，没有径向渐变 API），圆心取画布正中，半径取到角
+        // 的距离，天然让四角比上下左右边缘更暗，形成暗角效果——
+        // 不需要再叠加一层单独的暗角逻辑。一次性绘制，不参与动画。
+        SlotGame.prototype.createBackdrop = function() {
+          const cx = GAME_WIDTH / 2;
+          const cy = GAME_HEIGHT / 2;
+          const maxR = Math.hypot(cx, cy) + 20; // 略超出角部，避免边缘留白
+
+          // 中心色：暗中带一点点暖金褐调，呼应整体金色主题；
+          // 边缘/四角色：压到近纯黑，制造聚光灯打在机身上的深邃感。
+          const centerColor = Phaser.Display.Color.ValueToColor(0x181206);
+          const edgeColor = Phaser.Display.Color.ValueToColor(0x030202);
+
+          const gfx = this.add.graphics().setDepth(-1000);
+          const steps = 48;
+          for (let i = steps; i >= 0; i--) {
+            const t = i / steps; // 1=边缘, 0=中心
+            const r = maxR * t;
+            const color = Phaser.Display.Color.Interpolate.ColorWithColor(
+              centerColor,
+              edgeColor,
+              steps,
+              i,
+            );
+            gfx.fillStyle(
+              Phaser.Display.Color.GetColor(color.r, color.g, color.b),
+              1,
+            );
+            gfx.fillCircle(cx, cy, r);
+          }
+          // maxR 已超过画布对角线半长，最外层的大圆天然覆盖到四角，
+          // 无需额外矩形兜底四角。
+        };
+
 
         // 颜色调亮/调暗：percent>0 变亮，<0 变暗。用于从单一 fill 色推出
         // 渐变的上下两级色阶，不需要每个调用点都手写一套配色。

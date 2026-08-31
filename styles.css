@@ -15,7 +15,9 @@ body {
   margin: 0;
   width: 100%;
   height: 100%;
-  background: #070006;
+  /* 与画布暗角的边缘色（#030202）统一，让竖屏黑边和画布边缘无缝衔接，
+     不再用旧的 #070006（和新的暗角边缘色有肉眼可辨的细微色差）。 */
+  background: #030202;
   overflow: hidden;
   touch-action: none;
   -ms-touch-action: none;
@@ -42,7 +44,7 @@ body {
   justify-content: center;
   -webkit-align-items: center;
   align-items: center;
-  background: #070006;
+  background: #030202;
   overflow: hidden;
 }
 

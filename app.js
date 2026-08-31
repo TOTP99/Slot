@@ -10,7 +10,9 @@
     width: GAME_WIDTH,
     height: GAME_HEIGHT,
     parent: "game",
-    backgroundColor: "#090b0b",
+    // 仅作为 create() 里 createBackdrop() 绘制完成前的极短兜底色，
+    // 与暗角边缘色 #030202 统一，避免加载瞬间出现色差闪烁。
+    backgroundColor: "#030202",
     banner: false,
     scale: {
       mode: Phaser.Scale.FIT,
