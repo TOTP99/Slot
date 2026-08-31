@@ -159,19 +159,11 @@ class SlotGame extends Phaser.Scene {
           const panel = this.add.graphics().setPosition(x, y);
           this.drawGradientPanel(panel, width, height, radius, topColor, bottomColor, alpha, UI.gold, 1.4);
 
-          // 玻璃感顶部高光：一条弧形亮带，让平面看起来有反光曲面
-          const highlight = this.add.graphics().setPosition(x, y);
-          highlight.fillStyle(0xffffff, 0.05);
-          highlight.fillRoundedRect(
-            -width / 2 + 3,
-            -height / 2 + 2,
-            width - 6,
-            Math.max(4, height * 0.34),
-            Math.max(2, radius * 0.55),
-          );
+          // 原有"玻璃感顶部高光"（白色弧形亮带）已按需去掉——
+          // 面板本身的渐变 + 金边描边已经足够有质感，不需要额外的反光层。
 
-          if (hideGroup) hideGroup.push(glow, panel, highlight);
-          if (scaleGroup) scaleGroup.add([glow, panel, highlight]);
+          if (hideGroup) hideGroup.push(glow, panel);
+          if (scaleGroup) scaleGroup.add([glow, panel]);
 
           return panel;
         };
@@ -201,9 +193,9 @@ class SlotGame extends Phaser.Scene {
             .text(
               480,
               LAYOUT.jackpotY,
-              `⚿ Jackpot ${this.formatMoney(this.jackpotValue)}`,
+              `🏵️ Jackpot ${this.formatMoney(this.jackpotValue)}`,
               {
-                fontSize: "25px",
+                fontSize: "29px",
                 fontStyle: "bold",
                 fontFamily: 'Arial, sans-serif',
                 color: "#f0d58a",
@@ -381,7 +373,7 @@ class SlotGame extends Phaser.Scene {
               1,
             );
             const label = this.add
-              .text(lx, my, "三线", {
+              .text(lx, my, "🏵️", {
                 fontSize: "13px",
                 fontStyle: "bold",
                 color: "#f4ead0",
@@ -1058,8 +1050,29 @@ class SlotGame extends Phaser.Scene {
 
           const children = [];
 
+          // 遮罩：原来是一块均匀 72% 不透明度的纯黑矩形，像一块死板的玻璃盖在
+          // 整个画面上。改为真正的径向渐变——中心（弹窗所在处）只是薄薄一层，
+          // 隐约还能看到机身；越往四角走越暗，形成"聚光灯打在弹窗上"的氛围感，
+          // 和 createBackdrop() 的整体视觉语言保持一致。用 Canvas 2D 的原生径向
+          // 渐变（而不是 Graphics 同心圆硬替换的技巧），因为这里需要的是真正
+          // 透明度渐变，能透出下方场景，不是纯色不透明的背景板。
+          const overlayKey = "settingsOverlayGradient";
+          if (!this.textures.exists(overlayKey)) {
+            const rt = this.textures.createCanvas(overlayKey, GAME_WIDTH, GAME_HEIGHT);
+            const ctx = rt.getContext();
+            const grad = ctx.createRadialGradient(
+              cx, cy, 0,
+              cx, cy, Math.hypot(cx, cy),
+            );
+            grad.addColorStop(0, "rgba(0,0,0,0.32)");
+            grad.addColorStop(0.55, "rgba(0,0,0,0.6)");
+            grad.addColorStop(1, "rgba(0,0,0,0.86)");
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            rt.refresh();
+          }
           const overlay = this.add
-            .rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.72)
+            .image(0, 0, overlayKey)
             .setOrigin(0)
             .setInteractive();
           overlay.on("pointerdown", () => this.toggleSettingsModal(false));
@@ -1111,7 +1124,7 @@ class SlotGame extends Phaser.Scene {
             ["🍓🍓🍓", "×8"],
             ["🍒🍒🍒", "×6"],
             ["🍄🍄🍄", "×4"],
-            ["任意一对", "×2"],
+            ["Any pair", "×2"],
           ];
           const payStart = top + 28;
           const paySpacing = 46;
@@ -1200,15 +1213,15 @@ class SlotGame extends Phaser.Scene {
           let rowY = payStart;
           children.push(
             this.add
-              .text(rowLabelX, rowY, "速度", {
+              .text(rowLabelX, rowY, "SPEED", {
                 fontSize: "14px",
                 fontStyle: "bold",
                 color: "#ffd700",
               })
               .setOrigin(0, 0.5),
           );
-          const normalOpt = makeOptionButton(optAX, rowY, "正常");
-          const fastOpt = makeOptionButton(optBX, rowY, "加速");
+          const normalOpt = makeOptionButton(optAX, rowY, "NORMAL");
+          const fastOpt = makeOptionButton(optBX, rowY, "FAST");
           this.speedButtons = [
             { label: "NORMAL", btn: normalOpt.bg, txt: normalOpt.txt },
             { label: "FAST", btn: fastOpt.bg, txt: fastOpt.txt },
@@ -1232,15 +1245,15 @@ class SlotGame extends Phaser.Scene {
           rowY += 60;
           children.push(
             this.add
-              .text(rowLabelX, rowY, "自动", {
+              .text(rowLabelX, rowY, "AUTO", {
                 fontSize: "14px",
                 fontStyle: "bold",
                 color: "#ffd700",
               })
               .setOrigin(0, 0.5),
           );
-          const autoYesOpt = makeOptionButton(optAX, rowY, "是");
-          const autoNoOpt = makeOptionButton(optBX, rowY, "否");
+          const autoYesOpt = makeOptionButton(optAX, rowY, "YES");
+          const autoNoOpt = makeOptionButton(optBX, rowY, "NO");
           this.autoYesButton = autoYesOpt;
           this.autoNoButton = autoNoOpt;
           autoYesOpt.bg.on("pointerdown", (p, lx, ly, e) => {
@@ -1262,15 +1275,15 @@ class SlotGame extends Phaser.Scene {
           rowY += 60;
           children.push(
             this.add
-              .text(rowLabelX, rowY, "音效", {
+              .text(rowLabelX, rowY, "SOUND", {
                 fontSize: "14px",
                 fontStyle: "bold",
                 color: "#ffd700",
               })
               .setOrigin(0, 0.5),
           );
-          const soundOnOpt = makeOptionButton(optAX, rowY, "开启");
-          const soundOffOpt = makeOptionButton(optBX, rowY, "关闭");
+          const soundOnOpt = makeOptionButton(optAX, rowY, "ON");
+          const soundOffOpt = makeOptionButton(optBX, rowY, "OFF");
           this.soundOnButton = soundOnOpt;
           this.soundOffButton = soundOffOpt;
           soundOnOpt.bg.on("pointerdown", (p, lx, ly, e) => {
@@ -2212,10 +2225,10 @@ class SlotGame extends Phaser.Scene {
 
           fitTextToBox(
             this.jackpotText,
-            `⚿ Jackpot ${this.formatMoney(this.jackpotValue)}`,
+            `🏵️ Jackpot ${this.formatMoney(this.jackpotValue)}`,
             320,
-            21,
-            14,
+            24,
+            16,
           );
 
           if (!skipSave) this.saveGameState();
