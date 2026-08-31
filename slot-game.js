@@ -1,9 +1,4 @@
-/* ============================================================
- * 万锦老虎机 (Wanjin Slot Machine) — slot-game.js
- * 依赖（需先于本文件加载）：Phaser 3、config.js、layout.js、
- * sound-fx.js、bg-music.js（SYMBOLS / LAYOUT / UI / SoundFX /
- * rollSpinResult / evaluateSpinResult / fitTextToBox / bgMusic）。
- * ============================================================ */
+/* 万锦老虎机 — Phaser3 + config/layout/sound-fx/bg-music（需先加载） */
 
 // ---------- 主场景 ----------
 class SlotGame extends Phaser.Scene {
@@ -34,8 +29,6 @@ class SlotGame extends Phaser.Scene {
           this.stoppedReelsCount = 0;
           this.sfx = new SoundFX();
 
-          // 简/繁：focusHideGroup=左侧唱片区（简时隐藏）；
-          // machineScaleGroup=机身+下方播报屏（简时整体放大 115%；拉杆/奖池不参与）。
           this.focusMode = false;
           this.focusHideGroup = [];
           this.machineScaleGroup = null;
@@ -62,7 +55,6 @@ class SlotGame extends Phaser.Scene {
           this.createReels();
           this.createBottomPanels(); // 含"上次获胜"格，四分播报屏统一在此创建
           this.createRightControls();
-          // Container 按加入顺序渲染；卷轴后加入，需按 depth 重排以免盖住三线
           this.machineScaleGroup.sort("depth");
           this.createSettingsModal(); // 赔率 + 速度 / 自动五次 / 音效 设置弹窗
           this.createKeyboardControls();
@@ -102,7 +94,6 @@ class SlotGame extends Phaser.Scene {
           }
         };
 
-
         SlotGame.prototype.shadeColor = function(hex, percent) {
           const c = Phaser.Display.Color.ValueToColor(hex).clone();
           if (percent >= 0) c.brighten(percent);
@@ -110,8 +101,6 @@ class SlotGame extends Phaser.Scene {
           return c.color;
         };
 
-
-        // gfx 需已 setPosition 到面板中心；以 (0,0) 为中心绘制
         SlotGame.prototype.drawGradientPanel = function(gfx, w, h, radius, topColor, bottomColor, fillAlpha, strokeColor, strokeWidth) {
           gfx.clear();
           gfx.fillGradientStyle(topColor, topColor, bottomColor, bottomColor, fillAlpha);
@@ -121,7 +110,6 @@ class SlotGame extends Phaser.Scene {
             gfx.strokeRoundedRect(-w / 2, -h / 2, w, h, radius);
           }
         };
-
 
         SlotGame.prototype.createPanel = function(x, y, width, height, fill = UI.panel, alpha = 0.96, hideGroup = null, scaleGroup = null) {
           const radius = Math.min(PANEL_RADIUS, height / 2, width / 2);
@@ -140,7 +128,6 @@ class SlotGame extends Phaser.Scene {
 
           return panel;
         };
-
 
         SlotGame.prototype.setControlActive = function(bg, txt, active) {
           const fill = active ? UI.activeFill : 0x1a140c;
@@ -174,7 +161,6 @@ class SlotGame extends Phaser.Scene {
             .setOrigin(0.5);
         };
 
-
         SlotGame.prototype.createJackpotSparkle = function(cx, cy, w, h) {
           const count = 19;
           this.jackpotStars = [];
@@ -192,7 +178,6 @@ class SlotGame extends Phaser.Scene {
           }
         };
 
-
         SlotGame.prototype.twinkleStar = function(star) {
           const delay = Phaser.Math.Between(0, 2200);
           const duration = Phaser.Math.Between(650, 1500);
@@ -209,7 +194,6 @@ class SlotGame extends Phaser.Scene {
             });
           });
         };
-
 
         SlotGame.prototype.updateLiveClock = function() {
           if (!this.rightClockText) return;
@@ -236,7 +220,6 @@ class SlotGame extends Phaser.Scene {
           const my = LAYOUT.machineY;
           const shellRadius = 26;
 
-          // 外层柔光（呼吸动画在 createAmbientAnimations 中驱动）
           this.machineGlow = this.add.rectangle(
             mx,
             my,
@@ -285,7 +268,6 @@ class SlotGame extends Phaser.Scene {
             1.5,
           );
 
-          // 转轮窗：圆角凹槽 + 上下内阴影，做出窗口纵深
           const reelWindow = this.add.graphics().setPosition(mx, my);
           this.drawGradientPanel(
             reelWindow,
@@ -304,7 +286,6 @@ class SlotGame extends Phaser.Scene {
           reelInnerShadow.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0, 0, 0.55, 0.55);
           reelInnerShadow.fillRoundedRect(-226, 51, 452, 34, { tl: 0, tr: 0, bl: 14, br: 14 });
 
-          // 支付线：中间粗、上下细，对齐符号行距 64px
           this.paylineTop = this.add
             .rectangle(mx, my - 64, 448, 2, UI.goldDim, 0.7)
             .setDepth(5);
@@ -357,8 +338,6 @@ class SlotGame extends Phaser.Scene {
           ]);
         };
 
-
-        // 中奖时重绘卷轴框描边（Graphics 无 setStrokeStyle）
         SlotGame.prototype.setReelFrameStroke = function(reel, strokeWidth, strokeColor) {
           if (!reel || !reel.frame) return;
           this.drawGradientPanel(
@@ -373,7 +352,6 @@ class SlotGame extends Phaser.Scene {
             strokeWidth,
           );
         };
-
 
         SlotGame.prototype.createReels = function() {
           this._reelFrameTop = this.shadeColor(0x090b0b, 14);
@@ -445,7 +423,6 @@ class SlotGame extends Phaser.Scene {
         };
 
         SlotGame.prototype.createBottomPanels = function() {
-          // ========== 四分播报屏：余额 / 播报 / 播报 / 上次获胜 ==========
           const totalW = LAYOUT.messageW;
           const gap = 3;
           const cellW = (totalW - gap * 3) / 4;
@@ -454,7 +431,6 @@ class SlotGame extends Phaser.Scene {
           const makeDisplayCell = (x) =>
             this.createPanel(x, LAYOUT.messageY, cellW, LAYOUT.messageH, UI.panel, 0.94, null, this.machineScaleGroup);
 
-          // 左 BALANCE、右 LAST WIN 独立格；中间两格合并为播报区
           makeDisplayCell(xs[0]);
           makeDisplayCell(xs[3]);
           this.createPanel(
@@ -484,7 +460,6 @@ class SlotGame extends Phaser.Scene {
             })
             .setOrigin(0.5);
 
-          // 中间两格合并成一个视觉播报区，英文播报保持简洁。
           this.messageText = this.add
             .text((xs[1] + xs[2]) / 2, LAYOUT.messageY, "READY TO SPIN", {
               fontSize: "16px",
@@ -656,7 +631,6 @@ class SlotGame extends Phaser.Scene {
           this.focusHideGroup.push(frame, ctrlLabel);
         };
 
-
         SlotGame.prototype.refreshTrackLabel = function() {
           if (!this.sideTrackLabel) return;
           const n = bgMusic.currentNum || 1;
@@ -666,7 +640,6 @@ class SlotGame extends Phaser.Scene {
               String(BG_MUSIC_MAX).padStart(2, "0"),
           );
         };
-
 
         SlotGame.prototype.refreshPlayPauseIcon = function() {
           if (!this.sidePlayPauseBtn) return;
@@ -826,7 +799,6 @@ class SlotGame extends Phaser.Scene {
           });
 
           // 手（默认隐藏，从侧上方飞入抓住手柄）
-          // 手柄世界坐标约 (lx-30, 305)，手要贴在球上
           this.handRestX = lx + 55;
           this.handRestY = 205;
           this.handGripX = lx - 8;
@@ -867,11 +839,8 @@ class SlotGame extends Phaser.Scene {
             }
           });
 
-
           // 拉杆整体（底座、槽、轴、杆身、热区、提示文字）不加入放大分组，
-          // 拉杆与 leverHand（世界坐标动画）不进 machineScaleGroup
         };
-
 
         SlotGame.prototype.drawRoundedPanel = function(gfx, w, h, radius, strokeColor, strokeWidth, fillColor, fillAlpha = 1) {
           gfx.clear();
@@ -881,9 +850,6 @@ class SlotGame extends Phaser.Scene {
           gfx.strokeRoundedRect(-w / 2, -h / 2, w, h, radius);
         };
 
-
-        // 拉杆上方：大时间 + 底部「简 / 繁」双态开关（无分割线）。
-        // 整块可点 → toggleFocusMode；当前模式有圆角底高亮，另一侧灰字。
         SlotGame.prototype.createRightClockToggle = function(lx) {
           const btnW = 76;
           const btnH = 82;
@@ -907,8 +873,8 @@ class SlotGame extends Phaser.Scene {
             btnW,
             btnH,
             btnRadius,
-            UI.gold,
-            1,
+            UI.ruby,
+            2,
             0x1a140c,
             0.92,
           );
@@ -955,8 +921,8 @@ class SlotGame extends Phaser.Scene {
               btnW,
               btnH,
               btnRadius,
-              UI.gold,
-              1.6,
+              UI.ruby,
+              3.2,
               0x1a140c,
               0.92,
             );
@@ -967,8 +933,8 @@ class SlotGame extends Phaser.Scene {
               btnW,
               btnH,
               btnRadius,
-              UI.gold,
-              1,
+              UI.ruby,
+              2,
               0x1a140c,
               0.92,
             );
@@ -1000,7 +966,6 @@ class SlotGame extends Phaser.Scene {
 
           const children = [];
 
-          // 径向渐变遮罩：中心透、四角暗（聚光在弹窗上）
           const overlayKey = "settingsOverlayGradient";
           if (!this.textures.exists(overlayKey)) {
             const rt = this.textures.createCanvas(overlayKey, GAME_WIDTH, GAME_HEIGHT);
@@ -1099,7 +1064,6 @@ class SlotGame extends Phaser.Scene {
               .rectangle(dividerX, cy, 1, panelH - 40, UI.gold, 0.22)
               .setOrigin(0.5),
           );
-
 
           const makeOptionButton = (bx, by, label) => {
             const w = 58;
@@ -1407,14 +1371,12 @@ class SlotGame extends Phaser.Scene {
           this.settingsModalGroup.add(children);
         };
 
-
         SlotGame.prototype.toggleSettingsModal = function(show) {
           if (show && this.modalBetValue) {
             this.modalBetValue.setText(this.formatInt(this.bet));
           }
           this.settingsModalGroup.setVisible(show);
         };
-
 
         SlotGame.prototype.updateAutoOptionButtons = function() {
           if (!this.autoYesButton || !this.autoNoButton) return;
@@ -1429,7 +1391,6 @@ class SlotGame extends Phaser.Scene {
             !this.autoPlay,
           );
         };
-
 
         SlotGame.prototype.updateSoundOptionButtons = function() {
           if (!this.soundOnButton || !this.soundOffButton) return;
@@ -1558,7 +1519,6 @@ class SlotGame extends Phaser.Scene {
           });
         };
 
-
         SlotGame.prototype.resetLever = function() {
           this.leverState = "up";
           this.sfx.leverReset();
@@ -1656,7 +1616,6 @@ class SlotGame extends Phaser.Scene {
           this.stopRequested = false;
           this.stoppedReelsCount = 0;
 
-          // 起转时按概率表一次定好三轮结果，停止时只取用（保证 RTP 可控）
           this.pendingSpinResult = rollSpinResult();
 
           this.animateBalanceDecrease(this.bet);
@@ -1681,7 +1640,6 @@ class SlotGame extends Phaser.Scene {
 
           this.cameras.main.shake(90, 0.002);
         };
-
 
         SlotGame.prototype.animateBalanceDecrease = function(amount) {
           const startBalance = this.balance;
@@ -1713,7 +1671,6 @@ class SlotGame extends Phaser.Scene {
             yoyo: true,
           });
         };
-
 
         SlotGame.prototype.startReelSpin = function(reel, index) {
           const settings = this.speedSettings[this.mode];
@@ -1769,7 +1726,6 @@ class SlotGame extends Phaser.Scene {
             this.stopReel(reel, index);
           });
         };
-
 
         SlotGame.prototype.stopReel = function(reel, index) {
           if (reel.stopped) return;
@@ -1845,7 +1801,6 @@ class SlotGame extends Phaser.Scene {
           }
         };
 
-
         SlotGame.prototype.getControlledResult = function(index) {
           if (this.pendingSpinResult && this.pendingSpinResult[index]) {
             return this.pendingSpinResult[index];
@@ -1906,7 +1861,6 @@ class SlotGame extends Phaser.Scene {
           this.scheduleAutoPlay();
         };
 
-
         SlotGame.prototype.scheduleAutoPlay = function() {
           if (!this.autoPlay) return;
 
@@ -1927,7 +1881,6 @@ class SlotGame extends Phaser.Scene {
           });
         };
 
-
         SlotGame.prototype.flashLines = function() {
           [this.paylineTop, this.paylineMiddle, this.paylineBottom].forEach(
             (line) => {
@@ -1943,7 +1896,6 @@ class SlotGame extends Phaser.Scene {
           );
         };
 
-
         SlotGame.prototype.playSmallWin = function() {
           this.sfx.smallWin();
           this.flashLines();
@@ -1958,7 +1910,6 @@ class SlotGame extends Phaser.Scene {
             });
           });
         };
-
 
         SlotGame.prototype.playBigWin = function() {
           this.sfx.bigWin();
@@ -1987,7 +1938,6 @@ class SlotGame extends Phaser.Scene {
             );
           });
         };
-
 
         SlotGame.prototype.playJackpot = function() {
           this.sfx.jackpot();
@@ -2020,13 +1970,11 @@ class SlotGame extends Phaser.Scene {
           this.coinExplosion(90);
           this.fireworksBurst(70);
 
-          // JACKPOT 回落：基础值按 bet/50 缩放 + 小幅随机
           this.jackpotValue =
             Math.round(this.baseJackpotValue * (this.bet / 50)) +
             Phaser.Math.Between(250, 1250);
           this.updateDisplay();
         };
-
 
         SlotGame.prototype.fireworksBurst = function(amount) {
           const colors = ["#ffd700", "#ff6b6b", "#4ecdc4", "#ffe66d", "#ff9ff3", "#54a0ff", "#ffffff"];
@@ -2064,7 +2012,6 @@ class SlotGame extends Phaser.Scene {
           }
         };
 
-
         SlotGame.prototype.showWinText = function(text, color) {
           const winText = this.add
             .text(470, 145, text, {
@@ -2092,7 +2039,6 @@ class SlotGame extends Phaser.Scene {
             onComplete: () => winText.destroy(),
           });
         };
-
 
         SlotGame.prototype.coinExplosion = function(amount) {
           const batchSize = 15;
@@ -2133,7 +2079,6 @@ class SlotGame extends Phaser.Scene {
           }
         };
 
-        // skipSave=true：只刷新 UI，不写存档
         SlotGame.prototype.updateDisplay = function(skipSave) {
           fitTextToBox(
             this.balanceValue,
@@ -2166,7 +2111,6 @@ class SlotGame extends Phaser.Scene {
           if (!skipSave) this.saveGameState();
         };
 
-
         SlotGame.prototype.changeBet = function(amount) {
           if (this.isSpinning) return;
 
@@ -2186,12 +2130,10 @@ class SlotGame extends Phaser.Scene {
           this.saveGameState();
         };
 
-        // 全站数字统一整数显示
         SlotGame.prototype.formatInt = function(value) {
           return String(Math.round(Number(value)));
         };
         SlotGame.prototype.formatMoney = SlotGame.prototype.formatInt;
-
 
         SlotGame.prototype.setMessage = function(value, baseFontSize = 20) {
           fitTextToBox(
@@ -2242,7 +2184,6 @@ class SlotGame extends Phaser.Scene {
           this.pullLever(true);
         };
 
-
         SlotGame.prototype.requestStop = function() {
           if (!this.isSpinning || this.stopRequested) return;
 
@@ -2259,7 +2200,6 @@ class SlotGame extends Phaser.Scene {
           });
         };
 
-        // focusMode=true → 简（机身放大、藏左侧）；false → 繁（完整 UI）
         SlotGame.prototype.refreshModeLabel = function() {
           if (!this.modeLabelSimple || !this.modeLabelComplex) return;
 
@@ -2296,7 +2236,6 @@ class SlotGame extends Phaser.Scene {
             chipR,
           );
         };
-
 
         SlotGame.prototype.toggleFocusMode = function(silent) {
           this.focusMode = !this.focusMode;
@@ -2338,14 +2277,12 @@ class SlotGame extends Phaser.Scene {
           });
         };
 
-
         SlotGame.prototype.createKeyboardControls = function() {
           this.input.keyboard.on("keydown-SPACE", () => {
             this.sfx.click();
             this.handleSpinInput();
           });
         };
-
 
         SlotGame.prototype.createAmbientAnimations = function() {
           this.machineGlow.setAlpha(0.07);
@@ -2398,7 +2335,6 @@ class SlotGame extends Phaser.Scene {
           } catch (err) {
           }
         };
-
 
         /**
          * 写入存档。
