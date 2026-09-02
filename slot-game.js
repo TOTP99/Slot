@@ -511,7 +511,7 @@ class SlotGame extends Phaser.Scene {
           this.clockTimer = setInterval(() => this.updateLiveClock(), 250);
 
           // 长方形面板内自上而下均匀排布：
-          // 📀 → 播放三键 → 曲号 → 双行 PAYTABLE / SETTING 按键
+          // 💿 → 播放三键 → 曲号 → 双行 PAYTABLE / SETTING 按键
           // 原因：emoji 实际绘制高度常大于 fontSize，若中心点太靠上会被圆角面板裁切
           // 顶部至少留出 ~36px（半高 + 圆角内边距），再按剩余高度均分其余元素
           const iconFont = 50; // 原 56，缩小约 10%
@@ -521,8 +521,11 @@ class SlotGame extends Phaser.Scene {
           const bottomSafe = 14;
 
           // 整体间距压缩至原来的 75%，内容块在面板内上下居中
+          // 内容跨度固定按"原始面板高 306"折算，与当前 LAYOUT.paytableH 解耦，
+          // 这样以后单独缩小面板高度只会收窄上下留白，不会连带把内容再压小
           const SPACING_SCALE = 0.75;
-          const fullContentSpan = h - topSafe - bottomSafe - 2;
+          const REFERENCE_PANEL_H = 306;
+          const fullContentSpan = REFERENCE_PANEL_H - topSafe - bottomSafe - 2;
           const contentSpan = fullContentSpan * SPACING_SCALE;
           const contentTop = y - contentSpan / 2;
           const contentBottom = y + contentSpan / 2;
@@ -539,7 +542,7 @@ class SlotGame extends Phaser.Scene {
 
           // 唱片图标
           const micIcon = this.add
-            .text(x, micY, "📀", { fontSize: iconFont + "px" })
+            .text(x, micY, "💿", { fontSize: iconFont + "px" })
             .setOrigin(0.5);
           this.focusHideGroup.push(micIcon);
 

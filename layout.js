@@ -10,7 +10,7 @@ const LAYOUT = {
   paytableX: 112,
   paytableY: 280,
   paytableW: 170,
-  paytableH: 306,
+  paytableH: 237,
 
   machineX: 470,
   machineY: 270,
