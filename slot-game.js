@@ -517,15 +517,22 @@ class SlotGame extends Phaser.Scene {
           const iconFont = 50; // 原 56，缩小约 10%
           const iconHalf = iconFont * 0.55; // emoji 视觉半高略大于字号一半
           const topSafe = 14; // 圆角与描边内边距
-          const micY = top + topSafe + iconHalf + 2; // 再下移 2px
-
           const frameH = 52;
           const bottomSafe = 14;
-          const btnCenterY = bottom - bottomSafe - frameH / 2;
+
+          // 整体间距压缩至原来的 75%，内容块在面板内上下居中
+          const SPACING_SCALE = 0.75;
+          const fullContentSpan = h - topSafe - bottomSafe - 2;
+          const contentSpan = fullContentSpan * SPACING_SCALE;
+          const contentTop = y - contentSpan / 2;
+          const contentBottom = y + contentSpan / 2;
+
+          const micY = contentTop + iconHalf;
+          const btnCenterY = contentBottom - frameH / 2;
 
           // 中间区域（播放键 + 曲号）在图标底边与按钮顶边之间居中均分
-          const midTop = micY + iconHalf + 10;
-          const midBottom = btnCenterY - frameH / 2 - 10;
+          const midTop = micY + iconHalf + 10 * SPACING_SCALE;
+          const midBottom = btnCenterY - frameH / 2 - 10 * SPACING_SCALE;
           const midSpan = Math.max(midBottom - midTop, 1);
           const tY = midTop + midSpan * 0.32;
           const trackY = midTop + midSpan * 0.72;
