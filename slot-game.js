@@ -514,10 +514,10 @@ class SlotGame extends Phaser.Scene {
           // 📀 → 播放三键 → 曲号 → 双行 PAYTABLE / SETTING 按键
           // 原因：emoji 实际绘制高度常大于 fontSize，若中心点太靠上会被圆角面板裁切
           // 顶部至少留出 ~36px（半高 + 圆角内边距），再按剩余高度均分其余元素
-          const iconFont = 56;
+          const iconFont = 50; // 原 56，缩小约 10%
           const iconHalf = iconFont * 0.55; // emoji 视觉半高略大于字号一半
           const topSafe = 14; // 圆角与描边内边距
-          const micY = top + topSafe + iconHalf;
+          const micY = top + topSafe + iconHalf + 2; // 再下移 2px
 
           const frameH = 52;
           const bottomSafe = 14;
@@ -590,7 +590,7 @@ class SlotGame extends Phaser.Scene {
           // 曲号
           this.sideTrackLabel = this.add
             .text(x, trackY, "01 / 56", {
-              fontSize: "15px",
+              fontSize: "19px", // 原 15px，放大约 29%
               fontStyle: "bold",
               color: "#ffd700",
             })
