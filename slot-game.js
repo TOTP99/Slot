@@ -424,7 +424,7 @@ class SlotGame extends Phaser.Scene {
 
         SlotGame.prototype.createBottomPanels = function() {
           const totalW = LAYOUT.messageW;
-          const gap = 3;
+          const gap = 5;
           const cellW = (totalW - gap * 3) / 4;
           const startX = LAYOUT.messageX - totalW / 2 + cellW / 2;
           const xs = [0, 1, 2, 3].map((i) => startX + i * (cellW + gap));
@@ -502,25 +502,33 @@ class SlotGame extends Phaser.Scene {
           const y = LAYOUT.paytableY;
           const w = LAYOUT.paytableW;
           const h = LAYOUT.paytableH;
+          const top = y - h / 2;
+          const bottom = y + h / 2;
 
           this.createPanel(x, y, w, h, 0x0c0a08, 0.96, this.focusHideGroup);
 
           this.updateLiveClock();
           this.clockTimer = setInterval(() => this.updateLiveClock(), 250);
 
-          // 图标（原 218% 放大基准 98px，缩为 66% → 65px），位置下移 8px，与面板顶部保持足够间距，确保完整露出、不被遮挡
-          const micY = y - h / 2 + 84 + 8;
+          // 在长方形面板内自上而下均匀排布：
+          // 📀 → 播放三键 → 曲号 → 双行 PAYTABLE / SETTING 按键
+          // 用相对高度比例，避免硬编码堆叠导致上下挤或溢出
+          const micY = top + h * 0.20;
+          const tY = top + h * 0.42;
+          const trackY = top + h * 0.56;
+          const ctrlY = top + h * 0.78;
+
+          // 唱片图标
           const micIcon = this.add
-            .text(x, micY, "📀", { fontSize: "65px" })
+            .text(x, micY, "📀", { fontSize: "58px" })
             .setOrigin(0.5);
           this.focusHideGroup.push(micIcon);
 
-          // 播放控制：⏮️ ⏸️/▶️ ⏭️ —— 中间键为播放/暂停切换（按当前播放状态动态显示图标）
-          const tY = micY + 104;
-          const gap = 54;
+          // 播放控制：⏮️  ⏸️/▶️  ⏭️
+          const ctrlGap = Math.min(52, w * 0.28);
 
           const prevBtn = this.add
-            .text(x - gap, tY, "⏮️", { fontSize: "34px" })
+            .text(x - ctrlGap, tY, "⏮️", { fontSize: "30px" })
             .setOrigin(0.5)
             .setInteractive({ useHandCursor: true });
           prevBtn.on("pointerdown", () => {
@@ -533,7 +541,7 @@ class SlotGame extends Phaser.Scene {
           this.focusHideGroup.push(prevBtn);
 
           this.sidePlayPauseBtn = this.add
-            .text(x, tY, bgMusic.isPlaying() ? "⏸️" : "▶️", { fontSize: "34px" })
+            .text(x, tY, bgMusic.isPlaying() ? "⏸️" : "▶️", { fontSize: "30px" })
             .setOrigin(0.5)
             .setInteractive({ useHandCursor: true });
           this.sidePlayPauseBtn.on("pointerdown", () => {
@@ -555,7 +563,7 @@ class SlotGame extends Phaser.Scene {
           this.focusHideGroup.push(this.sidePlayPauseBtn);
 
           const nextBtn = this.add
-            .text(x + gap, tY, "⏭️", { fontSize: "34px" })
+            .text(x + ctrlGap, tY, "⏭️", { fontSize: "30px" })
             .setOrigin(0.5)
             .setInteractive({ useHandCursor: true });
           nextBtn.on("pointerdown", () => {
@@ -567,11 +575,10 @@ class SlotGame extends Phaser.Scene {
           nextBtn.on("pointerout", () => nextBtn.setScale(1));
           this.focusHideGroup.push(nextBtn);
 
-          // 曲号（放大 120%：13px → 16px）
-          const trackY = tY + 42;
+          // 曲号
           this.sideTrackLabel = this.add
             .text(x, trackY, "01 / 56", {
-              fontSize: "16px",
+              fontSize: "15px",
               fontStyle: "bold",
               color: "#ffd700",
             })
@@ -579,15 +586,15 @@ class SlotGame extends Phaser.Scene {
           this.refreshTrackLabel();
           this.focusHideGroup.push(this.sideTrackLabel);
 
-          // 无论顺序切歌、随机切歌，还是曲目播完自动切下一首，曲号都会同步刷新，
-          // 修复了此前"随机播放时曲号显示错误（停留在旧编号）"的问题
+          // 曲目切换时同步刷新曲号
           bgMusic.onTrackChange(() => this.refreshTrackLabel());
 
-          // 底部一体金框按键（圆角渐变）→ 打开赔率*设置弹窗
-          const ctrlY = trackY + 45;
-          const frameW = w - 28;
-          const frameH = 40;
-          const frame = this.add.graphics().setPosition(x, ctrlY);
+          // 双行一体金框按键：PAYTABLE / SETTING → 打开赔率+设置弹窗
+          const frameW = w - 24;
+          const frameH = 52;
+          // 确保按键底边与面板底边有足够间距
+          const safeCtrlY = Math.min(ctrlY, bottom - frameH / 2 - 14);
+          const frame = this.add.graphics().setPosition(x, safeCtrlY);
           const drawCtrlFrame = (strokeWidth, strokeColor) =>
             this.drawGradientPanel(
               frame,
@@ -606,13 +613,17 @@ class SlotGame extends Phaser.Scene {
             Phaser.Geom.Rectangle.Contains,
           );
           if (frame.input) frame.input.cursor = "pointer";
+
           const ctrlLabel = this.add
-            .text(x, ctrlY, "PAYTABLE", {
-              fontSize: "24px",
+            .text(x, safeCtrlY, "PAYTABLE\nSETTING", {
+              fontSize: "15px",
               fontStyle: "bold",
               color: "#ffd700",
+              align: "center",
+              lineSpacing: 4,
             })
             .setOrigin(0.5);
+
           const openCtrl = () => {
             this.sfx.click();
             this.toggleSettingsModal(true);
@@ -620,7 +631,7 @@ class SlotGame extends Phaser.Scene {
           frame.on("pointerdown", openCtrl);
           frame.on("pointerover", () => {
             drawCtrlFrame(2, 0xffd700);
-            ctrlLabel.setScale(1.06);
+            ctrlLabel.setScale(1.05);
           });
           frame.on("pointerout", () => {
             drawCtrlFrame(1, UI.gold);
@@ -956,7 +967,7 @@ class SlotGame extends Phaser.Scene {
           const cx = GAME_WIDTH / 2;
           const cy = GAME_HEIGHT / 2;
           const panelW = 560;
-          const panelH = 370;
+          const panelH = 400;
           const top = cy - panelH / 2;
 
           this.settingsModalGroup = this.add
@@ -1020,12 +1031,12 @@ class SlotGame extends Phaser.Scene {
           });
           children.push(panel);
 
-          const pad = 21;
+          const pad = 22;
           const leftX = cx - panelW / 2 + pad;
           const rightX = cx + panelW / 2 - pad;
           const dividerX = cx - 28;
 
-          // 左：赔率表（无列标题，直接从顶部留白后开始）；图标放大 125%，行距相应放宽
+          // 左：赔率表（无列标题，直接从顶部留白后开始）；行距均匀留白
           const payRows = [
             ["7️⃣7️⃣7️⃣", "×50"],
             ["🌸🌸🌸", "×20"],
@@ -1036,8 +1047,8 @@ class SlotGame extends Phaser.Scene {
             ["🍄🍄🍄", "×4"],
             ["Any pair", "×2"],
           ];
-          const payStart = top + 28;
-          const paySpacing = 46;
+          const payStart = top + 32;
+          const paySpacing = 43;
           payRows.forEach((row, i) => {
             const ry = payStart + i * paySpacing;
             children.push(
@@ -1061,7 +1072,7 @@ class SlotGame extends Phaser.Scene {
 
           children.push(
             this.add
-              .rectangle(dividerX, cy, 1, panelH - 40, UI.gold, 0.22)
+              .rectangle(dividerX, cy, 1, panelH - 48, UI.gold, 0.22)
               .setOrigin(0.5),
           );
 
@@ -1151,7 +1162,7 @@ class SlotGame extends Phaser.Scene {
           });
           this.updateSpeedButtons();
 
-          rowY += 60;
+          rowY += 56;
           children.push(
             this.add
               .text(rowLabelX, rowY, "AUTO", {
@@ -1181,7 +1192,7 @@ class SlotGame extends Phaser.Scene {
           });
           this.updateAutoOptionButtons();
 
-          rowY += 60;
+          rowY += 56;
           children.push(
             this.add
               .text(rowLabelX, rowY, "SOUND", {
@@ -1215,18 +1226,16 @@ class SlotGame extends Phaser.Scene {
           });
           this.updateSoundOptionButtons();
 
-          rowY += 60;
+          rowY += 52;
           children.push(
             this.add
               .rectangle(boxCenterX, rowY, rightX - dividerX - 10, 1, UI.gold, 0.22)
               .setOrigin(0.5),
           );
 
-          // 投注：文字标签 / 数值框 / +− 按钮均放大 125%，并整体右移一点、加宽行距，避免与左侧标签、面板边缘拥挤
-          rowY += 64;
-          // BET 这一行（标签 + 长方形数值框 + −/+ 按钮）整体上移 6px，
-          // 与下方 CHIPS 行留出更充裕的间距；后续行的 rowY 仍按原基准累加，不受影响。
-          const betRowY = rowY - 6;
+          // 投注：文字标签 / 数值框 / +− 按钮均放大 125%，行距均匀、左右留白充足
+          rowY += 56;
+          const betRowY = rowY;
           children.push(
             this.add
               .text(rowLabelX, betRowY, "BET", {
@@ -1285,7 +1294,7 @@ class SlotGame extends Phaser.Scene {
               this.modalBetValue.setText(this.formatInt(this.bet));
           });
 
-          // 筹码：与投注同比例放大 125%，行距加宽避免与投注框拥挤
+          // 筹码：与投注同比例放大 125%，与 BET 行保持清晰间距
           rowY += 58;
           children.push(
             this.add
