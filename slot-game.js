@@ -508,10 +508,10 @@ class SlotGame extends Phaser.Scene {
           this.updateLiveClock();
           this.clockTimer = setInterval(() => this.updateLiveClock(), 250);
 
-          // 麦克风（放大 218%，位置下移 8px，与面板顶部保持足够间距，确保完整露出、不被遮挡）
+          // 图标（原 218% 放大基准 98px，缩为 66% → 65px），位置下移 8px，与面板顶部保持足够间距，确保完整露出、不被遮挡
           const micY = y - h / 2 + 84 + 8;
           const micIcon = this.add
-            .text(x, micY, "🎷", { fontSize: "98px" })
+            .text(x, micY, "📀", { fontSize: "65px" })
             .setOrigin(0.5);
           this.focusHideGroup.push(micIcon);
 
@@ -607,7 +607,7 @@ class SlotGame extends Phaser.Scene {
           );
           if (frame.input) frame.input.cursor = "pointer";
           const ctrlLabel = this.add
-            .text(x, ctrlY, "赔率*设置", {
+            .text(x, ctrlY, "PAYTABLE", {
               fontSize: "24px",
               fontStyle: "bold",
               color: "#ffd700",
