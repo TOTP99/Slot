@@ -510,22 +510,34 @@ class SlotGame extends Phaser.Scene {
           this.updateLiveClock();
           this.clockTimer = setInterval(() => this.updateLiveClock(), 250);
 
-          // 在长方形面板内自上而下均匀排布：
+          // 长方形面板内自上而下均匀排布：
           // 📀 → 播放三键 → 曲号 → 双行 PAYTABLE / SETTING 按键
-          // 用相对高度比例，避免硬编码堆叠导致上下挤或溢出
-          const micY = top + h * 0.20;
-          const tY = top + h * 0.42;
-          const trackY = top + h * 0.56;
-          const ctrlY = top + h * 0.78;
+          // 原因：emoji 实际绘制高度常大于 fontSize，若中心点太靠上会被圆角面板裁切
+          // 顶部至少留出 ~36px（半高 + 圆角内边距），再按剩余高度均分其余元素
+          const iconFont = 56;
+          const iconHalf = iconFont * 0.55; // emoji 视觉半高略大于字号一半
+          const topSafe = 14; // 圆角与描边内边距
+          const micY = top + topSafe + iconHalf;
+
+          const frameH = 52;
+          const bottomSafe = 14;
+          const btnCenterY = bottom - bottomSafe - frameH / 2;
+
+          // 中间区域（播放键 + 曲号）在图标底边与按钮顶边之间居中均分
+          const midTop = micY + iconHalf + 10;
+          const midBottom = btnCenterY - frameH / 2 - 10;
+          const midSpan = Math.max(midBottom - midTop, 1);
+          const tY = midTop + midSpan * 0.32;
+          const trackY = midTop + midSpan * 0.72;
 
           // 唱片图标
           const micIcon = this.add
-            .text(x, micY, "📀", { fontSize: "58px" })
+            .text(x, micY, "📀", { fontSize: iconFont + "px" })
             .setOrigin(0.5);
           this.focusHideGroup.push(micIcon);
 
           // 播放控制：⏮️  ⏸️/▶️  ⏭️
-          const ctrlGap = Math.min(52, w * 0.28);
+          const ctrlGap = Math.min(50, w * 0.27);
 
           const prevBtn = this.add
             .text(x - ctrlGap, tY, "⏮️", { fontSize: "30px" })
@@ -590,11 +602,9 @@ class SlotGame extends Phaser.Scene {
           bgMusic.onTrackChange(() => this.refreshTrackLabel());
 
           // 双行一体金框按键：PAYTABLE / SETTING → 打开赔率+设置弹窗
-          const frameW = w - 24;
-          const frameH = 52;
-          // 确保按键底边与面板底边有足够间距
-          const safeCtrlY = Math.min(ctrlY, bottom - frameH / 2 - 14);
-          const frame = this.add.graphics().setPosition(x, safeCtrlY);
+          // 宽度收窄约 10%
+          const frameW = Math.round((w - 24) * 0.9);
+          const frame = this.add.graphics().setPosition(x, btnCenterY);
           const drawCtrlFrame = (strokeWidth, strokeColor) =>
             this.drawGradientPanel(
               frame,
@@ -615,7 +625,7 @@ class SlotGame extends Phaser.Scene {
           if (frame.input) frame.input.cursor = "pointer";
 
           const ctrlLabel = this.add
-            .text(x, safeCtrlY, "PAYTABLE\nSETTING", {
+            .text(x, btnCenterY, "PAYTABLE\nSETTING", {
               fontSize: "15px",
               fontStyle: "bold",
               color: "#ffd700",
@@ -1036,7 +1046,7 @@ class SlotGame extends Phaser.Scene {
           const rightX = cx + panelW / 2 - pad;
           const dividerX = cx - 28;
 
-          // 左：赔率表（无列标题，直接从顶部留白后开始）；行距均匀留白
+          // 左：赔率表（无列标题）；整块内容在面板内垂直居中
           const payRows = [
             ["7️⃣7️⃣7️⃣", "×50"],
             ["🌸🌸🌸", "×20"],
@@ -1047,8 +1057,10 @@ class SlotGame extends Phaser.Scene {
             ["🍄🍄🍄", "×4"],
             ["Any pair", "×2"],
           ];
-          const payStart = top + 32;
           const paySpacing = 43;
+          // 8 行中心跨度 = 7 * spacing；上下对称留白，避免内容整体偏上
+          const contentSpan = (payRows.length - 1) * paySpacing;
+          const payStart = top + (panelH - contentSpan) / 2;
           payRows.forEach((row, i) => {
             const ry = payStart + i * paySpacing;
             children.push(
